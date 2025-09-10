@@ -72,6 +72,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   const [showAddForm, setShowAddForm] = useState(false);
   const [dateInputs, setDateInputs] = useState<{[key: string]: string}>({});
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary[]>([]);
+  const [invalidEmployees, setInvalidEmployees] = useState<{[key: string]: string[]}>({});
 
   useEffect(() => {
     // 이번 주 월요일로 설정
@@ -157,8 +158,26 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
           const employee = employees.find(e => e.name === inputSchedule.employeeName);
           console.log('찾은 직원:', employee);
           
-          // 직원 데이터가 없어도 입력된 스케줄만으로 집계
           const employeeName = inputSchedule.employeeName;
+          
+          // 직원 이름 검증
+          if (employees.length > 0 && !employee) {
+            console.log(`잘못된 직원 이름: ${employeeName}`);
+            // 잘못된 직원 이름을 상태에 저장
+            setInvalidEmployees(prev => {
+              const newInvalid = { ...prev };
+              if (!newInvalid[dateKey]) {
+                newInvalid[dateKey] = [];
+              }
+              if (!newInvalid[dateKey].includes(employeeName)) {
+                newInvalid[dateKey].push(employeeName);
+              }
+              return newInvalid;
+            });
+            return; // 잘못된 직원은 집계에서 제외
+          }
+          
+          // 유효한 직원만 집계에 포함
           const totalHours = calculateTotalHours(
             inputSchedule.startTime, 
             inputSchedule.endTime, 
@@ -492,6 +511,13 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       return newInputs;
     });
     
+    // 입력이 변경되면 해당 날짜의 잘못된 직원 이름 초기화
+    setInvalidEmployees(prev => {
+      const newInvalid = { ...prev };
+      delete newInvalid[dateKey];
+      return newInvalid;
+    });
+    
     // 실시간 파싱 및 주간집계 업데이트
     const schedules = parseScheduleInput(value);
     console.log('파싱된 스케줄:', schedules);
@@ -751,6 +777,17 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                           className="w-full text-xs p-2 border border-gray-300 rounded resize-none"
                           rows={4}
                         />
+                        {/* 잘못된 직원 이름 에러 메시지 */}
+                        {invalidEmployees[date.toISOString().split('T')[0]] && invalidEmployees[date.toISOString().split('T')[0]].length > 0 && (
+                          <div className="mt-1 text-xs text-red-600">
+                            <div className="font-medium">⚠️ 이름 확인 필요:</div>
+                            {invalidEmployees[date.toISOString().split('T')[0]].map((name, index) => (
+                              <div key={index} className="ml-2">
+                                • {name}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
