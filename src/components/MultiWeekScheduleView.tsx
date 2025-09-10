@@ -89,12 +89,14 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     }
   }, [currentWeekStart]);
 
-  const generateWeeklySummary = useCallback((weekStart: Date) => {
+  const generateWeeklySummary = useCallback((weekStart: Date, currentDateInputs?: {[key: string]: string}) => {
     const weekDates = getWeekDates(weekStart);
     const summaryMap = new Map<string, WeeklySummary>();
+    const inputsToUse = currentDateInputs || dateInputs;
 
     console.log('=== 주간 집계 생성 시작 ===');
     console.log('주간 날짜들:', weekDates.map(d => d.toDateString()));
+    console.log('사용할 입력 데이터:', inputsToUse);
 
     // 주간 스케줄 필터링
     let weekSchedules = schedules.filter(schedule => {
@@ -135,14 +137,14 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
 
     // 입력된 스케줄 추가 (실시간 반영) - 여러 명 모두 처리
     console.log('=== 입력된 스케줄 처리 시작 ===');
-    console.log('현재 입력 데이터:', dateInputs);
-    console.log('dateInputs 상태 타입:', typeof dateInputs);
-    console.log('dateInputs 키들:', Object.keys(dateInputs));
+    console.log('현재 입력 데이터:', inputsToUse);
+    console.log('dateInputs 상태 타입:', typeof inputsToUse);
+    console.log('dateInputs 키들:', Object.keys(inputsToUse));
     console.log('직원 목록:', employees);
     
     weekDates.forEach((date, dayIndex) => {
       const dateKey = date.toISOString().split('T')[0];
-      const inputText = dateInputs[dateKey] || '';
+      const inputText = inputsToUse[dateKey] || '';
       
       console.log(`${dateKey} 입력 텍스트:`, inputText);
       
@@ -212,8 +214,18 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
 
   // 데이터가 로드되면 주간집계 업데이트
   useEffect(() => {
-    if (schedules.length > 0 && employees.length > 0) {
+    console.log('=== useEffect 트리거 ===');
+    console.log('employees.length:', employees.length);
+    console.log('schedules.length:', schedules.length);
+    console.log('dateInputs:', dateInputs);
+    console.log('currentWeekStart:', currentWeekStart);
+    console.log('numberOfWeeks:', numberOfWeeks);
+    
+    if (employees.length > 0) {
+      console.log('updateWeeklySummary 호출');
       updateWeeklySummary();
+    } else {
+      console.log('직원 데이터가 없어서 updateWeeklySummary 호출하지 않음');
     }
   }, [schedules, employees, dateInputs, currentWeekStart, numberOfWeeks, updateWeeklySummary]);
 
@@ -466,20 +478,41 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   };
 
   const handleDateInputChange = (dateKey: string, value: string) => {
-    console.log('handleDateInputChange 호출:', { dateKey, value });
+    console.log('=== handleDateInputChange 호출 ===');
+    console.log('dateKey:', dateKey);
+    console.log('value:', value);
     
     setDateInputs(prev => {
       const newInputs = {
         ...prev,
         [dateKey]: value
       };
-      console.log('dateInputs 업데이트:', newInputs);
+      console.log('dateInputs 업데이트 전:', prev);
+      console.log('dateInputs 업데이트 후:', newInputs);
+      
+      // 즉시 집계 업데이트
+      if (employees.length > 0) {
+        console.log('즉시 집계 업데이트 시작');
+        const allSummaries: WeeklySummary[] = [];
+        
+        for (let weekIndex = 0; weekIndex < numberOfWeeks; weekIndex++) {
+          const weekStart = new Date(currentWeekStart);
+          weekStart.setDate(currentWeekStart.getDate() + (weekIndex * 7));
+          const weekSummary = generateWeeklySummary(weekStart, newInputs);
+          allSummaries.push(...weekSummary);
+        }
+        
+        console.log('즉시 업데이트된 주간집계:', allSummaries);
+        setWeeklySummary(allSummaries);
+      }
+      
       return newInputs;
     });
     
     // 실시간 파싱 및 주간집계 업데이트
     const schedules = parseScheduleInput(value);
     console.log('파싱된 스케줄:', schedules);
+    console.log('=== handleDateInputChange 완료 ===');
   };
 
   const saveAllSchedules = async () => {
