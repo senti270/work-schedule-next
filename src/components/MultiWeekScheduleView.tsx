@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -89,113 +89,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     }
   }, [currentWeekStart]);
 
-  // 데이터가 로드되면 주간집계 업데이트
-  useEffect(() => {
-    if (schedules.length > 0 && employees.length > 0) {
-      updateWeeklySummary();
-    }
-  }, [schedules, employees, dateInputs, currentWeekStart, numberOfWeeks]);
-
-  const loadSchedules = async () => {
-    setLoading(true);
-    try {
-      const querySnapshot = await getDocs(collection(db, 'schedules'));
-      const schedulesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        date: doc.data().date?.toDate() || new Date()
-      })) as Schedule[];
-      
-      setSchedules(schedulesData);
-    } catch (error) {
-      console.error('스케줄 목록을 불러올 수 없습니다:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadEmployees = async () => {
-    try {
-      console.log('=== 직원 목록 로드 시작 ===');
-      const querySnapshot = await getDocs(collection(db, 'employees'));
-      console.log('Firebase에서 가져온 문서 수:', querySnapshot.docs.length);
-      
-      const employeesData = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        console.log(`직원 문서 ${doc.id}:`, data);
-        return {
-          id: doc.id,
-          name: data.name,
-          branchName: data.branchName
-        };
-      }) as Employee[];
-      
-      console.log('로드된 직원 목록:', employeesData);
-      
-      setEmployees(employeesData);
-    } catch (error) {
-      console.error('직원 목록을 불러올 수 없습니다:', error);
-    }
-  };
-
-  const loadBranches = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'branches'));
-      const branchesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name
-      })) as Branch[];
-      setBranches(branchesData);
-    } catch (error) {
-      console.error('지점 목록을 불러올 수 없습니다:', error);
-    }
-  };
-
-
-
-  const getWeekDates = (weekStart: Date) => {
-    const dates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + i);
-      dates.push(date);
-    }
-    return dates;
-  };
-
-  const getSchedulesForDate = (date: Date) => {
-    let filteredSchedules = schedules.filter(schedule => 
-      schedule.date.toDateString() === date.toDateString()
-    );
-    
-    // 지점 필터링
-    if (selectedBranchId) {
-      filteredSchedules = filteredSchedules.filter(schedule => 
-        schedule.branchId === selectedBranchId
-      );
-    }
-    
-    return filteredSchedules;
-  };
-
-  const formatDecimalTime = (decimalTime: string) => {
-    const decimal = parseFloat(decimalTime);
-    if (decimal === 0) return '';
-    
-    return `(${decimal})`;
-  };
-
-  const formatScheduleDisplay = (schedule: Schedule) => {
-    const startHour = schedule.startTime.split(':')[0];
-    const endHour = schedule.endTime.split(':')[0];
-    const breakTime = schedule.breakTime !== '0' ? formatDecimalTime(schedule.breakTime) : '';
-    
-    return `${schedule.employeeName} ${startHour}-${endHour}${breakTime}`;
-  };
-
-  const generateWeeklySummary = (weekStart: Date) => {
+  const generateWeeklySummary = useCallback((weekStart: Date) => {
     const weekDates = getWeekDates(weekStart);
     const summaryMap = new Map<string, WeeklySummary>();
 
@@ -299,6 +193,127 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     console.log('=== 주간 집계 생성 완료 ===');
     
     return finalSummary;
+  }, [schedules, employees, dateInputs, selectedBranchId]);
+
+  const updateWeeklySummary = useCallback(() => {
+    // 모든 주간의 집계를 다시 계산
+    const allSummaries: WeeklySummary[] = [];
+    
+    for (let weekIndex = 0; weekIndex < numberOfWeeks; weekIndex++) {
+      const weekStart = new Date(currentWeekStart);
+      weekStart.setDate(currentWeekStart.getDate() + (weekIndex * 7));
+      const weekSummary = generateWeeklySummary(weekStart);
+      allSummaries.push(...weekSummary);
+    }
+    
+    console.log('업데이트된 주간집계:', allSummaries);
+    setWeeklySummary(allSummaries);
+  }, [schedules, employees, dateInputs, currentWeekStart, numberOfWeeks, generateWeeklySummary]);
+
+  // 데이터가 로드되면 주간집계 업데이트
+  useEffect(() => {
+    if (schedules.length > 0 && employees.length > 0) {
+      updateWeeklySummary();
+    }
+  }, [schedules, employees, dateInputs, currentWeekStart, numberOfWeeks, updateWeeklySummary]);
+
+  const loadSchedules = async () => {
+    setLoading(true);
+    try {
+      const querySnapshot = await getDocs(collection(db, 'schedules'));
+      const schedulesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+        date: doc.data().date?.toDate() || new Date()
+      })) as Schedule[];
+      
+      setSchedules(schedulesData);
+    } catch (error) {
+      console.error('스케줄 목록을 불러올 수 없습니다:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadEmployees = async () => {
+    try {
+      console.log('=== 직원 목록 로드 시작 ===');
+      const querySnapshot = await getDocs(collection(db, 'employees'));
+      console.log('Firebase에서 가져온 문서 수:', querySnapshot.docs.length);
+      
+      const employeesData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log(`직원 문서 ${doc.id}:`, data);
+        return {
+          id: doc.id,
+          name: data.name,
+          branchName: data.branchName
+        };
+      }) as Employee[];
+      
+      console.log('로드된 직원 목록:', employeesData);
+      
+      setEmployees(employeesData);
+    } catch (error) {
+      console.error('직원 목록을 불러올 수 없습니다:', error);
+    }
+  };
+
+  const loadBranches = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'branches'));
+      const branchesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name
+      })) as Branch[];
+      setBranches(branchesData);
+    } catch (error) {
+      console.error('지점 목록을 불러올 수 없습니다:', error);
+    }
+  };
+
+
+
+  const getWeekDates = (weekStart: Date) => {
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
+
+  const getSchedulesForDate = (date: Date) => {
+    let filteredSchedules = schedules.filter(schedule => 
+      schedule.date.toDateString() === date.toDateString()
+    );
+    
+    // 지점 필터링
+    if (selectedBranchId) {
+      filteredSchedules = filteredSchedules.filter(schedule => 
+        schedule.branchId === selectedBranchId
+      );
+    }
+    
+    return filteredSchedules;
+  };
+
+  const formatDecimalTime = (decimalTime: string) => {
+    const decimal = parseFloat(decimalTime);
+    if (decimal === 0) return '';
+    
+    return `(${decimal})`;
+  };
+
+  const formatScheduleDisplay = (schedule: Schedule) => {
+    const startHour = schedule.startTime.split(':')[0];
+    const endHour = schedule.endTime.split(':')[0];
+    const breakTime = schedule.breakTime !== '0' ? formatDecimalTime(schedule.breakTime) : '';
+    
+    return `${schedule.employeeName} ${startHour}-${endHour}${breakTime}`;
   };
 
   const calculateTotalHours = (startTime: string, endTime: string, breakTime: string) => {
@@ -465,24 +480,6 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     // 실시간 파싱 및 주간집계 업데이트
     const schedules = parseScheduleInput(value);
     console.log('파싱된 스케줄:', schedules);
-    
-    // 주간집계를 즉시 업데이트
-    updateWeeklySummary();
-  };
-
-  const updateWeeklySummary = () => {
-    // 모든 주간의 집계를 다시 계산
-    const allSummaries: WeeklySummary[] = [];
-    
-    for (let weekIndex = 0; weekIndex < numberOfWeeks; weekIndex++) {
-      const weekStart = new Date(currentWeekStart);
-      weekStart.setDate(currentWeekStart.getDate() + (weekIndex * 7));
-      const weekSummary = generateWeeklySummary(weekStart);
-      allSummaries.push(...weekSummary);
-    }
-    
-    console.log('업데이트된 주간집계:', allSummaries);
-    setWeeklySummary(allSummaries);
   };
 
   const saveAllSchedules = async () => {
