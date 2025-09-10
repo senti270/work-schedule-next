@@ -77,19 +77,19 @@ body {
   }
   
   /* 헤더 여백 조정 */
-  .px-4.sm\\:px-6.lg\\:px-8 {
+  .px-4.sm\:px-6.lg\:px-8 {
     padding-left: 1rem !important;
     padding-right: 1rem !important;
   }
   
   /* 메인 콘텐츠 여백 조정 */
-  .py-6.sm\\:px-6.lg\\:px-8 {
+  .py-6.sm\:px-6.lg\:px-8 {
     padding-left: 1rem !important;
     padding-right: 1rem !important;
   }
   
   /* 카드 여백 조정 */
-  .px-4.py-5.sm\\:p-6 {
+  .px-4.py-5.sm\:p-6 {
     padding: 1rem !important;
   }
   
