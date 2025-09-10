@@ -809,8 +809,18 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                                       
                                       {/* 실시간 입력된 스케줄 (하늘색 배경) */}
                                       {inputSchedules.map((inputSchedule, inputIndex) => {
-                                        const startHour = inputSchedule.startTime.split(':')[0];
-                                        const endHour = inputSchedule.endTime.split(':')[0];
+                                        // 시:분 형태를 소수점 형태로 변환 (18:30 -> 18.5)
+                                        const timeToDecimal = (timeStr: string) => {
+                                          const [hours, minutes] = timeStr.split(':').map(Number);
+                                          if (minutes === 0) {
+                                            return hours.toString();
+                                          } else {
+                                            return (hours + minutes / 60).toString();
+                                          }
+                                        };
+                                        
+                                        const startTimeDisplay = timeToDecimal(inputSchedule.startTime);
+                                        const endTimeDisplay = timeToDecimal(inputSchedule.endTime);
                                         const breakTime = inputSchedule.breakTime !== '0' ? `(${inputSchedule.breakTime})` : '';
                                         
                                         return (
@@ -818,7 +828,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                                             key={`input-${inputIndex}`}
                                             className="text-xs p-1 bg-blue-100 text-blue-800 rounded border border-blue-200"
                                           >
-                                            {inputSchedule.employeeName} {startHour}-{endHour}{breakTime}
+                                            {inputSchedule.employeeName} {startTimeDisplay}-{endTimeDisplay}{breakTime}
                                           </div>
                                         );
                                       })}
