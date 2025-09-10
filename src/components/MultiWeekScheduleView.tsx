@@ -453,14 +453,9 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       console.log('dateInputs 업데이트:', newInputs);
       return newInputs;
     });
-    setHasUnsavedChanges(true);
     
     // 실시간 파싱 및 미리보기 업데이트
     const schedules = parseScheduleInput(value);
-    setPreviewSchedules(prev => ({
-      ...prev,
-      [dateKey]: schedules
-    }));
   };
 
   const saveAllSchedules = async () => {
