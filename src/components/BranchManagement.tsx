@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface Branch {
@@ -22,6 +22,7 @@ export default function BranchManagement() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+  const [branchDeleteStatus, setBranchDeleteStatus] = useState<{[key: string]: boolean}>({});
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -63,9 +64,36 @@ export default function BranchManagement() {
       }) as Branch[];
       console.log('처리된 지점 데이터:', branchesData);
       setBranches(branchesData);
+      
+      // 각 지점의 삭제 가능 여부 확인
+      await checkBranchDeleteStatus(branchesData);
     } catch (error) {
       console.error('지점 목록을 불러올 수 없습니다:', error);
     }
+  };
+
+  const checkBranchDeleteStatus = async (branchesData: Branch[]) => {
+    const deleteStatus: {[key: string]: boolean} = {};
+    
+    for (const branch of branchesData) {
+      try {
+        // 직원 확인
+        const employeesQuery = query(collection(db, 'employees'), where('branchId', '==', branch.id));
+        const employeesSnapshot = await getDocs(employeesQuery);
+        
+        // 스케줄 확인
+        const schedulesQuery = query(collection(db, 'schedules'), where('branchId', '==', branch.id));
+        const schedulesSnapshot = await getDocs(schedulesQuery);
+        
+        // 둘 다 비어있으면 삭제 가능
+        deleteStatus[branch.id] = employeesSnapshot.empty && schedulesSnapshot.empty;
+      } catch (error) {
+        console.error(`지점 ${branch.name} 삭제 가능 여부 확인 중 오류:`, error);
+        deleteStatus[branch.id] = false; // 오류 시 삭제 불가로 설정
+      }
+    }
+    
+    setBranchDeleteStatus(deleteStatus);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,14 +193,35 @@ export default function BranchManagement() {
   };
 
   const handleDelete = async (branchId: string) => {
-    if (confirm('정말로 이 지점을 삭제하시겠습니까?')) {
-      try {
+    try {
+      // 해당 지점에 연결된 직원이 있는지 확인
+      const employeesQuery = query(collection(db, 'employees'), where('branchId', '==', branchId));
+      const employeesSnapshot = await getDocs(employeesQuery);
+      
+      if (!employeesSnapshot.empty) {
+        alert('해당 지점에 등록된 직원이 있어서 삭제할 수 없습니다.\n먼저 직원을 다른 지점으로 이동하거나 퇴사 처리해주세요.');
+        return;
+      }
+      
+      // 해당 지점에 연결된 스케줄이 있는지 확인
+      const schedulesQuery = query(collection(db, 'schedules'), where('branchId', '==', branchId));
+      const schedulesSnapshot = await getDocs(schedulesQuery);
+      
+      if (!schedulesSnapshot.empty) {
+        alert('해당 지점에 등록된 스케줄이 있어서 삭제할 수 없습니다.\n먼저 스케줄을 삭제해주세요.');
+        return;
+      }
+      
+      // 데이터가 없으면 삭제 진행
+      if (confirm('정말로 이 지점을 삭제하시겠습니까?')) {
         await deleteDoc(doc(db, 'branches', branchId));
         console.log('지점이 삭제되었습니다.');
         await loadBranches();
-      } catch (error) {
-        console.error('지점 삭제 중 오류가 발생했습니다:', error);
+        alert('지점이 성공적으로 삭제되었습니다.');
       }
+    } catch (error) {
+      console.error('지점 삭제 중 오류가 발생했습니다:', error);
+      alert('지점 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -392,7 +441,17 @@ export default function BranchManagement() {
                     </button>
                     <button
                       onClick={() => handleDelete(branch.id)}
-                      className="text-red-600 hover:text-red-900"
+                      disabled={!branchDeleteStatus[branch.id]}
+                      className={`${
+                        branchDeleteStatus[branch.id] 
+                          ? 'text-red-600 hover:text-red-900' 
+                          : 'text-gray-400 cursor-not-allowed'
+                      }`}
+                      title={
+                        branchDeleteStatus[branch.id] 
+                          ? '지점 삭제' 
+                          : '직원이나 스케줄이 있어서 삭제할 수 없습니다'
+                      }
                     >
                       삭제
                     </button>
