@@ -768,6 +768,11 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                         ...Array.from(allInputEmployees)
                       ]);
                       
+                      console.log('=== 실시간 표시 디버그 ===');
+                      console.log('weeklySummary 직원들:', weeklySummary.map(s => s.employeeName));
+                      console.log('입력된 직원들:', Array.from(allInputEmployees));
+                      console.log('전체 직원들:', Array.from(allEmployees));
+                      
                       return Array.from(allEmployees)
                         .sort((a, b) => a.localeCompare(b, 'ko'))
                         .map((employeeName, index) => {
@@ -808,7 +813,10 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                                       ))}
                                       
                                       {/* 실시간 입력된 스케줄 (하늘색 배경) */}
-                                      {inputSchedules.map((inputSchedule, inputIndex) => {
+                                      {(() => {
+                                        console.log(`${employeeName}의 입력 스케줄들:`, inputSchedules);
+                                        return inputSchedules;
+                                      })().map((inputSchedule, inputIndex) => {
                                         // 시:분 형태를 소수점 형태로 변환 (18:30 -> 18.5)
                                         const timeToDecimal = (timeStr: string) => {
                                           const [hours, minutes] = timeStr.split(':').map(Number);
