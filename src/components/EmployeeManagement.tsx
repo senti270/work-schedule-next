@@ -327,6 +327,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     console.log('직원 데이터:', employee);
     console.log('직원 ID:', employee.id);
     console.log('현재 showForm 상태:', showForm);
+    console.log('현재 editingEmployee 상태:', editingEmployee);
     
     if (!employee.id) {
       console.error('직원 ID가 없습니다:', employee);
@@ -334,10 +335,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       return;
     }
     
-    console.log('editingEmployee 설정 중...');
+    // 상태를 한 번에 업데이트
+    console.log('상태 업데이트 시작...');
     setEditingEmployee(employee);
-    
-    console.log('formData 설정 중...');
     setFormData({
       name: employee.name || '',
       email: employee.email || '',
@@ -347,9 +347,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       hireDate: employee.hireDate ? employee.hireDate.toISOString().split('T')[0] : '',
       type: employee.type || '정규직'
     });
-    
-    console.log('showForm을 true로 설정 중...');
     setShowForm(true);
+    
+    console.log('상태 업데이트 완료');
     console.log('=== 직원 수정 설정 완료 ===');
   };
 
@@ -691,10 +691,13 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
       {/* 직원 추가/수정 폼 */}
       {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-          <h2 className="text-xl font-semibold mb-4">
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6 border-2 border-blue-500">
+          <h2 className="text-xl font-semibold mb-4 text-blue-600">
             {editingEmployee ? '직원 정보 수정' : '새 직원 추가'}
           </h2>
+          <div className="text-sm text-gray-500 mb-4">
+            디버깅: showForm={showForm.toString()}, editingEmployee={editingEmployee ? editingEmployee.name : 'null'}
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
