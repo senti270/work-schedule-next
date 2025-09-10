@@ -49,13 +49,6 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   const [loading, setLoading] = useState(true);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(new Date());
 
-  useEffect(() => {
-    // URL에서 주차 정보 파싱
-    const weekDate = new Date(resolvedParams.week);
-    setCurrentWeekStart(weekDate);
-    loadSchedules();
-  }, [resolvedParams.week, resolvedParams.branchId, loadSchedules]);
-
   const loadSchedules = useCallback(async () => {
     try {
       setLoading(true);
@@ -107,6 +100,13 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       setLoading(false);
     }
   }, [resolvedParams.week, resolvedParams.branchId]);
+
+  useEffect(() => {
+    // URL에서 주차 정보 파싱
+    const weekDate = new Date(resolvedParams.week);
+    setCurrentWeekStart(weekDate);
+    loadSchedules();
+  }, [resolvedParams.week, resolvedParams.branchId, loadSchedules]);
 
   const generateWeeklySummary = (schedulesData: Schedule[]) => {
     const summaryMap = new Map<string, WeeklySummary>();

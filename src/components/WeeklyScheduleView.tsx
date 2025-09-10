@@ -53,12 +53,6 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     setCurrentWeekStart(monday);
   }, []);
 
-  useEffect(() => {
-    if (currentWeekStart) {
-      loadSchedules();
-    }
-  }, [currentWeekStart, loadSchedules]);
-
   const loadSchedules = useCallback(async () => {
     setLoading(true);
     try {
@@ -79,6 +73,12 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
       setLoading(false);
     }
   }, [currentWeekStart, selectedBranchId]);
+
+  useEffect(() => {
+    if (currentWeekStart) {
+      loadSchedules();
+    }
+  }, [currentWeekStart, loadSchedules]);
 
   const generateWeeklySummary = (schedulesData: Schedule[]) => {
     const weekDates = getWeekDates(currentWeekStart);
