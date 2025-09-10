@@ -815,7 +815,20 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                                           if (minutes === 0) {
                                             return hours.toString();
                                           } else {
-                                            return (hours + minutes / 60).toString();
+                                            // 분을 소수점으로 변환 (30분 -> 0.5, 15분 -> 0.25)
+                                            const decimalMinutes = minutes / 60;
+                                            const result = hours + decimalMinutes;
+                                            
+                                            // 소수점이 .0이면 정수로 표시, 아니면 소수점 표시
+                                            if (decimalMinutes === 0.5) {
+                                              return `${hours}.5`;
+                                            } else if (decimalMinutes === 0.25) {
+                                              return `${hours}.25`;
+                                            } else if (decimalMinutes === 0.75) {
+                                              return `${hours}.75`;
+                                            } else {
+                                              return result.toString();
+                                            }
                                           }
                                         };
                                         
