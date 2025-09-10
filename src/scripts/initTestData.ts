@@ -3,9 +3,7 @@ import {
   addDoc, 
   getDocs, 
   deleteDoc, 
-  doc, 
-  query, 
-  where 
+  doc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -231,6 +229,6 @@ function calculateTotalHours(startTime: string, endTime: string, breakTime: stri
 
 // 브라우저에서 실행할 수 있도록 window 객체에 추가
 if (typeof window !== 'undefined') {
-  (window as any).initTestData = initTestData;
-  (window as any).clearAllData = clearAllData;
+  (window as unknown as { initTestData: typeof initTestData; clearAllData: typeof clearAllData }).initTestData = initTestData;
+  (window as unknown as { initTestData: typeof initTestData; clearAllData: typeof clearAllData }).clearAllData = clearAllData;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface Schedule {
@@ -70,10 +70,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   const [loading, setLoading] = useState(true);
   const [editingSchedule, setEditingSchedule] = useState<EditingSchedule | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dateInputs, setDateInputs] = useState<{[key: string]: string}>({});
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [previewSchedules, setPreviewSchedules] = useState<{[key: string]: Array<{employeeName: string, startTime: string, endTime: string, breakTime: string}>}>({});
 
   useEffect(() => {
     // 이번 주 월요일로 설정
@@ -324,18 +321,6 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     });
   };
 
-  const handleDateClickForModal = (date: Date) => {
-    setSelectedDate(date);
-    setShowAddForm(true);
-    setEditingSchedule({
-      employeeId: '',
-      branchId: '',
-      date: date,
-      startTime: '',
-      endTime: '',
-      breakTime: '0'
-    });
-  };
 
   const handleSaveSchedule = async () => {
     if (!editingSchedule) return;
@@ -563,16 +548,6 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     setCurrentWeekStart(nextWeeks);
   };
 
-  const getAllEmployees = () => {
-    const allEmployees = new Set<string>();
-    for (let i = 0; i < numberOfWeeks; i++) {
-      const weekStart = new Date(currentWeekStart);
-      weekStart.setDate(currentWeekStart.getDate() + (i * 7));
-      const weeklySummary = generateWeeklySummary(weekStart);
-      weeklySummary.forEach(summary => allEmployees.add(summary.employeeName));
-    }
-    return Array.from(allEmployees);
-  };
 
   if (loading) {
     return (

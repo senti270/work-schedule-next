@@ -37,7 +37,7 @@ interface ScheduleManagementProps {
   isManager?: boolean;
 }
 
-export default function ScheduleManagement({ userBranch, isManager }: ScheduleManagementProps) {
+export default function ScheduleManagement({ }: ScheduleManagementProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -146,7 +146,6 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
     const year = selectedMonth.getFullYear();
     const month = selectedMonth.getMonth();
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
     
@@ -301,17 +300,6 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
     setShowForm(true);
   };
 
-  const handleDelete = async (scheduleId: string) => {
-    if (confirm('정말로 이 스케줄을 삭제하시겠습니까?')) {
-      console.log('스케줄 삭제 중:', scheduleId);
-      try {
-        await deleteDoc(doc(db, 'schedules', scheduleId));
-        loadSchedules();
-      } catch (error) {
-        console.error('스케줄 삭제 오류:', error);
-      }
-    }
-  };
 
   const handleCancel = () => {
     console.log('스케줄 폼 취소됨');

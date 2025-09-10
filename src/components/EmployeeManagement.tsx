@@ -232,27 +232,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     });
   };
 
-  // 근로계약서 업로드
-  const handleContractUpload = async (employeeId: string, file: File) => {
-    try {
-      // 실제 구현에서는 Firebase Storage를 사용해야 합니다
-      // 여기서는 임시로 파일명만 저장합니다
-      const fileName = `contract_${employeeId}_${Date.now()}.pdf`;
-      
-      const employeeRef = doc(db, 'employees', employeeId);
-      await updateDoc(employeeRef, {
-        contractFile: fileName,
-        updatedAt: new Date()
-      });
-      
-      console.log('근로계약서가 업로드되었습니다:', fileName);
-      await loadEmployees();
-      alert('근로계약서가 업로드되었습니다.');
-    } catch (error) {
-      console.error('근로계약서 업로드 중 오류:', error);
-      alert('근로계약서 업로드에 실패했습니다.');
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
