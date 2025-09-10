@@ -55,6 +55,7 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       const weekStart = new Date(resolvedParams.week);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999); // 일요일 23:59:59까지 포함
 
       // 모든 스케줄을 가져온 후 클라이언트에서 필터링
       const querySnapshot = await getDocs(collection(db, 'schedules'));
@@ -79,9 +80,14 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       });
 
       // 클라이언트에서 필터링
+      console.log('필터링 범위:', { weekStart: weekStart.toISOString(), weekEnd: weekEnd.toISOString() });
       let filteredSchedules = allSchedulesData.filter(schedule => {
         const scheduleDate = new Date(schedule.date);
-        return scheduleDate >= weekStart && scheduleDate <= weekEnd;
+        const isInRange = scheduleDate >= weekStart && scheduleDate <= weekEnd;
+        if (scheduleDate.getDay() === 0) { // 일요일 스케줄 디버그
+          console.log(`일요일 스케줄 확인: ${schedule.employeeName}, 날짜: ${scheduleDate.toISOString()}, 범위 내: ${isInRange}`);
+        }
+        return isInRange;
       });
 
       // 특정 지점이 선택된 경우
@@ -111,17 +117,12 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   const generateWeeklySummary = (schedulesData: Schedule[]) => {
     const summaryMap = new Map<string, WeeklySummary>();
 
-    console.log('=== 공유화면 주간 집계 생성 ===');
-    console.log('전체 스케줄 데이터:', schedulesData);
-
     schedulesData.forEach(schedule => {
       const employeeName = schedule.employeeName;
       // JavaScript Date.getDay(): 0=일요일, 1=월요일, ..., 6=토요일
       // DAYS_OF_WEEK 배열: 0=월요일, 1=화요일, ..., 6=일요일
       const dayIndex = schedule.date.getDay() === 0 ? 6 : schedule.date.getDay() - 1;
       const dayOfWeek = DAYS_OF_WEEK[dayIndex];
-
-      console.log(`스케줄 처리: ${employeeName}, 날짜: ${schedule.date.toDateString()}, getDay(): ${schedule.date.getDay()}, dayIndex: ${dayIndex}, dayOfWeek: ${dayOfWeek.key}`);
 
       if (!summaryMap.has(employeeName)) {
         summaryMap.set(employeeName, {
@@ -136,7 +137,6 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       summary.totalHours += schedule.totalHours;
     });
 
-    console.log('생성된 주간 집계:', Array.from(summaryMap.values()));
     setWeeklySummaries(Array.from(summaryMap.values()));
   };
 
