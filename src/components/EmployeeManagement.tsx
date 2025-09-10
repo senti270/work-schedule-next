@@ -803,10 +803,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
       {/* 직원 목록 */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-4 py-3 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">직원 목록</h2>
         </div>
-        <div className="overflow-x-auto">
+        
+        {/* 데스크톱 테이블 */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -927,6 +929,36 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* 모바일 카드 뷰 */}
+        <div className="md:hidden">
+          {filteredEmployees.map((employee) => (
+            <div key={employee.id} className="px-4 py-3 border-b border-gray-200 last:border-b-0">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-gray-900">{employee.name}</h3>
+                </div>
+                <div className="flex items-center space-x-3">
+                  {employee.phone && (
+                    <a
+                      href={`tel:${employee.phone}`}
+                      className="text-green-600 hover:text-green-800 text-lg"
+                      title={`${employee.phone}로 전화걸기`}
+                    >
+                      📞
+                    </a>
+                  )}
+                  <button
+                    onClick={() => handleEdit(employee)}
+                    className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                  >
+                    수정
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
         {filteredEmployees.length === 0 && (
           <div className="text-center py-8 text-gray-500">
