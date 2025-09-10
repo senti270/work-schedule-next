@@ -378,7 +378,6 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
 
       setEditingSchedule(null);
       setShowAddForm(false);
-      setSelectedDate(null);
       loadSchedules();
     } catch (error) {
       console.error('스케줄 저장 오류:', error);

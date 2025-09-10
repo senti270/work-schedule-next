@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -54,9 +54,9 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
     const weekDate = new Date(resolvedParams.week);
     setCurrentWeekStart(weekDate);
     loadSchedules();
-  }, [resolvedParams.week, resolvedParams.branchId]);
+  }, [resolvedParams.week, resolvedParams.branchId, loadSchedules]);
 
-  const loadSchedules = async () => {
+  const loadSchedules = useCallback(async () => {
     try {
       setLoading(true);
       const weekStart = new Date(resolvedParams.week);
@@ -106,7 +106,7 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [resolvedParams.week, resolvedParams.branchId]);
 
   const generateWeeklySummary = (schedulesData: Schedule[]) => {
     const summaryMap = new Map<string, WeeklySummary>();

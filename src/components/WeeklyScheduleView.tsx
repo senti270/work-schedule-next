@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -57,9 +57,9 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     if (currentWeekStart) {
       loadSchedules();
     }
-  }, [currentWeekStart]);
+  }, [currentWeekStart, loadSchedules]);
 
-  const loadSchedules = async () => {
+  const loadSchedules = useCallback(async () => {
     setLoading(true);
     try {
       const querySnapshot = await getDocs(collection(db, 'schedules'));
@@ -78,7 +78,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentWeekStart, selectedBranchId]);
 
   const generateWeeklySummary = (schedulesData: Schedule[]) => {
     const weekDates = getWeekDates(currentWeekStart);
