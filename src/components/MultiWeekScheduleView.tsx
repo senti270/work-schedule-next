@@ -727,69 +727,93 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                     </tr>
                   </thead>
                   <tbody className="bg-white">
-                    {weeklySummary
-                      .sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'ko'))
-                      .map((summary, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        {weekDates.map((date, dayIndex) => {
-                          const daySchedules = getSchedulesForDate(date).filter(
-                            schedule => schedule.employeeName === summary.employeeName
-                          );
-                          const inputText = dateInputs[date.toISOString().split('T')[0]] || '';
-                          const parsedInputs = parseScheduleInput(inputText);
-                          const inputSchedules = parsedInputs.filter(
-                            input => input.employeeName === summary.employeeName
-                          );
-                          
+                    {(() => {
+                      // 입력된 모든 직원 이름 수집
+                      const allInputEmployees = new Set<string>();
+                      weekDates.forEach(date => {
+                        const dateKey = date.toISOString().split('T')[0];
+                        const inputText = dateInputs[dateKey] || '';
+                        if (inputText.trim()) {
+                          const inputSchedules = parseScheduleInput(inputText);
+                          inputSchedules.forEach(schedule => {
+                            allInputEmployees.add(schedule.employeeName);
+                          });
+                        }
+                      });
+                      
+                      // 기존 직원과 입력된 직원 모두 포함
+                      const allEmployees = new Set([
+                        ...weeklySummary.map(s => s.employeeName),
+                        ...Array.from(allInputEmployees)
+                      ]);
+                      
+                      return Array.from(allEmployees)
+                        .sort((a, b) => a.localeCompare(b, 'ko'))
+                        .map((employeeName, index) => {
+                          const summary = weeklySummary.find(s => s.employeeName === employeeName);
                           return (
-                            <td key={dayIndex} className="px-2 py-2 text-center">
-                              <div className="space-y-1">
-                                {/* 기존 저장된 스케줄 */}
-                                {daySchedules.map((schedule) => (
-                                  <div
-                                    key={schedule.id}
-                                    className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 cursor-pointer hover:bg-yellow-200 relative group"
-                                    onClick={() => handleScheduleClick(schedule)}
-                                  >
-                                    {formatScheduleDisplay(schedule)}
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteSchedule(schedule.id);
-                                      }}
-                                      className="absolute top-0 right-0 text-red-600 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded-full w-3 h-3 text-xs"
-                                    >
-                                      ×
-                                    </button>
-                                  </div>
-                                ))}
+                            <tr key={index} className="hover:bg-gray-50">
+                              {weekDates.map((date, dayIndex) => {
+                                const daySchedules = getSchedulesForDate(date).filter(
+                                  schedule => schedule.employeeName === employeeName
+                                );
+                                const inputText = dateInputs[date.toISOString().split('T')[0]] || '';
+                                const parsedInputs = parseScheduleInput(inputText);
+                                const inputSchedules = parsedInputs.filter(
+                                  input => input.employeeName === employeeName
+                                );
                                 
-                                {/* 실시간 입력된 스케줄 (하늘색 배경) */}
-                                {inputSchedules.map((inputSchedule, inputIndex) => {
-                                  const startHour = inputSchedule.startTime.split(':')[0];
-                                  const endHour = inputSchedule.endTime.split(':')[0];
-                                  const breakTime = inputSchedule.breakTime !== '0' ? `(${inputSchedule.breakTime})` : '';
-                                  
-                                  return (
-                                    <div
-                                      key={`input-${inputIndex}`}
-                                      className="text-xs p-1 bg-blue-100 text-blue-800 rounded border border-blue-200"
-                                    >
-                                      {inputSchedule.employeeName} {startHour}-{endHour}{breakTime}
+                                return (
+                                  <td key={dayIndex} className="px-2 py-2 text-center">
+                                    <div className="space-y-1">
+                                      {/* 기존 저장된 스케줄 */}
+                                      {daySchedules.map((schedule) => (
+                                        <div
+                                          key={schedule.id}
+                                          className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 cursor-pointer hover:bg-yellow-200 relative group"
+                                          onClick={() => handleScheduleClick(schedule)}
+                                        >
+                                          {formatScheduleDisplay(schedule)}
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteSchedule(schedule.id);
+                                            }}
+                                            className="absolute top-0 right-0 text-red-600 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded-full w-3 h-3 text-xs"
+                                          >
+                                            ×
+                                          </button>
+                                        </div>
+                                      ))}
+                                      
+                                      {/* 실시간 입력된 스케줄 (하늘색 배경) */}
+                                      {inputSchedules.map((inputSchedule, inputIndex) => {
+                                        const startHour = inputSchedule.startTime.split(':')[0];
+                                        const endHour = inputSchedule.endTime.split(':')[0];
+                                        const breakTime = inputSchedule.breakTime !== '0' ? `(${inputSchedule.breakTime})` : '';
+                                        
+                                        return (
+                                          <div
+                                            key={`input-${inputIndex}`}
+                                            className="text-xs p-1 bg-blue-100 text-blue-800 rounded border border-blue-200"
+                                          >
+                                            {inputSchedule.employeeName} {startHour}-{endHour}{breakTime}
+                                          </div>
+                                        );
+                                      })}
+                                      
+                                      {/* 스케줄이 없으면 공란 */}
+                                      {daySchedules.length === 0 && inputSchedules.length === 0 && (
+                                        <div className="text-xs text-gray-600">-</div>
+                                      )}
                                     </div>
-                                  );
-                                })}
-                                
-                                {/* 스케줄이 없으면 공란 */}
-                                {daySchedules.length === 0 && inputSchedules.length === 0 && (
-                                  <div className="text-xs text-gray-600">-</div>
-                                )}
-                              </div>
-                            </td>
+                                  </td>
+                                );
+                              })}
+                            </tr>
                           );
-                        })}
-                      </tr>
-                    ))}
+                        });
+                    })()}
                     {weeklySummary.length === 0 && (
                       <tr>
                         <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-700">
