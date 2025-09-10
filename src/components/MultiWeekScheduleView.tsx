@@ -399,7 +399,6 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   const handleCancelEdit = () => {
     setEditingSchedule(null);
     setShowAddForm(false);
-    setSelectedDate(null);
   };
 
   const parseScheduleInput = (text: string) => {
