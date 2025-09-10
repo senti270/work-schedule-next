@@ -583,7 +583,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
           <div className="flex items-center space-x-4">
             <button
               onClick={goToPreviousWeeks}
-              className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-900 font-medium"
             >
               ← 이전 {numberOfWeeks}주
             </button>
@@ -592,7 +592,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
             </span>
             <button
               onClick={goToNextWeeks}
-              className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-900 font-medium"
             >
               다음 {numberOfWeeks}주 →
             </button>

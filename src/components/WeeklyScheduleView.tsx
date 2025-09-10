@@ -203,7 +203,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
           <div className="flex items-center space-x-4">
             <button
               onClick={goToPreviousWeek}
-              className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-900 font-medium"
             >
               ← 이전주
             </button>
@@ -212,7 +212,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
             </span>
             <button
               onClick={goToNextWeek}
-              className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-900 font-medium"
             >
               다음주 →
             </button>
