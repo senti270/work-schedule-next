@@ -71,6 +71,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   const [editingSchedule, setEditingSchedule] = useState<EditingSchedule | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [dateInputs, setDateInputs] = useState<{[key: string]: string}>({});
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummary[]>([]);
 
   useEffect(() => {
     // 이번 주 월요일로 설정
@@ -87,6 +88,13 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       loadBranches();
     }
   }, [currentWeekStart]);
+
+  // 데이터가 로드되면 주간집계 업데이트
+  useEffect(() => {
+    if (schedules.length > 0 && employees.length > 0) {
+      updateWeeklySummary();
+    }
+  }, [schedules, employees, dateInputs, currentWeekStart, numberOfWeeks]);
 
   const loadSchedules = async () => {
     setLoading(true);
@@ -454,8 +462,27 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       return newInputs;
     });
     
-    // 실시간 파싱 및 미리보기 업데이트
-    parseScheduleInput(value);
+    // 실시간 파싱 및 주간집계 업데이트
+    const schedules = parseScheduleInput(value);
+    console.log('파싱된 스케줄:', schedules);
+    
+    // 주간집계를 즉시 업데이트
+    updateWeeklySummary();
+  };
+
+  const updateWeeklySummary = () => {
+    // 모든 주간의 집계를 다시 계산
+    const allSummaries: WeeklySummary[] = [];
+    
+    for (let weekIndex = 0; weekIndex < numberOfWeeks; weekIndex++) {
+      const weekStart = new Date(currentWeekStart);
+      weekStart.setDate(currentWeekStart.getDate() + (weekIndex * 7));
+      const weekSummary = generateWeeklySummary(weekStart);
+      allSummaries.push(...weekSummary);
+    }
+    
+    console.log('업데이트된 주간집계:', allSummaries);
+    setWeeklySummary(allSummaries);
   };
 
   const saveAllSchedules = async () => {

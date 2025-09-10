@@ -110,6 +110,11 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
         name: doc.data().name
       })) as Branch[];
       setBranches(branchesData);
+      
+      // 첫 번째 지점을 기본 선택
+      if (branchesData.length > 0 && !selectedBranchId) {
+        setSelectedBranchId(branchesData[0].id);
+      }
     } catch (error) {
       console.error('지점 목록을 불러올 수 없습니다:', error);
     }
@@ -358,7 +363,6 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
             onChange={(e) => setSelectedBranchId(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="">전체 지점</option>
             {branches.map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.name}
