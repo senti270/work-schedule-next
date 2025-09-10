@@ -362,12 +362,17 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            disabled={branches.length === 0}
           >
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
+            {branches.length === 0 ? (
+              <option value="">지점을 불러오는 중...</option>
+            ) : (
+              branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))
+            )}
           </select>
           {selectedBranchId && (
             <span className="text-sm text-gray-800 font-medium">
