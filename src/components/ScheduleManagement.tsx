@@ -374,11 +374,6 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
               ))
             )}
           </select>
-          {selectedBranchId && (
-            <span className="text-sm text-gray-800 font-medium">
-              {branches.find(b => b.id === selectedBranchId)?.name} 지점 필터링 중
-            </span>
-          )}
         </div>
       </div>
 

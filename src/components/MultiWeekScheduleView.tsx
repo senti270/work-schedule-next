@@ -706,8 +706,8 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
               다음 {numberOfWeeks}주 →
             </button>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-center space-x-2">
               <label className="text-sm font-medium text-gray-900">주간 수:</label>
               <select
                 value={numberOfWeeks}
@@ -720,7 +720,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                 <option value={6}>6주</option>
               </select>
             </div>
-            <div className="flex gap-2">
+            <div className="flex justify-center">
               <button
                 onClick={saveAllSchedules}
                 className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 font-medium"
@@ -899,7 +899,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
               {/* 전체 입력 영역 */}
               <div className="border-t border-gray-200 p-6">
                 <h4 className="text-sm font-medium text-gray-900 mb-3">스케줄 입력</h4>
-                <div className="grid grid-cols-7 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
                   {weekDates.map((date, dayIndex) => {
                     const dayOfWeek = DAYS_OF_WEEK[dayIndex];
                     return (

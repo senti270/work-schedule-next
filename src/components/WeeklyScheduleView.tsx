@@ -238,8 +238,9 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     <div className="space-y-6">
       {/* 주간 네비게이션 */}
       <div className="bg-white p-4 rounded-lg shadow border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col space-y-4">
+          {/* 주간 선택 */}
+          <div className="flex items-center justify-center space-x-4">
             <button
               onClick={goToPreviousWeek}
               className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 text-gray-900 font-medium"
@@ -256,7 +257,9 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
               다음주 →
             </button>
           </div>
-          <div className="flex items-center space-x-2">
+          
+          {/* 공유 버튼 - 모바일에서 아래로 이동 */}
+          <div className="flex justify-center">
             <button
               onClick={handleShare}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
