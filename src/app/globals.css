@@ -66,3 +66,56 @@ body {
     font-weight: 400 !important;
   }
 }
+
+/* 모바일 레이아웃 개선 */
+@media (max-width: 768px) {
+  /* 전체 컨테이너 여백 조정 */
+  .max-w-7xl {
+    max-width: 100% !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  /* 헤더 여백 조정 */
+  .px-4.sm\\:px-6.lg\\:px-8 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  /* 메인 콘텐츠 여백 조정 */
+  .py-6.sm\\:px-6.lg\\:px-8 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  /* 카드 여백 조정 */
+  .px-4.py-5.sm\\:p-6 {
+    padding: 1rem !important;
+  }
+  
+  /* 테이블 반응형 개선 */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* 버튼 크기 조정 */
+  button {
+    min-height: 44px !important; /* 터치 타겟 최소 크기 */
+  }
+  
+  /* 입력 필드 크기 조정 */
+  input, textarea, select {
+    min-height: 44px !important;
+    font-size: 16px !important; /* iOS 줌 방지 */
+  }
+  
+  /* 네비게이션 탭 개선 */
+  .flex.space-x-8 {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+  
+  .flex.space-x-8 > * {
+    margin-right: 0 !important;
+  }
+}

@@ -83,16 +83,16 @@ export default function Dashboard({ user }: DashboardProps) {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">근무 스케줄 관리</h1>
-              <p className="text-sm text-gray-800 font-medium">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 sm:py-6 space-y-3 sm:space-y-0">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">근무 스케줄 관리</h1>
+              <p className="text-sm text-gray-800 font-medium mt-1">
                 {user.email} {isManager ? `(${userBranch?.name} 매니저)` : '(관리자)'}
               </p>
             </div>
             <button
               onClick={handleSignOut}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full sm:w-auto"
             >
               로그아웃
             </button>
@@ -103,10 +103,10 @@ export default function Dashboard({ user }: DashboardProps) {
       {/* Navigation */}
       <nav className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
+          <div className="flex flex-wrap gap-2 sm:gap-0 sm:space-x-8 py-2 sm:py-0">
             <button
               onClick={() => handleTabChange('home')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'home'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
@@ -117,7 +117,7 @@ export default function Dashboard({ user }: DashboardProps) {
             {!isManager && (
               <button
                 onClick={() => handleTabChange('branches')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   activeTab === 'branches'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
@@ -128,7 +128,7 @@ export default function Dashboard({ user }: DashboardProps) {
             )}
             <button
               onClick={() => handleTabChange('employees')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'employees'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
@@ -138,7 +138,7 @@ export default function Dashboard({ user }: DashboardProps) {
             </button>
             <button
               onClick={() => handleTabChange('schedule')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'schedule'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
@@ -148,7 +148,7 @@ export default function Dashboard({ user }: DashboardProps) {
             </button>
             <button
               onClick={() => handleTabChange('reports')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'reports'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
@@ -160,7 +160,7 @@ export default function Dashboard({ user }: DashboardProps) {
               href="/development-guide"
               target="_blank"
               rel="noopener noreferrer"
-              className="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-700 hover:text-gray-900 hover:border-gray-300"
+              className="py-3 sm:py-4 px-2 sm:px-1 border-b-2 border-transparent font-medium text-sm text-gray-700 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap"
             >
               개발가이드
             </a>
@@ -169,11 +169,11 @@ export default function Dashboard({ user }: DashboardProps) {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+        <div className="py-4 sm:py-6">
           {activeTab === 'home' && (
             <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
                   환영합니다!
                 </h3>
@@ -204,7 +204,7 @@ export default function Dashboard({ user }: DashboardProps) {
           
           {activeTab === 'branches' && (
             <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
+              <div className="p-4 sm:p-6">
                 <BranchManagement />
               </div>
             </div>
@@ -212,7 +212,7 @@ export default function Dashboard({ user }: DashboardProps) {
           
           {activeTab === 'employees' && (
             <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
+              <div className="p-4 sm:p-6">
                 <EmployeeManagement userBranch={userBranch} isManager={isManager} />
               </div>
             </div>
@@ -220,7 +220,7 @@ export default function Dashboard({ user }: DashboardProps) {
           
           {activeTab === 'schedule' && (
             <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
+              <div className="p-4 sm:p-6">
                 <ScheduleManagement userBranch={userBranch} isManager={isManager} />
               </div>
             </div>
