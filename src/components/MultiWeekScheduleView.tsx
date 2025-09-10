@@ -160,20 +160,9 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
           
           const employeeName = inputSchedule.employeeName;
           
-          // 직원 이름 검증
+          // 직원 이름 검증 (상태 업데이트는 함수 외부에서 처리)
           if (employees.length > 0 && !employee) {
             console.log(`잘못된 직원 이름: ${employeeName}`);
-            // 잘못된 직원 이름을 상태에 저장
-            setInvalidEmployees(prev => {
-              const newInvalid = { ...prev };
-              if (!newInvalid[dateKey]) {
-                newInvalid[dateKey] = [];
-              }
-              if (!newInvalid[dateKey].includes(employeeName)) {
-                newInvalid[dateKey].push(employeeName);
-              }
-              return newInvalid;
-            });
             return; // 잘못된 직원은 집계에서 제외
           }
           
@@ -540,9 +529,28 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       return newInvalid;
     });
     
-    // 실시간 파싱 및 주간집계 업데이트
+    // 실시간 파싱 및 잘못된 직원 이름 검증
     const schedules = parseScheduleInput(value);
     console.log('파싱된 스케줄:', schedules);
+    
+    // 잘못된 직원 이름 검증 및 상태 업데이트
+    if (employees.length > 0 && schedules.length > 0) {
+      const invalidNames: string[] = [];
+      schedules.forEach(schedule => {
+        const employee = employees.find(e => e.name === schedule.employeeName);
+        if (!employee) {
+          invalidNames.push(schedule.employeeName);
+        }
+      });
+      
+      if (invalidNames.length > 0) {
+        setInvalidEmployees(prev => ({
+          ...prev,
+          [dateKey]: invalidNames
+        }));
+      }
+    }
+    
     console.log('=== handleDateInputChange 완료 ===');
   };
 
