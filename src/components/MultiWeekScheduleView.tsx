@@ -463,23 +463,18 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       if (!trimmedLine) continue;
       
       try {
-        // "이진영 10-11" 형태의 텍스트를 파싱
-        const parts = trimmedLine.split(' ');
-        if (parts.length < 2) continue;
-        
-        const employeeName = parts[0];
-        const timeRange = parts[1];
-        
-        // 시간 범위 파싱 (예: "10-11", "9-18(1)", "11-20(3.5)")
-        const timeMatch = timeRange.match(/(\d+)-(\d+)(?:\((\d+(?:\.\d+)?)\))?/);
-        if (!timeMatch || !timeMatch[1] || !timeMatch[2]) {
-          console.log('시간 파싱 실패:', timeRange);
+        // "이진영 10-11" 또는 "이진영10-11" 형태의 텍스트를 파싱
+        // 정규표현식으로 이름과 시간을 분리 (공백 유무에 관계없이)
+        const scheduleMatch = trimmedLine.match(/^([가-힣a-zA-Z]+)\s*(\d+)-(\d+)(?:\((\d+(?:\.\d+)?)\))?$/);
+        if (!scheduleMatch) {
+          console.log('스케줄 파싱 실패:', trimmedLine);
           continue;
         }
         
-        const startHour = parseInt(timeMatch[1]);
-        const endHour = parseInt(timeMatch[2]);
-        const breakTime = timeMatch[3] || '0';
+        const employeeName = scheduleMatch[1];
+        const startHour = parseInt(scheduleMatch[2]);
+        const endHour = parseInt(scheduleMatch[3]);
+        const breakTime = scheduleMatch[4] || '0';
         
         // 유효성 검사
         if (isNaN(startHour) || isNaN(endHour) || startHour < 0 || endHour < 0 || startHour > 23 || endHour > 23) {
@@ -600,11 +595,16 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       for (const { date, employee, schedule } of allSchedulesToSave) {
         const totalHours = calculateTotalHours(schedule.startTime, schedule.endTime, schedule.breakTime);
         
+        // branchName이 없는 경우 branches에서 찾기
+        const currentBranchId = selectedBranchId || employee.branchId;
+        const currentBranch = branches.find(b => b.id === currentBranchId);
+        const branchName = employee.branchName || currentBranch?.name || '';
+        
         await addDoc(collection(db, 'schedules'), {
           employeeId: employee.id,
           employeeName: employee.name,
           branchId: selectedBranchId || employee.branchId,
-          branchName: employee.branchName,
+          branchName: branchName,
           date: date,
           startTime: schedule.startTime,
           endTime: schedule.endTime,
@@ -764,6 +764,21 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                                   </div>
                                 ))}
                                 
+                                {/* 실시간 입력된 스케줄 (하늘색 배경) */}
+                                {inputSchedules.map((inputSchedule, inputIndex) => {
+                                  const startHour = inputSchedule.startTime.split(':')[0];
+                                  const endHour = inputSchedule.endTime.split(':')[0];
+                                  const breakTime = inputSchedule.breakTime !== '0' ? `(${inputSchedule.breakTime})` : '';
+                                  
+                                  return (
+                                    <div
+                                      key={`input-${inputIndex}`}
+                                      className="text-xs p-1 bg-blue-100 text-blue-800 rounded border border-blue-200"
+                                    >
+                                      {inputSchedule.employeeName} {startHour}-{endHour}{breakTime}
+                                    </div>
+                                  );
+                                })}
                                 
                                 {/* 스케줄이 없으면 공란 */}
                                 {daySchedules.length === 0 && inputSchedules.length === 0 && (
