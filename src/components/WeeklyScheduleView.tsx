@@ -166,14 +166,34 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     setCurrentWeekStart(nextWeek);
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const weekString = currentWeekStart.toISOString().split('T')[0];
     const shareUrl = `${window.location.origin}/public/schedule/${selectedBranchId || 'all'}/${weekString}`;
     
-    // 클립보드에 복사
-    navigator.clipboard.writeText(shareUrl).then(() => {
+    // Web Share API 지원 확인
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: '주간 스케줄 공유',
+          text: '주간 스케줄을 확인해보세요!',
+          url: shareUrl
+        });
+        return; // Web Share API 성공 시 여기서 종료
+      } catch (error) {
+        // 사용자가 공유를 취소한 경우는 에러로 처리하지 않음
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.log('Web Share API 실패, 클립보드 복사로 대체');
+        } else {
+          return; // 사용자가 취소한 경우
+        }
+      }
+    }
+    
+    // Web Share API를 지원하지 않거나 실패한 경우 클립보드 복사
+    try {
+      await navigator.clipboard.writeText(shareUrl);
       alert('공유 링크가 클립보드에 복사되었습니다!');
-    }).catch(() => {
+    } catch (error) {
       // 클립보드 복사 실패 시 대체 방법
       const textArea = document.createElement('textarea');
       textArea.value = shareUrl;
@@ -182,7 +202,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
       document.execCommand('copy');
       document.body.removeChild(textArea);
       alert('공유 링크가 클립보드에 복사되었습니다!');
-    });
+    }
   };
 
   const weekDates = getWeekDates(currentWeekStart);
