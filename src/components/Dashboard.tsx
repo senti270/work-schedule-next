@@ -181,22 +181,34 @@ export default function Dashboard({ user }: DashboardProps) {
                   근무 스케줄 관리 시스템에 오신 것을 환영합니다.
                 </p>
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
+                  <button 
+                    onClick={() => setActiveTab('branches')}
+                    className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                  >
                     <h4 className="font-medium text-blue-900">지점 관리</h4>
                     <p className="text-blue-600 text-sm">지점 정보를 관리합니다</p>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('employees')}
+                    className="bg-green-50 p-4 rounded-lg hover:bg-green-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                  >
                     <h4 className="font-medium text-green-900">직원 관리</h4>
                     <p className="text-green-600 text-sm">직원 정보를 관리합니다</p>
-                  </div>
-                  <div className="bg-purple-50 p-4 rounded-lg">
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('schedule')}
+                    className="bg-purple-50 p-4 rounded-lg hover:bg-purple-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                  >
                     <h4 className="font-medium text-purple-900">스케줄 관리</h4>
                     <p className="text-purple-600 text-sm">근무 스케줄을 관리합니다</p>
-                  </div>
-                  <div className="bg-orange-50 p-4 rounded-lg">
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('reports')}
+                    className="bg-orange-50 p-4 rounded-lg hover:bg-orange-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                  >
                     <h4 className="font-medium text-orange-900">보고서</h4>
                     <p className="text-orange-600 text-sm">근무 현황을 확인합니다</p>
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
