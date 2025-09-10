@@ -111,9 +111,17 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   const generateWeeklySummary = (schedulesData: Schedule[]) => {
     const summaryMap = new Map<string, WeeklySummary>();
 
+    console.log('=== 공유화면 주간 집계 생성 ===');
+    console.log('전체 스케줄 데이터:', schedulesData);
+
     schedulesData.forEach(schedule => {
       const employeeName = schedule.employeeName;
-      const dayOfWeek = DAYS_OF_WEEK[schedule.date.getDay() === 0 ? 6 : schedule.date.getDay() - 1];
+      // JavaScript Date.getDay(): 0=일요일, 1=월요일, ..., 6=토요일
+      // DAYS_OF_WEEK 배열: 0=월요일, 1=화요일, ..., 6=일요일
+      const dayIndex = schedule.date.getDay() === 0 ? 6 : schedule.date.getDay() - 1;
+      const dayOfWeek = DAYS_OF_WEEK[dayIndex];
+
+      console.log(`스케줄 처리: ${employeeName}, 날짜: ${schedule.date.toDateString()}, getDay(): ${schedule.date.getDay()}, dayIndex: ${dayIndex}, dayOfWeek: ${dayOfWeek.key}`);
 
       if (!summaryMap.has(employeeName)) {
         summaryMap.set(employeeName, {
@@ -128,6 +136,7 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       summary.totalHours += schedule.totalHours;
     });
 
+    console.log('생성된 주간 집계:', Array.from(summaryMap.values()));
     setWeeklySummaries(Array.from(summaryMap.values()));
   };
 
