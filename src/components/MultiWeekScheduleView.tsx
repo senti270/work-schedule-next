@@ -463,29 +463,42 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       if (!trimmedLine) continue;
       
       try {
-        // "이진영 10-11" 또는 "이진영10-11" 형태의 텍스트를 파싱
-        // 정규표현식으로 이름과 시간을 분리 (공백 유무에 관계없이)
-        const scheduleMatch = trimmedLine.match(/^([가-힣a-zA-Z]+)\s*(\d+)-(\d+)(?:\((\d+(?:\.\d+)?)\))?$/);
+        // "이진영 10-11" 또는 "이진영10-11" 또는 "이진영 18.5-22" 형태의 텍스트를 파싱
+        // 정규표현식으로 이름과 시간을 분리 (공백 유무에 관계없이, 소수점 시간 지원)
+        const scheduleMatch = trimmedLine.match(/^([가-힣a-zA-Z]+)\s*(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(?:\((\d+(?:\.\d+)?)\))?$/);
         if (!scheduleMatch) {
           console.log('스케줄 파싱 실패:', trimmedLine);
           continue;
         }
         
         const employeeName = scheduleMatch[1];
-        const startHour = parseInt(scheduleMatch[2]);
-        const endHour = parseInt(scheduleMatch[3]);
+        const startTimeStr = scheduleMatch[2];
+        const endTimeStr = scheduleMatch[3];
         const breakTime = scheduleMatch[4] || '0';
         
+        // 소수점 시간을 시:분 형태로 변환
+        const parseTime = (timeStr: string) => {
+          const time = parseFloat(timeStr);
+          const hours = Math.floor(time);
+          const minutes = Math.round((time - hours) * 60);
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        };
+        
+        const startTime = parseTime(startTimeStr);
+        const endTime = parseTime(endTimeStr);
+        
         // 유효성 검사
-        if (isNaN(startHour) || isNaN(endHour) || startHour < 0 || endHour < 0 || startHour > 23 || endHour > 23) {
-          console.log('유효하지 않은 시간:', { startHour, endHour });
+        const startHourNum = parseFloat(startTimeStr);
+        const endHourNum = parseFloat(endTimeStr);
+        if (isNaN(startHourNum) || isNaN(endHourNum) || startHourNum < 0 || endHourNum < 0 || startHourNum > 23 || endHourNum > 23) {
+          console.log('유효하지 않은 시간:', { startHourNum, endHourNum });
           continue;
         }
         
         const schedule = {
           employeeName,
-          startTime: `${startHour.toString().padStart(2, '0')}:00`,
-          endTime: `${endHour.toString().padStart(2, '0')}:00`,
+          startTime,
+          endTime,
           breakTime
         };
         
@@ -614,6 +627,14 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
           updatedAt: new Date()
         });
       }
+      
+      // 저장된 날짜들의 입력 필드 초기화
+      const savedDateKeys = allSchedulesToSave.map(s => s.date.toISOString().split('T')[0]);
+      const newDateInputs = { ...dateInputs };
+      savedDateKeys.forEach(dateKey => {
+        delete newDateInputs[dateKey];
+      });
+      setDateInputs(newDateInputs);
       
       loadSchedules();
       alert('모든 스케줄이 저장되었습니다.');
