@@ -169,11 +169,30 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   };
 
   const formatScheduleDisplay = (schedule: Schedule) => {
-    const startHour = schedule.startTime.split(':')[0];
-    const endHour = schedule.endTime.split(':')[0];
+    // 시:분 형태를 소수점 형태로 변환 (18:30 -> 18.5)
+    const timeToDecimal = (timeStr: string) => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      if (minutes === 0) {
+        return hours.toString();
+      } else {
+        const decimalMinutes = minutes / 60;
+        if (decimalMinutes === 0.5) {
+          return `${hours}.5`;
+        } else if (decimalMinutes === 0.25) {
+          return `${hours}.25`;
+        } else if (decimalMinutes === 0.75) {
+          return `${hours}.75`;
+        } else {
+          return (hours + decimalMinutes).toString();
+        }
+      }
+    };
+    
+    const startTimeDisplay = timeToDecimal(schedule.startTime);
+    const endTimeDisplay = timeToDecimal(schedule.endTime);
     const breakTime = schedule.breakTime !== '0' ? formatDecimalTime(schedule.breakTime) : '';
     
-    return `${schedule.employeeName} ${startHour}-${endHour}${breakTime}`;
+    return `${schedule.employeeName} ${startTimeDisplay}-${endTimeDisplay}${breakTime}`;
   };
 
   const weekDates = getWeekDates(currentWeekStart);

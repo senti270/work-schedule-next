@@ -487,8 +487,30 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
                           onClick={() => handleEdit(schedule)}
                           title={`${schedule.employeeName}: ${schedule.startTime}-${schedule.endTime}`}
                         >
-                          {schedule.employeeName} {schedule.startTime.split(':')[0]}-{schedule.endTime.split(':')[0]}
-                          {schedule.breakTime !== '0' && `(${schedule.breakTime})`}
+                          {(() => {
+                            // 시:분 형태를 소수점 형태로 변환 (18:30 -> 18.5)
+                            const timeToDecimal = (timeStr: string) => {
+                              const [hours, minutes] = timeStr.split(':').map(Number);
+                              if (minutes === 0) {
+                                return hours.toString();
+                              } else {
+                                const decimalMinutes = minutes / 60;
+                                if (decimalMinutes === 0.5) {
+                                  return `${hours}.5`;
+                                } else if (decimalMinutes === 0.25) {
+                                  return `${hours}.25`;
+                                } else if (decimalMinutes === 0.75) {
+                                  return `${hours}.75`;
+                                } else {
+                                  return (hours + decimalMinutes).toString();
+                                }
+                              }
+                            };
+                            
+                            const startTimeDisplay = timeToDecimal(schedule.startTime);
+                            const endTimeDisplay = timeToDecimal(schedule.endTime);
+                            return `${schedule.employeeName} ${startTimeDisplay}-${endTimeDisplay}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
+                          })()}
                         </div>
                       ))}
                     </div>
