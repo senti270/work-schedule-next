@@ -157,34 +157,32 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
           const employee = employees.find(e => e.name === inputSchedule.employeeName);
           console.log('찾은 직원:', employee);
           
-          if (employee) {
-            const totalHours = calculateTotalHours(
-              inputSchedule.startTime, 
-              inputSchedule.endTime, 
-              inputSchedule.breakTime
-            );
-            
-            const dayOfWeek = DAYS_OF_WEEK[dayIndex];
-            
-            if (!summaryMap.has(employee.name)) {
-              summaryMap.set(employee.name, {
-                employeeName: employee.name,
-                dailyHours: {},
-                totalHours: 0
-              });
-              console.log(`새 직원 추가: ${employee.name}`);
-            }
-
-            const summary = summaryMap.get(employee.name)!;
-            // 기존 시간이 있으면 더하기 (같은 날 여러 번 근무)
-            const existingHours = summary.dailyHours[dayOfWeek.key] || 0;
-            summary.dailyHours[dayOfWeek.key] = existingHours + totalHours;
-            summary.totalHours += totalHours;
-            
-            console.log(`${employee.name} ${dayOfWeek.label}요일 ${totalHours}시간 추가 (기존: ${existingHours}시간, 총: ${summary.dailyHours[dayOfWeek.key]}시간)`);
-          } else {
-            console.log(`직원을 찾을 수 없음: ${inputSchedule.employeeName}`);
+          // 직원 데이터가 없어도 입력된 스케줄만으로 집계
+          const employeeName = inputSchedule.employeeName;
+          const totalHours = calculateTotalHours(
+            inputSchedule.startTime, 
+            inputSchedule.endTime, 
+            inputSchedule.breakTime
+          );
+          
+          const dayOfWeek = DAYS_OF_WEEK[dayIndex];
+          
+          if (!summaryMap.has(employeeName)) {
+            summaryMap.set(employeeName, {
+              employeeName: employeeName,
+              dailyHours: {},
+              totalHours: 0
+            });
+            console.log(`새 직원 추가: ${employeeName}`);
           }
+
+          const summary = summaryMap.get(employeeName)!;
+          // 기존 시간이 있으면 더하기 (같은 날 여러 번 근무)
+          const existingHours = summary.dailyHours[dayOfWeek.key] || 0;
+          summary.dailyHours[dayOfWeek.key] = existingHours + totalHours;
+          summary.totalHours += totalHours;
+          
+          console.log(`${employeeName} ${dayOfWeek.label}요일 ${totalHours}시간 추가 (기존: ${existingHours}시간, 총: ${summary.dailyHours[dayOfWeek.key]}시간)`);
         });
       }
     });
@@ -221,11 +219,12 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     console.log('currentWeekStart:', currentWeekStart);
     console.log('numberOfWeeks:', numberOfWeeks);
     
-    if (employees.length > 0) {
+    // 직원 데이터가 있거나 입력 데이터가 있으면 집계 업데이트
+    if (employees.length > 0 || Object.keys(dateInputs).length > 0) {
       console.log('updateWeeklySummary 호출');
       updateWeeklySummary();
     } else {
-      console.log('직원 데이터가 없어서 updateWeeklySummary 호출하지 않음');
+      console.log('직원 데이터와 입력 데이터가 모두 없어서 updateWeeklySummary 호출하지 않음');
     }
   }, [schedules, employees, dateInputs, currentWeekStart, numberOfWeeks, updateWeeklySummary]);
 
@@ -481,6 +480,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     console.log('=== handleDateInputChange 호출 ===');
     console.log('dateKey:', dateKey);
     console.log('value:', value);
+    console.log('employees.length:', employees.length);
     
     setDateInputs(prev => {
       const newInputs = {
@@ -489,23 +489,6 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       };
       console.log('dateInputs 업데이트 전:', prev);
       console.log('dateInputs 업데이트 후:', newInputs);
-      
-      // 즉시 집계 업데이트
-      if (employees.length > 0) {
-        console.log('즉시 집계 업데이트 시작');
-        const allSummaries: WeeklySummary[] = [];
-        
-        for (let weekIndex = 0; weekIndex < numberOfWeeks; weekIndex++) {
-          const weekStart = new Date(currentWeekStart);
-          weekStart.setDate(currentWeekStart.getDate() + (weekIndex * 7));
-          const weekSummary = generateWeeklySummary(weekStart, newInputs);
-          allSummaries.push(...weekSummary);
-        }
-        
-        console.log('즉시 업데이트된 주간집계:', allSummaries);
-        setWeeklySummary(allSummaries);
-      }
-      
       return newInputs;
     });
     
