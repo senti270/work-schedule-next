@@ -85,7 +85,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     branchId: '',
     residentNumber: '',
     hireDate: '',
-    type: '정규직'
+    type: '아르바이트'
   });
 
   useEffect(() => {
@@ -245,6 +245,16 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     e.preventDefault();
     console.log('직원 폼 제출됨:', formData);
 
+    // 필수입력 검증
+    if (!formData.name.trim()) {
+      alert('이름을 입력해주세요.');
+      return;
+    }
+    if (!formData.branchId) {
+      alert('지점을 선택해주세요.');
+      return;
+    }
+
     try {
       if (editingEmployee) {
         // 수정
@@ -345,7 +355,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       branchId: employee.branchId || '',
       residentNumber: employee.residentNumber || '',
       hireDate: employee.hireDate ? employee.hireDate.toISOString().split('T')[0] : '',
-      type: employee.type || '정규직'
+      type: employee.type || '아르바이트'
     });
     setShowForm(true);
     
@@ -691,13 +701,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
       {/* 직원 추가/수정 폼 */}
       {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6 border-2 border-blue-500">
-          <h2 className="text-xl font-semibold mb-4 text-blue-600">
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6 border border-gray-200" style={{zIndex: 1000, position: 'relative'}}>
+          <h2 className="text-xl font-semibold mb-4 text-gray-900">
             {editingEmployee ? '직원 정보 수정' : '새 직원 추가'}
           </h2>
-          <div className="text-sm text-gray-500 mb-4">
-            디버깅: showForm={showForm.toString()}, editingEmployee={editingEmployee ? editingEmployee.name : 'null'}
-          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -748,8 +755,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   value={formData.branchId}
                   onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
                 >
-                  <option value="">지점 선택</option>
+                  <option value="">지점 선택 *</option>
                   {branches.map(branch => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
