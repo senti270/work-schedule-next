@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
-import html2pdf from 'html2pdf.js';
+// import html2pdf from 'html2pdf.js'; // 동적 import로 변경
 
 interface Employee {
   id: string;
@@ -225,10 +225,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
     };
     
-    // PDF 생성 및 다운로드
-    html2pdf().set(opt).from(element).save().then(() => {
-      // 임시 div 제거
-      document.body.removeChild(element);
+    // PDF 생성 및 다운로드 (동적 import)
+    import('html2pdf.js').then((html2pdf) => {
+      html2pdf.default().set(opt).from(element).save().then(() => {
+        // 임시 div 제거
+        document.body.removeChild(element);
+      });
     });
   };
 

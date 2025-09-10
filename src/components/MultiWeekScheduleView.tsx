@@ -455,7 +455,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     });
     
     // 실시간 파싱 및 미리보기 업데이트
-    const schedules = parseScheduleInput(value);
+    parseScheduleInput(value);
   };
 
   const saveAllSchedules = async () => {
@@ -519,8 +519,6 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
         });
       }
       
-      setHasUnsavedChanges(false);
-      setPreviewSchedules({});
       loadSchedules();
       alert('모든 스케줄이 저장되었습니다.');
     } catch (error) {
