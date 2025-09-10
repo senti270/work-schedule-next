@@ -100,6 +100,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
   }, [isManager, userBranch]);
 
+  // showForm 상태 변화 추적
+  useEffect(() => {
+    console.log('showForm 상태 변경:', showForm);
+    console.log('editingEmployee 상태:', editingEmployee);
+  }, [showForm, editingEmployee]);
+
   const loadEmployees = async () => {
     console.log('직원 목록을 불러오는 중...');
     try {
@@ -317,8 +323,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   };
 
   const handleEdit = (employee: Employee) => {
-    console.log('직원 수정 시작:', employee);
+    console.log('=== 직원 수정 시작 ===');
+    console.log('직원 데이터:', employee);
     console.log('직원 ID:', employee.id);
+    console.log('현재 showForm 상태:', showForm);
     
     if (!employee.id) {
       console.error('직원 ID가 없습니다:', employee);
@@ -326,7 +334,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       return;
     }
     
+    console.log('editingEmployee 설정 중...');
     setEditingEmployee(employee);
+    
+    console.log('formData 설정 중...');
     setFormData({
       name: employee.name || '',
       email: employee.email || '',
@@ -336,7 +347,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       hireDate: employee.hireDate ? employee.hireDate.toISOString().split('T')[0] : '',
       type: employee.type || '정규직'
     });
+    
+    console.log('showForm을 true로 설정 중...');
     setShowForm(true);
+    console.log('=== 직원 수정 설정 완료 ===');
   };
 
   const handleDelete = async (employeeId: string) => {
