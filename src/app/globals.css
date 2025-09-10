@@ -24,3 +24,45 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* 모바일 가독성 개선 */
+@media (max-width: 768px) {
+  /* 텍스트 색상 강화 */
+  .text-gray-500 {
+    color: #374151 !important; /* 더 진한 회색 */
+  }
+  
+  .text-gray-600 {
+    color: #1f2937 !important; /* 더 진한 회색 */
+  }
+  
+  .text-gray-700 {
+    color: #111827 !important; /* 거의 검은색 */
+  }
+  
+  /* 작은 텍스트 크기 증가 */
+  .text-sm {
+    font-size: 0.9rem !important; /* 14px -> 14.4px */
+  }
+  
+  .text-xs {
+    font-size: 0.8rem !important; /* 12px -> 12.8px */
+  }
+  
+  /* 버튼 텍스트 강화 */
+  button {
+    font-weight: 500 !important;
+  }
+  
+  /* 입력 필드 텍스트 강화 */
+  input, textarea, select {
+    color: #111827 !important;
+    font-weight: 500 !important;
+  }
+  
+  /* 플레이스홀더 텍스트 강화 */
+  input::placeholder, textarea::placeholder {
+    color: #6b7280 !important;
+    font-weight: 400 !important;
+  }
+}

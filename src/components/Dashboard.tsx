@@ -86,7 +86,7 @@ export default function Dashboard({ user }: DashboardProps) {
           <div className="flex justify-between items-center py-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">근무 스케줄 관리</h1>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-800 font-medium">
                 {user.email} {isManager ? `(${userBranch?.name} 매니저)` : '(관리자)'}
               </p>
             </div>
@@ -109,7 +109,7 @@ export default function Dashboard({ user }: DashboardProps) {
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'home'
                   ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
               }`}
             >
               홈
@@ -120,7 +120,7 @@ export default function Dashboard({ user }: DashboardProps) {
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'branches'
                     ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
                 }`}
               >
                 지점 관리
@@ -131,7 +131,7 @@ export default function Dashboard({ user }: DashboardProps) {
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'employees'
                   ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
               }`}
             >
               직원 관리
@@ -141,7 +141,7 @@ export default function Dashboard({ user }: DashboardProps) {
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'schedule'
                   ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
               }`}
             >
               스케줄 관리
@@ -151,7 +151,7 @@ export default function Dashboard({ user }: DashboardProps) {
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'reports'
                   ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
               }`}
             >
               보고서
@@ -169,7 +169,7 @@ export default function Dashboard({ user }: DashboardProps) {
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
                   환영합니다!
                 </h3>
-                <p className="mt-2 text-sm text-gray-500">
+                <p className="mt-2 text-sm text-gray-700 font-medium">
                   근무 스케줄 관리 시스템에 오신 것을 환영합니다.
                 </p>
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

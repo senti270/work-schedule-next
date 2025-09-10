@@ -240,9 +240,9 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
                 {weekDates.map((date, index) => {
                   const dayOfWeek = DAYS_OF_WEEK[index];
                   return (
-                    <th key={index} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th key={index} className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                       <div>{date.getMonth() + 1}/{date.getDate()}</div>
-                      <div className="text-xs text-gray-400">{dayOfWeek.label}</div>
+                      <div className="text-xs text-gray-600">{dayOfWeek.label}</div>
                     </th>
                   );
                 })}
@@ -270,7 +270,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
                             </div>
                           ))}
                           {daySchedules.length === 0 && (
-                            <div className="text-xs text-gray-400">-</div>
+                            <div className="text-xs text-gray-600">-</div>
                           )}
                         </div>
                       </td>
@@ -280,7 +280,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
               ))}
               {weeklySummaries.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-700">
                     이번 주 스케줄이 없습니다.
                   </td>
                 </tr>
@@ -300,7 +300,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   이름
                 </th>
                 {weekDates.map((date, index) => {
@@ -311,7 +311,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
                     </th>
                   );
                 })}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   총합
                 </th>
               </tr>

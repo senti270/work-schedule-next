@@ -366,7 +366,7 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
             ))}
           </select>
           {selectedBranchId && (
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-800 font-medium">
               {branches.find(b => b.id === selectedBranchId)?.name} 지점 필터링 중
             </span>
           )}
@@ -381,7 +381,7 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'weekly-view'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
             주간 보기
@@ -391,7 +391,7 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'multi-week'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
             스케줄 입력
@@ -401,7 +401,7 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'calendar'
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
             달력 보기
@@ -464,7 +464,7 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
                   >
                     {/* 날짜만 표시 - 요일 없음 */}
                     <div className={`text-sm font-medium ${
-                      day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
+                      day.isCurrentMonth ? 'text-gray-900' : 'text-gray-600'
                     } ${day.isToday ? 'text-blue-600' : ''}`}>
                       {day.dayNumber}
                     </div>

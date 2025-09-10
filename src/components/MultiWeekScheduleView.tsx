@@ -622,9 +622,9 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                       {weekDates.map((date, dayIndex) => {
                         const dayOfWeek = DAYS_OF_WEEK[dayIndex];
                         return (
-                          <th key={dayIndex} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th key={dayIndex} className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                             <div>{date.getMonth() + 1}/{date.getDate()}</div>
-                            <div className="text-xs text-gray-400">{dayOfWeek.label}</div>
+                            <div className="text-xs text-gray-600">{dayOfWeek.label}</div>
                           </th>
                         );
                       })}
@@ -671,7 +671,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                                 
                                 {/* 스케줄이 없으면 공란 */}
                                 {daySchedules.length === 0 && inputSchedules.length === 0 && (
-                                  <div className="text-xs text-gray-400">-</div>
+                                  <div className="text-xs text-gray-600">-</div>
                                 )}
                               </div>
                             </td>
@@ -681,7 +681,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                     ))}
                     {weeklySummary.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                        <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-700">
                           이번 주 스케줄이 없습니다.
                         </td>
                       </tr>
