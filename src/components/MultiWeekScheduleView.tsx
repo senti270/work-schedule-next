@@ -587,7 +587,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
             >
               ← 이전 {numberOfWeeks}주
             </button>
-            <span className="text-lg font-medium">
+            <span className="text-lg font-medium text-gray-900">
               {currentWeekStart.getFullYear()}년 {currentWeekStart.getMonth() + 1}월 {currentWeekStart.getDate()}일부터 {numberOfWeeks}주간
             </span>
             <button
@@ -599,7 +599,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-gray-700">주간 수:</label>
+              <label className="text-sm font-medium text-gray-900">주간 수:</label>
               <select
                 value={numberOfWeeks}
                 onChange={(e) => setNumberOfWeeks(Number(e.target.value))}
@@ -649,9 +649,9 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                       {weekDates.map((date, dayIndex) => {
                         const dayOfWeek = DAYS_OF_WEEK[dayIndex];
                         return (
-                          <th key={dayIndex} className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
+                          <th key={dayIndex} className="px-6 py-3 text-center text-xs font-medium text-gray-900 uppercase tracking-wider">
                             <div>{date.getMonth() + 1}/{date.getDate()}</div>
-                            <div className="text-xs text-gray-600">{dayOfWeek.label}</div>
+                            <div className="text-xs text-gray-800">{dayOfWeek.label}</div>
                           </th>
                         );
                       })}
