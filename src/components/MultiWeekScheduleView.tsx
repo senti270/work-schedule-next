@@ -349,17 +349,28 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   const calculateTotalHours = (startTime: string, endTime: string, breakTime: string) => {
     if (!startTime || !endTime) return 0;
     
-    // 시간 문자열에서 시간과 분 추출 (예: "10:00" -> 10, "18:00" -> 18)
-    const startHour = parseInt(startTime.split(':')[0]);
-    const endHour = parseInt(endTime.split(':')[0]);
-    const breakHours = parseFloat(breakTime) || 0;
-    
-    // 총 근무시간 = 종료시간 - 시작시간 - 휴식시간
-    const totalHours = endHour - startHour - breakHours;
-    
-    console.log(`시간 계산: ${startHour}시 - ${endHour}시 - ${breakHours}시간 휴식 = ${totalHours}시간`);
-    
-    return Math.max(0, totalHours);
+    try {
+      // 시간 문자열에서 시간과 분 추출 (예: "10:00" -> 10, "18:00" -> 18)
+      const startHour = parseInt(startTime.split(':')[0]);
+      const endHour = parseInt(endTime.split(':')[0]);
+      const breakHours = parseFloat(breakTime) || 0;
+      
+      // 유효성 검사
+      if (isNaN(startHour) || isNaN(endHour) || isNaN(breakHours)) {
+        console.log('유효하지 않은 시간 값:', { startTime, endTime, breakTime });
+        return 0;
+      }
+      
+      // 총 근무시간 = 종료시간 - 시작시간 - 휴식시간
+      const totalHours = endHour - startHour - breakHours;
+      
+      console.log(`시간 계산: ${startHour}시 - ${endHour}시 - ${breakHours}시간 휴식 = ${totalHours}시간`);
+      
+      return Math.max(0, totalHours);
+    } catch (error) {
+      console.error('시간 계산 중 오류:', error, { startTime, endTime, breakTime });
+      return 0;
+    }
   };
 
   const handleScheduleClick = (schedule: Schedule) => {
@@ -462,33 +473,44 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       const trimmedLine = line.trim();
       if (!trimmedLine) continue;
       
-      // "이진영 10-11" 형태의 텍스트를 파싱
-      const parts = trimmedLine.split(' ');
-      if (parts.length < 2) continue;
-      
-      const employeeName = parts[0];
-      const timeRange = parts[1];
-      
-      // 시간 범위 파싱 (예: "10-11", "9-18(1)", "11-20(3.5)")
-      const timeMatch = timeRange.match(/(\d+)-(\d+)(?:\((\d+(?:\.\d+)?)\))?/);
-      if (!timeMatch) {
-        console.log('시간 파싱 실패:', timeRange);
+      try {
+        // "이진영 10-11" 형태의 텍스트를 파싱
+        const parts = trimmedLine.split(' ');
+        if (parts.length < 2) continue;
+        
+        const employeeName = parts[0];
+        const timeRange = parts[1];
+        
+        // 시간 범위 파싱 (예: "10-11", "9-18(1)", "11-20(3.5)")
+        const timeMatch = timeRange.match(/(\d+)-(\d+)(?:\((\d+(?:\.\d+)?)\))?/);
+        if (!timeMatch || !timeMatch[1] || !timeMatch[2]) {
+          console.log('시간 파싱 실패:', timeRange);
+          continue;
+        }
+        
+        const startHour = parseInt(timeMatch[1]);
+        const endHour = parseInt(timeMatch[2]);
+        const breakTime = timeMatch[3] || '0';
+        
+        // 유효성 검사
+        if (isNaN(startHour) || isNaN(endHour) || startHour < 0 || endHour < 0 || startHour > 23 || endHour > 23) {
+          console.log('유효하지 않은 시간:', { startHour, endHour });
+          continue;
+        }
+        
+        const schedule = {
+          employeeName,
+          startTime: `${startHour.toString().padStart(2, '0')}:00`,
+          endTime: `${endHour.toString().padStart(2, '0')}:00`,
+          breakTime
+        };
+        
+        console.log('파싱된 스케줄:', schedule);
+        schedules.push(schedule);
+      } catch (error) {
+        console.error('스케줄 파싱 중 오류:', error, '입력:', trimmedLine);
         continue;
       }
-      
-      const startHour = parseInt(timeMatch[1]);
-      const endHour = parseInt(timeMatch[2]);
-      const breakTime = timeMatch[3] || '0';
-      
-      const schedule = {
-        employeeName,
-        startTime: `${startHour.toString().padStart(2, '0')}:00`,
-        endTime: `${endHour.toString().padStart(2, '0')}:00`,
-        breakTime
-      };
-      
-      console.log('파싱된 스케줄:', schedule);
-      schedules.push(schedule);
     }
     
     console.log('전체 파싱 결과:', schedules);
