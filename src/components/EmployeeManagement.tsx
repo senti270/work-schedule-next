@@ -19,6 +19,11 @@ interface Employee {
   type?: string;
   status?: 'active' | 'inactive';
   contractFile?: string; // 근로계약서 파일 URL
+  // 급여관리용 은행 정보
+  bankName?: string;
+  bankCode?: string;
+  accountNumber?: string;
+  accountHolder?: string; // 예금주명
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +34,13 @@ interface Branch {
   companyName?: string;
   ceoName?: string;
   businessNumber?: string;
+}
+
+interface BankCode {
+  id: string;
+  name: string;
+  code: string;
+  createdAt: Date;
 }
 
 interface EmploymentContract {
@@ -59,6 +71,7 @@ interface EmployeeManagementProps {
 export default function EmployeeManagement({ userBranch, isManager }: EmployeeManagementProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [bankCodes, setBankCodes] = useState<BankCode[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -85,13 +98,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     branchId: '',
     residentNumber: '',
     hireDate: '',
-    type: '아르바이트'
+    type: '아르바이트',
+    // 급여관리용 은행 정보
+    bankName: '',
+    bankCode: '',
+    accountNumber: '',
+    accountHolder: ''
   });
 
   useEffect(() => {
     console.log('EmployeeManagement 컴포넌트가 마운트되었습니다.');
     loadEmployees();
     loadBranches();
+    loadBankCodes();
   }, []);
 
   useEffect(() => {
@@ -134,6 +153,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           resignationDate: resignationDate,
           type: data.type || '정규직',
           status: resignationDate ? 'inactive' : 'active', // 퇴사일이 있으면 'inactive', 없으면 'active'
+          // 급여관리용 은행 정보
+          bankName: data.bankName || '',
+          bankCode: data.bankCode || '',
+          accountNumber: data.accountNumber || '',
+          accountHolder: data.accountHolder || '',
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
         };
@@ -157,6 +181,22 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       setBranches(branchesData);
     } catch (error) {
       console.error('지점 목록을 불러올 수 없습니다:', error);
+    }
+  };
+
+  const loadBankCodes = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'bankCodes'));
+      const bankCodesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        code: doc.data().code,
+        createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date()
+      })) as BankCode[];
+      setBankCodes(bankCodesData);
+      console.log('은행코드 데이터 로드됨:', bankCodesData);
+    } catch (error) {
+      console.error('은행코드 목록을 불러올 수 없습니다:', error);
     }
   };
 
@@ -275,6 +315,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           ...formData,
           branchName: branchName, // 지점명도 함께 업데이트
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
+          // 급여관리용 은행 정보
+          bankName: formData.bankName,
+          bankCode: formData.bankCode,
+          accountNumber: formData.accountNumber,
+          accountHolder: formData.accountHolder,
           updatedAt: new Date()
         };
         
@@ -300,6 +345,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           residentNumber: formData.residentNumber || '',
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
           type: formData.type || '정규직',
+          // 급여관리용 은행 정보
+          bankName: formData.bankName || '',
+          bankCode: formData.bankCode || '',
+          accountNumber: formData.accountNumber || '',
+          accountHolder: formData.accountHolder || '',
           createdAt: new Date(),
           updatedAt: new Date()
         };
@@ -318,7 +368,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         branchId: '',
         residentNumber: '',
         hireDate: '',
-        type: '정규직'
+        type: '정규직',
+        // 급여관리용 은행 정보
+        bankName: '',
+        bankCode: '',
+        accountNumber: '',
+        accountHolder: ''
       });
       setShowForm(false);
       setEditingEmployee(null);
@@ -355,7 +410,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       branchId: employee.branchId || '',
       residentNumber: employee.residentNumber || '',
       hireDate: employee.hireDate ? employee.hireDate.toISOString().split('T')[0] : '',
-      type: employee.type || '아르바이트'
+      type: employee.type || '아르바이트',
+      // 급여관리용 은행 정보
+      bankName: employee.bankName || '',
+      bankCode: employee.bankCode || '',
+      accountNumber: employee.accountNumber || '',
+      accountHolder: employee.accountHolder || ''
     });
     setShowForm(true);
     
@@ -419,7 +479,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       branchId: '',
       residentNumber: '',
       hireDate: '',
-      type: '정규직'
+      type: '정규직',
+      // 급여관리용 은행 정보
+      bankName: '',
+      bankCode: '',
+      accountNumber: '',
+      accountHolder: ''
     });
     setEditingEmployee(null);
     setShowForm(false);
@@ -936,6 +1001,63 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             </div>
                           </div>
                           
+                          {/* 급여관리용 은행 정보 */}
+                          <div className="border-t border-gray-200 pt-4">
+                            <h4 className="text-md font-medium text-gray-900 mb-4">급여 계좌 정보</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  은행명
+                                </label>
+                                <select
+                                  value={formData.bankCode}
+                                  onChange={(e) => {
+                                    const selectedBank = bankCodes.find(bank => bank.code === e.target.value);
+                                    setFormData({ 
+                                      ...formData, 
+                                      bankCode: e.target.value,
+                                      bankName: selectedBank?.name || ''
+                                    });
+                                  }}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="">은행 선택</option>
+                                  {bankCodes.map(bank => (
+                                    <option key={bank.id} value={bank.code}>
+                                      {bank.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  계좌번호
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.accountNumber}
+                                  onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="계좌번호 (숫자만 입력)"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  예금주명
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.accountHolder}
+                                  onChange={(e) => setFormData({ ...formData, accountHolder: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="예금주명"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          
                           <div className="flex gap-2 pt-4">
                             <button
                               type="submit"
@@ -1096,6 +1218,63 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                           <option value="계약직">계약직</option>
                           <option value="아르바이트">아르바이트</option>
                         </select>
+                      </div>
+                    </div>
+                    
+                    {/* 급여관리용 은행 정보 - 모바일 */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <h4 className="text-md font-medium text-gray-900 mb-4">급여 계좌 정보</h4>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            은행명
+                          </label>
+                          <select
+                            value={formData.bankCode}
+                            onChange={(e) => {
+                              const selectedBank = bankCodes.find(bank => bank.code === e.target.value);
+                              setFormData({ 
+                                ...formData, 
+                                bankCode: e.target.value,
+                                bankName: selectedBank?.name || ''
+                              });
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">은행 선택</option>
+                            {bankCodes.map(bank => (
+                              <option key={bank.id} value={bank.code}>
+                                {bank.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            계좌번호
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.accountNumber}
+                            onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="계좌번호 (숫자만 입력)"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            예금주명
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.accountHolder}
+                            onChange={(e) => setFormData({ ...formData, accountHolder: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="예금주명"
+                          />
+                        </div>
                       </div>
                     </div>
                     
