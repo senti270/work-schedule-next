@@ -84,12 +84,14 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     const weekDates = getWeekDates(currentWeekStart);
     const summaryMap = new Map<string, WeeklySummary>();
 
-    // 주간 스케줄 필터링
+    // 주간 스케줄 필터링 (지점별로)
     const weekSchedules = schedulesData.filter(schedule => {
       const scheduleDate = new Date(schedule.date);
-      return weekDates.some(weekDate => 
+      const isInWeek = weekDates.some(weekDate => 
         scheduleDate.toDateString() === weekDate.toDateString()
       );
+      const isInBranch = !selectedBranchId || schedule.branchId === selectedBranchId;
+      return isInWeek && isInBranch;
     });
 
     // 각 직원별로 요일별 근무시간 계산

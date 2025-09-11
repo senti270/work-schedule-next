@@ -65,8 +65,16 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(new Date());
-  const [numberOfWeeks, setNumberOfWeeks] = useState(4);
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+    // 현재 날짜가 속한 주의 월요일을 기준으로 설정
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=일요일, 1=월요일, ..., 6=토요일
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // 일요일이면 -6, 아니면 1-dayOfWeek
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+    return monday;
+  });
+  const numberOfWeeks = 4; // 고정값으로 변경
   const [loading, setLoading] = useState(true);
   const [editingSchedule, setEditingSchedule] = useState<EditingSchedule | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -166,6 +174,12 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
             return; // 잘못된 직원은 집계에서 제외
           }
           
+          // 지점 필터링 - 선택된 지점의 직원만 집계에 포함
+          if (selectedBranchId && employee && employee.branchId !== selectedBranchId) {
+            console.log(`다른 지점 직원 제외: ${employeeName} (지점: ${employee.branchId})`);
+            return; // 다른 지점 직원은 집계에서 제외
+          }
+          
           // 유효한 직원만 집계에 포함
           const totalHours = calculateTotalHours(
             inputSchedule.startTime, 
@@ -216,7 +230,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     
     console.log('업데이트된 주간집계:', allSummaries);
     setWeeklySummary(allSummaries);
-  }, [schedules, employees, dateInputs, currentWeekStart, numberOfWeeks, generateWeeklySummary]);
+  }, [schedules, employees, dateInputs, currentWeekStart, generateWeeklySummary]);
 
   // 데이터가 로드되면 주간집계 업데이트
   useEffect(() => {
@@ -234,7 +248,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     } else {
       console.log('직원 데이터와 입력 데이터가 모두 없어서 updateWeeklySummary 호출하지 않음');
     }
-  }, [schedules, employees, dateInputs, currentWeekStart, numberOfWeeks, updateWeeklySummary]);
+  }, [schedules, employees, dateInputs, currentWeekStart, updateWeeklySummary]);
 
   const loadSchedules = async () => {
     setLoading(true);
@@ -706,28 +720,13 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
               다음 {numberOfWeeks}주 →
             </button>
           </div>
-          <div className="flex flex-col space-y-4">
-            <div className="flex items-center justify-center space-x-2">
-              <label className="text-sm font-medium text-gray-900">주간 수:</label>
-              <select
-                value={numberOfWeeks}
-                onChange={(e) => setNumberOfWeeks(Number(e.target.value))}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value={3}>3주</option>
-                <option value={4}>4주</option>
-                <option value={5}>5주</option>
-                <option value={6}>6주</option>
-              </select>
-            </div>
-            <div className="flex justify-center">
-              <button
-                onClick={saveAllSchedules}
-                className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 font-medium"
-              >
-                모든 스케줄 저장
-              </button>
-            </div>
+          <div className="flex justify-center">
+            <button
+              onClick={saveAllSchedules}
+              className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 font-medium"
+            >
+              모든 스케줄 저장
+            </button>
           </div>
         </div>
       </div>
