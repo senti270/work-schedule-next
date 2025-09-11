@@ -81,6 +81,8 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   const [dateInputs, setDateInputs] = useState<{[key: string]: string}>({});
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary[]>([]);
   const [invalidEmployees, setInvalidEmployees] = useState<{[key: string]: string[]}>({});
+  const [draggedSchedule, setDraggedSchedule] = useState<Schedule | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
   useEffect(() => {
     // 이번 주 월요일로 설정
@@ -689,6 +691,72 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     setCurrentWeekStart(nextWeeks);
   };
 
+  // 드래그 앤 드롭 핸들러들
+  const handleDragStart = (e: React.DragEvent, schedule: Schedule) => {
+    setDraggedSchedule(schedule);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', schedule.id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, dateKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverDate(dateKey);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverDate(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetDateKey: string) => {
+    e.preventDefault();
+    setDragOverDate(null);
+    
+    if (!draggedSchedule) return;
+    
+    const targetDate = new Date(targetDateKey);
+    const sourceDate = new Date(draggedSchedule.date);
+    
+    // 같은 날짜로 드롭하는 경우 무시
+    if (targetDate.toDateString() === sourceDate.toDateString()) {
+      setDraggedSchedule(null);
+      return;
+    }
+    
+    try {
+      // 기존 스케줄 삭제
+      await deleteDoc(doc(db, 'schedules', draggedSchedule.id));
+      
+      // 새 날짜로 스케줄 생성
+      const newScheduleData = {
+        employeeId: draggedSchedule.employeeId,
+        employeeName: draggedSchedule.employeeName,
+        branchId: draggedSchedule.branchId,
+        branchName: draggedSchedule.branchName,
+        date: targetDate,
+        startTime: draggedSchedule.startTime,
+        endTime: draggedSchedule.endTime,
+        breakTime: draggedSchedule.breakTime,
+        totalHours: draggedSchedule.totalHours,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      await addDoc(collection(db, 'schedules'), newScheduleData);
+      
+      // 스케줄 목록 새로고침
+      loadSchedules();
+      
+      alert(`${draggedSchedule.employeeName}의 스케줄이 ${targetDate.toLocaleDateString('ko-KR')}로 이동되었습니다.`);
+    } catch (error) {
+      console.error('스케줄 이동 중 오류:', error);
+      alert('스케줄 이동 중 오류가 발생했습니다.');
+    } finally {
+      setDraggedSchedule(null);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -798,24 +866,34 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                           return (
                             <tr key={index} className="hover:bg-gray-50">
                               {weekDates.map((date, dayIndex) => {
+                                const dateKey = date.toISOString().split('T')[0];
                                 const daySchedules = getSchedulesForDate(date).filter(
                                   schedule => schedule.employeeName === employeeName
                                 );
-                                const inputText = dateInputs[date.toISOString().split('T')[0]] || '';
+                                const inputText = dateInputs[dateKey] || '';
                                 const parsedInputs = parseScheduleInput(inputText);
                                 const inputSchedules = parsedInputs.filter(
                                   input => input.employeeName === employeeName
                                 );
                                 
                                 return (
-                                  <td key={dayIndex} className="px-2 py-2 text-center">
+                                  <td 
+                                    key={dayIndex} 
+                                    className={`px-2 py-2 text-center ${dragOverDate === dateKey ? 'bg-blue-100 border-2 border-blue-300' : ''}`}
+                                    onDragOver={(e) => handleDragOver(e, dateKey)}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={(e) => handleDrop(e, dateKey)}
+                                  >
                                     <div className="space-y-1">
                                       {/* 기존 저장된 스케줄 */}
                                       {daySchedules.map((schedule) => (
                                         <div
                                           key={schedule.id}
-                                          className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 cursor-pointer hover:bg-yellow-200 relative group"
+                                          className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 cursor-move hover:bg-yellow-200 relative group"
                                           onClick={() => handleScheduleClick(schedule)}
+                                          draggable={true}
+                                          onDragStart={(e) => handleDragStart(e, schedule)}
+                                          title="드래그해서 다른 날로 이동할 수 있습니다"
                                         >
                                           {formatScheduleDisplay(schedule)}
                                           <button
