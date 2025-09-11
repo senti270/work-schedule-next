@@ -83,6 +83,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   const [invalidEmployees, setInvalidEmployees] = useState<{[key: string]: string[]}>({});
   const [draggedSchedule, setDraggedSchedule] = useState<Schedule | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [isCopyMode, setIsCopyMode] = useState<boolean>(false);
 
   useEffect(() => {
     // 이번 주 월요일로 설정
@@ -694,13 +695,26 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   // 드래그 앤 드롭 핸들러들
   const handleDragStart = (e: React.DragEvent, schedule: Schedule) => {
     setDraggedSchedule(schedule);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', schedule.id);
+    // Ctrl 키가 눌려있으면 복사, 아니면 이동
+    if (e.ctrlKey) {
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('text/plain', `copy:${schedule.id}`);
+      setIsCopyMode(true);
+    } else {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', schedule.id);
+      setIsCopyMode(false);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent, dateKey: string) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    // Ctrl 키가 눌려있으면 복사, 아니면 이동
+    if (e.ctrlKey) {
+      e.dataTransfer.dropEffect = 'copy';
+    } else {
+      e.dataTransfer.dropEffect = 'move';
+    }
     setDragOverDate(dateKey);
   };
 
@@ -717,6 +731,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     
     const targetDate = new Date(targetDateKey);
     const sourceDate = new Date(draggedSchedule.date);
+    const isCopyMode = e.ctrlKey;
     
     // 같은 날짜로 드롭하는 경우 무시
     if (targetDate.toDateString() === sourceDate.toDateString()) {
@@ -725,8 +740,10 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     }
     
     try {
-      // 기존 스케줄 삭제
-      await deleteDoc(doc(db, 'schedules', draggedSchedule.id));
+      // 복사 모드가 아닌 경우에만 기존 스케줄 삭제
+      if (!isCopyMode) {
+        await deleteDoc(doc(db, 'schedules', draggedSchedule.id));
+      }
       
       // 새 날짜로 스케줄 생성
       const newScheduleData = {
@@ -748,12 +765,15 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
       // 스케줄 목록 새로고침
       loadSchedules();
       
-      alert(`${draggedSchedule.employeeName}의 스케줄이 ${targetDate.toLocaleDateString('ko-KR')}로 이동되었습니다.`);
+      const action = isCopyMode ? '복사' : '이동';
+      alert(`${draggedSchedule.employeeName}의 스케줄이 ${targetDate.toLocaleDateString('ko-KR')}로 ${action}되었습니다.`);
     } catch (error) {
-      console.error('스케줄 이동 중 오류:', error);
-      alert('스케줄 이동 중 오류가 발생했습니다.');
+      console.error('스케줄 처리 중 오류:', error);
+      const action = isCopyMode ? '복사' : '이동';
+      alert(`스케줄 ${action} 중 오류가 발생했습니다.`);
     } finally {
       setDraggedSchedule(null);
+      setIsCopyMode(false);
     }
   };
 
@@ -879,7 +899,11 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                                 return (
                                   <td 
                                     key={dayIndex} 
-                                    className={`px-2 py-2 text-center ${dragOverDate === dateKey ? 'bg-blue-100 border-2 border-blue-300' : ''}`}
+                                    className={`px-2 py-2 text-center ${
+                                      dragOverDate === dateKey 
+                                        ? (isCopyMode ? 'bg-green-100 border-2 border-green-300' : 'bg-blue-100 border-2 border-blue-300')
+                                        : ''
+                                    }`}
                                     onDragOver={(e) => handleDragOver(e, dateKey)}
                                     onDragLeave={handleDragLeave}
                                     onDrop={(e) => handleDrop(e, dateKey)}
@@ -893,7 +917,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                                           onClick={() => handleScheduleClick(schedule)}
                                           draggable={true}
                                           onDragStart={(e) => handleDragStart(e, schedule)}
-                                          title="드래그해서 다른 날로 이동할 수 있습니다"
+                                          title="드래그해서 다른 날로 이동할 수 있습니다. Ctrl 키를 누르고 드래그하면 복사됩니다."
                                         >
                                           {formatScheduleDisplay(schedule)}
                                           <button
