@@ -84,6 +84,10 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     const weekDates = getWeekDates(currentWeekStart);
     const summaryMap = new Map<string, WeeklySummary>();
 
+    console.log('=== WeeklyScheduleView 주간집계 생성 ===');
+    console.log('전체 스케줄 데이터:', schedulesData);
+    console.log('선택된 지점 ID:', selectedBranchId);
+
     // 주간 스케줄 필터링 (지점별로)
     const weekSchedules = schedulesData.filter(schedule => {
       const scheduleDate = new Date(schedule.date);
@@ -93,6 +97,8 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
       const isInBranch = !selectedBranchId || schedule.branchId === selectedBranchId;
       return isInWeek && isInBranch;
     });
+    
+    console.log('필터링된 주간 스케줄:', weekSchedules);
 
     // 각 직원별로 요일별 근무시간 계산
     weekSchedules.forEach(schedule => {
