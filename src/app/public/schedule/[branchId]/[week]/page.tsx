@@ -48,6 +48,27 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   const [weeklySummaries, setWeeklySummaries] = useState<WeeklySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(new Date());
+  const [branchName, setBranchName] = useState<string>('');
+
+  const loadBranchInfo = useCallback(async () => {
+    if (resolvedParams.branchId === 'all') {
+      setBranchName('전체 지점');
+      return;
+    }
+    
+    try {
+      const querySnapshot = await getDocs(collection(db, 'branches'));
+      const branch = querySnapshot.docs.find(doc => doc.id === resolvedParams.branchId);
+      if (branch) {
+        setBranchName(branch.data().name);
+      } else {
+        setBranchName('알 수 없는 지점');
+      }
+    } catch (error) {
+      console.error('지점 정보를 불러올 수 없습니다:', error);
+      setBranchName('알 수 없는 지점');
+    }
+  }, [resolvedParams.branchId]);
 
   const loadSchedules = useCallback(async () => {
     try {
@@ -111,8 +132,9 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
     // URL에서 주차 정보 파싱
     const weekDate = new Date(resolvedParams.week);
     setCurrentWeekStart(weekDate);
+    loadBranchInfo();
     loadSchedules();
-  }, [resolvedParams.week, resolvedParams.branchId, loadSchedules]);
+  }, [resolvedParams.week, resolvedParams.branchId, loadBranchInfo, loadSchedules]);
 
   const generateWeeklySummary = (schedulesData: Schedule[]) => {
     const summaryMap = new Map<string, WeeklySummary>();
@@ -217,6 +239,13 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* 지점명 표시 */}
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-900 text-center">
+            {branchName} 주간 스케줄
+          </h1>
+        </div>
+        
         {/* 주간 네비게이션 */}
         <div className="bg-white p-4 rounded-lg shadow border mb-6">
           <div className="flex items-center justify-between">

@@ -699,132 +699,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         )}
       </div>
 
-      {/* 직원 추가/수정 폼 */}
-      {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6 border border-gray-200" style={{zIndex: 1000, position: 'relative'}}>
-          <h2 className="text-xl font-semibold mb-4 text-gray-900">
-            {editingEmployee ? '직원 정보 수정' : '새 직원 추가'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  이름 *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="직원 이름"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  이메일
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="이메일 주소"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  전화번호
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="전화번호"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  지점
-                </label>
-                <select
-                  value={formData.branchId}
-                  onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">지점 선택 *</option>
-                  {branches.map(branch => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  주민등록번호
-                </label>
-                <input
-                  type="text"
-                  value={formData.residentNumber}
-                  onChange={(e) => setFormData({ ...formData, residentNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="주민등록번호"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  입사일
-                </label>
-                <input
-                  type="date"
-                  value={formData.hireDate}
-                  onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  고용 형태
-                </label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="정규직">정규직</option>
-                  <option value="계약직">계약직</option>
-                  <option value="아르바이트">아르바이트</option>
-                </select>
-              </div>
-            </div>
-            
-            <div className="flex gap-2 pt-4">
-              <button
-                type="submit"
-                className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 font-medium"
-              >
-                {editingEmployee ? '수정' : '추가'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 font-medium"
-              >
-                취소
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* 직원 목록 */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -993,6 +867,133 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           </div>
         )}
       </div>
+
+      {/* 직원 추가/수정 폼 - 직원 목록 아래에 표시 */}
+      {showForm && (
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6 border border-gray-200">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900">
+            {editingEmployee ? '직원 정보 수정' : '새 직원 추가'}
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  이름 *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="직원 이름"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  이메일
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="이메일 주소"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  전화번호
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="전화번호"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  지점
+                </label>
+                <select
+                  value={formData.branchId}
+                  onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">지점 선택 *</option>
+                  {branches.map(branch => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  주민등록번호
+                </label>
+                <input
+                  type="text"
+                  value={formData.residentNumber}
+                  onChange={(e) => setFormData({ ...formData, residentNumber: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="주민등록번호"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  입사일
+                </label>
+                <input
+                  type="date"
+                  value={formData.hireDate}
+                  onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  고용 형태
+                </label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="정규직">정규직</option>
+                  <option value="계약직">계약직</option>
+                  <option value="아르바이트">아르바이트</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <button
+                type="submit"
+                className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 font-medium"
+              >
+                {editingEmployee ? '수정' : '추가'}
+              </button>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 font-medium"
+              >
+                취소
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* 근로계약서 모달 */}
       {showContractModal && selectedEmployee && (
