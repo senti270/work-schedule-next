@@ -569,7 +569,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                 <p><strong>POS ASP 시스템에서 복사하기:</strong></p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>POS ASP 시스템 → 기타관리 → 근태관리 → 월근태내역</li>
-                  <li>조회일자 설정 후 "조회" 버튼 클릭</li>
+                  <li>조회일자 설정 후 &quot;조회&quot; 버튼 클릭</li>
                   <li>아래 표에서 해당 직원의 <strong>전체 데이터 영역을 선택</strong>하여 복사</li>
                   <li>복사한 데이터를 아래 텍스트 영역에 붙여넣기</li>
                 </ol>
