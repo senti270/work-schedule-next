@@ -641,6 +641,17 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         existingData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setComparisonResults(existingData);
         console.log('기존 비교 데이터 로드됨:', existingData);
+        
+        // 기존 데이터가 있으면 해당 직원을 검토중으로 상태 변경
+        if (existingData.length > 0) {
+          setEmployeeReviewStatus(prev => 
+            prev.map(status => 
+              status.employeeId === selectedEmployeeId 
+                ? { ...status, status: '검토중' }
+                : status
+            )
+          );
+        }
       } else {
         // 기존 데이터가 없으면 비교 결과 초기화
         setComparisonResults([]);

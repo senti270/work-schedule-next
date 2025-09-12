@@ -248,6 +248,17 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     return end.toISOString().split('T')[0];
   };
 
+  // 수습 중 여부 자동 계산 함수
+  const isCurrentlyOnProbation = (startDate: string, endDate: string) => {
+    if (!startDate || !endDate) return false;
+    
+    const today = new Date();
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    return today >= start && today <= end;
+  };
+
   const initializeBankCodes = async () => {
     try {
       console.log('은행코드 초기화 시작...');
@@ -1159,7 +1170,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             </div>
                             
                             {/* 근로소득자 주간 근무시간 필드 */}
-                            {formData.type === '근로소득자' && (
+                            {(formData.type === '근로소득자' || (editingEmployee && editingEmployee.type === '근로소득자')) && (
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                   주간 근무시간 (시간)
@@ -1192,10 +1203,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                   onChange={(e) => {
                                     const startDate = e.target.value;
                                     const endDate = calculateProbationPeriod(startDate, formData.probationPeriod);
+                                    const isOnProbation = isCurrentlyOnProbation(startDate, endDate);
                                     setFormData({ 
                                       ...formData, 
                                       probationStartDate: startDate,
-                                      probationEndDate: endDate
+                                      probationEndDate: endDate,
+                                      isOnProbation: isOnProbation
                                     });
                                   }}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1210,10 +1223,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                   onChange={(e) => {
                                     const period = parseInt(e.target.value);
                                     const endDate = calculateProbationPeriod(formData.probationStartDate, period);
+                                    const isOnProbation = isCurrentlyOnProbation(formData.probationStartDate, endDate);
                                     setFormData({ 
                                       ...formData, 
                                       probationPeriod: period,
-                                      probationEndDate: endDate
+                                      probationEndDate: endDate,
+                                      isOnProbation: isOnProbation
                                     });
                                   }}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1241,11 +1256,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                   type="checkbox"
                                   id="isOnProbation"
                                   checked={formData.isOnProbation}
-                                  onChange={(e) => setFormData({ ...formData, isOnProbation: e.target.checked })}
-                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  readOnly
+                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded bg-gray-100"
                                 />
                                 <label htmlFor="isOnProbation" className="ml-2 block text-sm text-gray-700">
-                                  현재 수습 중
+                                  현재 수습 중 (자동 계산)
                                 </label>
                               </div>
                             </div>
