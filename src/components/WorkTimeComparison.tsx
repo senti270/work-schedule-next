@@ -195,47 +195,74 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           const date = columns[0].trim(); // "2025-09-11"
           const startTime = columns[1].trim(); // "2025-09-11 19:00:10"
           const endTime = columns[2].trim(); // "2025-09-11 22:11:05"
-          const totalTimeStr = columns[6].trim(); // "3:11" 형태
+          
+          // 여러 컬럼에서 시간 정보 찾기
+          let totalTimeStr = '';
+          let totalHours = 0;
+          
+          // 7번째 컬럼부터 12번째 컬럼까지 시간 형식 찾기
+          for (let i = 6; i < Math.min(columns.length, 12); i++) {
+            const colValue = columns[i].trim();
+            if (colValue.includes(':') && colValue.match(/^\d+:\d+$/)) {
+              totalTimeStr = colValue;
+              console.log(`시간 발견: 컬럼 ${i} = "${colValue}"`);
+              break;
+            }
+          }
+          
+          // 시간을 찾지 못한 경우 시작/종료 시간으로 계산
+          if (!totalTimeStr) {
+            try {
+              const start = new Date(startTime);
+              const end = new Date(endTime);
+              const diffMs = end.getTime() - start.getTime();
+              totalHours = diffMs / (1000 * 60 * 60); // 시간 단위로 변환
+              console.log(`시간 계산: ${startTime} ~ ${endTime} = ${totalHours}시간`);
+            } catch (error) {
+              console.error('시간 계산 오류:', error);
+            }
+          }
 
           console.log(`전체 컬럼 정보:`, columns.map((col, idx) => `${idx}: "${col}"`));
           console.log(`파싱된 데이터: 날짜=${date}, 시작=${startTime}, 종료=${endTime}, 총시간=${totalTimeStr}`);
 
           // 시간 문자열을 소수점 시간으로 변환 (예: "3:11" -> 3.18)
-          let totalHours = 0;
-          try {
-            console.log(`7번째 컬럼 원본 데이터: "${totalTimeStr}"`);
-            
-            // 여러 가지 시간 형식 시도
-            if (totalTimeStr.includes(':')) {
-              const timeParts = totalTimeStr.split(':');
-              console.log(`시간 파싱: ${totalTimeStr} -> parts:`, timeParts);
+          if (totalTimeStr) {
+            try {
+              console.log(`시간 문자열 파싱: "${totalTimeStr}"`);
               
-              if (timeParts.length === 2) {
-                const hours = parseInt(timeParts[0], 10);
-                const minutes = parseInt(timeParts[1], 10);
-                console.log(`시간 변환: hours=${hours}, minutes=${minutes}`);
+              // 여러 가지 시간 형식 시도
+              if (totalTimeStr.includes(':')) {
+                const timeParts = totalTimeStr.split(':');
+                console.log(`시간 파싱: ${totalTimeStr} -> parts:`, timeParts);
                 
-                if (!isNaN(hours) && !isNaN(minutes)) {
-                  totalHours = hours + (minutes / 60);
-                  console.log(`최종 계산: ${hours} + (${minutes}/60) = ${totalHours}`);
+                if (timeParts.length === 2) {
+                  const hours = parseInt(timeParts[0], 10);
+                  const minutes = parseInt(timeParts[1], 10);
+                  console.log(`시간 변환: hours=${hours}, minutes=${minutes}`);
+                  
+                  if (!isNaN(hours) && !isNaN(minutes)) {
+                    totalHours = hours + (minutes / 60);
+                    console.log(`최종 계산: ${hours} + (${minutes}/60) = ${totalHours}`);
+                  } else {
+                    console.error('시간 파싱 실패: hours 또는 minutes가 NaN', { hours, minutes });
+                  }
                 } else {
-                  console.error('시간 파싱 실패: hours 또는 minutes가 NaN', { hours, minutes });
+                  console.error('시간 형식 오류: 콜론이 1개가 아님', timeParts);
                 }
               } else {
-                console.error('시간 형식 오류: 콜론이 1개가 아님', timeParts);
+                // 콜론이 없는 경우 숫자로만 파싱 시도
+                const numericValue = parseFloat(totalTimeStr);
+                if (!isNaN(numericValue)) {
+                  totalHours = numericValue;
+                  console.log(`숫자로 파싱: ${totalTimeStr} -> ${totalHours}`);
+                } else {
+                  console.error('시간 파싱 실패: 숫자도 아니고 시간 형식도 아님', totalTimeStr);
+                }
               }
-            } else {
-              // 콜론이 없는 경우 숫자로만 파싱 시도
-              const numericValue = parseFloat(totalTimeStr);
-              if (!isNaN(numericValue)) {
-                totalHours = numericValue;
-                console.log(`숫자로 파싱: ${totalTimeStr} -> ${totalHours}`);
-              } else {
-                console.error('시간 파싱 실패: 숫자도 아니고 시간 형식도 아님', totalTimeStr);
-              }
+            } catch (error) {
+              console.error('시간 파싱 오류:', error, '원본 데이터:', totalTimeStr);
             }
-          } catch (error) {
-            console.error('시간 파싱 오류:', error, '원본 데이터:', totalTimeStr);
           }
 
           records.push({
@@ -306,10 +333,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           status = 'review_required';
         } else if (Math.abs(difference) < 0.1) {
           status = 'match';
-        } else if (difference > 0) {
-          status = 'over';
         } else {
-          status = 'under';
+          // 10분 이내 차이는 모두 검토필요로 통일
+          status = 'review_required';
         }
 
         comparisons.push({
