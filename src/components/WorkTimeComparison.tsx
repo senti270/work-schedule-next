@@ -726,7 +726,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         <div className="text-xs text-gray-500">{result.actualTimeRange}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        {result.difference > 0 ? '+' : ''}{result.difference.toFixed(1)}시간
+                        {(() => {
+                          const totalMinutes = Math.abs(result.difference) * 60;
+                          const hours = Math.floor(totalMinutes / 60);
+                          const minutes = Math.round(totalMinutes % 60);
+                          const sign = result.difference > 0 ? '+' : result.difference < 0 ? '-' : '';
+                          return `${sign}${hours}:${minutes.toString().padStart(2, '0')}`;
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(result.status)}`}>
