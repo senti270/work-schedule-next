@@ -116,6 +116,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   useEffect(() => {
     if (isManager && userBranch) {
       setSelectedBranchId(userBranch.id);
+      console.log('매니저 권한으로 지점 설정:', userBranch.name);
     }
   }, [isManager, userBranch]);
 
@@ -128,7 +129,17 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const loadEmployees = async () => {
     console.log('직원 목록을 불러오는 중...');
     try {
-      const querySnapshot = await getDocs(collection(db, 'employees'));
+      let querySnapshot;
+      
+      // 매니저 권한이 있으면 해당 지점 직원만 로드
+      if (isManager && userBranch) {
+        console.log('매니저 권한으로 지점 필터링:', userBranch.id);
+        const q = query(collection(db, 'employees'), where('branchId', '==', userBranch.id));
+        querySnapshot = await getDocs(q);
+      } else {
+        querySnapshot = await getDocs(collection(db, 'employees'));
+      }
+      
       console.log('Firestore에서 받은 직원 데이터:', querySnapshot.docs);
       
       // 지점 목록도 함께 로드
@@ -332,15 +343,25 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         console.log('새 직원 추가 시도');
         console.log('formData:', formData);
         
-        // 선택된 지점의 이름 찾기
-        const selectedBranch = branches.find(branch => branch.id === formData.branchId);
-        const branchName = selectedBranch ? selectedBranch.name : '';
+        // 매니저 권한이 있으면 해당 지점으로 자동 설정
+        let branchId = formData.branchId;
+        let branchName = '';
+        
+        if (isManager && userBranch) {
+          branchId = userBranch.id;
+          branchName = userBranch.name;
+          console.log('매니저 권한으로 지점 자동 설정:', branchName);
+        } else {
+          // 선택된 지점의 이름 찾기
+          const selectedBranch = branches.find(branch => branch.id === formData.branchId);
+          branchName = selectedBranch ? selectedBranch.name : '';
+        }
         
         const employeeData = {
           name: formData.name,
           email: formData.email || '',
           phone: formData.phone || '',
-          branchId: formData.branchId || '',
+          branchId: branchId || '',
           branchName: branchName, // 지점명도 함께 저장
           residentNumber: formData.residentNumber || '',
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
@@ -476,7 +497,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       name: '',
       email: '',
       phone: '',
-      branchId: '',
+      branchId: isManager && userBranch ? userBranch.id : '',
       residentNumber: '',
       hireDate: '',
       type: '정규직',
@@ -732,7 +753,16 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">직원 관리</h1>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            // 매니저 권한이 있으면 해당 지점으로 자동 설정
+            if (isManager && userBranch) {
+              setFormData(prev => ({
+                ...prev,
+                branchId: userBranch.id
+              }));
+            }
+            setShowForm(true);
+          }}
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
         >
           직원 추가
@@ -948,8 +978,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               <select
                                 value={formData.branchId}
                                 onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                                 required
+                                disabled={isManager}
                               >
                                 <option value="">지점 선택 *</option>
                                 {branches.map(branch => (
@@ -958,6 +989,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                   </option>
                                 ))}
                               </select>
+                              {isManager && (
+                                <p className="text-sm text-gray-500 mt-1">
+                                  매니저 권한으로 {userBranch?.name} 지점에 자동 설정됩니다.
+                                </p>
+                              )}
                             </div>
                             
                             <div>
@@ -1168,8 +1204,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         <select
                           value={formData.branchId}
                           onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                           required
+                          disabled={isManager}
                         >
                           <option value="">지점 선택 *</option>
                           {branches.map(branch => (
@@ -1178,6 +1215,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             </option>
                           ))}
                         </select>
+                        {isManager && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            매니저 권한으로 {userBranch?.name} 지점에 자동 설정됩니다.
+                          </p>
+                        )}
                       </div>
                       
                       <div>
