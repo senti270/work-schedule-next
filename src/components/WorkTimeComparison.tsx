@@ -620,6 +620,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
               본사전송
             </button>
           </div>
+          </>
         ) : (
           <div className="px-6 py-12 text-center">
             <div className="text-gray-500 text-lg mb-2">📊</div>
@@ -735,7 +736,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         </div>
         
         {comparisonResults.length > 0 ? (
-          <div className="overflow-x-auto">
+          <>
+            <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
