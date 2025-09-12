@@ -33,7 +33,7 @@ interface WorkTimeComparison {
   scheduledHours: number;
   actualHours: number;
   difference: number;
-  status: 'match' | 'over' | 'under' | 'review_required' | 'modified';
+  status: 'time_match' | 'review_required' | 'review_completed';
   scheduledTimeRange?: string; // "19:00-22:00" 형태
   actualTimeRange?: string; // "19:00-22:11" 형태
   isModified?: boolean; // 수정 여부
@@ -326,16 +326,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
       if (actualRecord) {
         const difference = actualRecord.totalHours - schedule.totalHours;
-        let status: 'match' | 'over' | 'under' | 'review_required' = 'match';
+        let status: 'time_match' | 'review_required' | 'review_completed' = 'time_match';
         
-        // 10분(0.17시간) 이상 차이나면 검토필요
+        // 10분(0.17시간) 이상 차이나면 확인필요, 이내면 시간일치
         if (Math.abs(difference) >= 0.17) {
           status = 'review_required';
-        } else if (Math.abs(difference) < 0.1) {
-          status = 'match';
         } else {
-          // 10분 이내 차이는 모두 검토필요로 통일
-          status = 'review_required';
+          status = 'time_match';
         }
 
         comparisons.push({
@@ -359,7 +356,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           scheduledHours: schedule.totalHours,
           actualHours: 0,
           difference: -schedule.totalHours,
-          status: 'under',
+          status: 'review_required',
           scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
           actualTimeRange: '-',
           isModified: false
@@ -393,26 +390,39 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     
     console.log('비교 결과:', comparisons);
     setComparisonResults(comparisons);
+    
+    // 모든 데이터가 확인완료 또는 시간일치인 경우 직원 검토 상태를 검토완료로 변경
+    const allCompleted = comparisons.every(comp => 
+      comp.status === 'review_completed' || comp.status === 'time_match'
+    );
+    
+    if (allCompleted && comparisons.length > 0) {
+      const updatedEmployeeStatus = [...employeeReviewStatus];
+      const employeeIndex = updatedEmployeeStatus.findIndex(emp => emp.employeeId === selectedEmployeeId);
+      if (employeeIndex !== -1) {
+        updatedEmployeeStatus[employeeIndex] = {
+          ...updatedEmployeeStatus[employeeIndex],
+          status: 'completed'
+        };
+        setEmployeeReviewStatus(updatedEmployeeStatus);
+      }
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'match': return 'text-green-600 bg-green-50';
-      case 'over': return 'text-blue-600 bg-blue-50';
-      case 'under': return 'text-red-600 bg-red-50';
+      case 'time_match': return 'text-green-600 bg-green-50';
       case 'review_required': return 'text-orange-600 bg-orange-50';
-      case 'modified': return 'text-purple-600 bg-purple-50';
+      case 'review_completed': return 'text-purple-600 bg-purple-50';
       default: return 'text-gray-600 bg-gray-50';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'match': return '근무시간일치';
-      case 'over': return '초과';
-      case 'under': return '부족';
-      case 'review_required': return '검토필요';
-      case 'modified': return '수정완료';
+      case 'time_match': return '시간일치';
+      case 'review_required': return '확인필요';
+      case 'review_completed': return '확인완료';
       default: return '알 수 없음';
     }
   };
@@ -562,9 +572,15 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
               onClick={() => {
                 alert('본사전송 기능은 향후 구현될 예정입니다.');
               }}
-              disabled={!employees.every(emp => employeeReviewStatus[emp.id] === '검토완료')}
+              disabled={!employees.every(emp => {
+                const empStatus = employeeReviewStatus.find(status => status.employeeId === emp.id);
+                return empStatus?.status === 'completed';
+              })}
               className={`px-6 py-2 rounded-md font-medium ${
-                employees.every(emp => employeeReviewStatus[emp.id] === '검토완료')
+                employees.every(emp => {
+                  const empStatus = employeeReviewStatus.find(status => status.employeeId === emp.id);
+                  return empStatus?.status === 'completed';
+                })
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
@@ -718,11 +734,21 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         {result.date}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        <div>{result.scheduledHours.toFixed(1)}시간</div>
+                        <div>{(() => {
+                          const totalMinutes = result.scheduledHours * 60;
+                          const hours = Math.floor(totalMinutes / 60);
+                          const minutes = Math.round(totalMinutes % 60);
+                          return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                        })()}</div>
                         <div className="text-xs text-gray-500">{result.scheduledTimeRange}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        <div>{result.actualHours.toFixed(1)}시간</div>
+                        <div>{(() => {
+                          const totalMinutes = result.actualHours * 60;
+                          const hours = Math.floor(totalMinutes / 60);
+                          const minutes = Math.round(totalMinutes % 60);
+                          return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                        })()}</div>
                         <div className="text-xs text-gray-500">{result.actualTimeRange}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
@@ -750,10 +776,21 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                   ...result,
                                   actualHours: parseFloat(newHours),
                                   difference: parseFloat(newHours) - result.scheduledHours,
-                                  status: 'modified',
+                                  status: 'review_completed',
                                   isModified: true
                                 };
                                 setComparisonResults(updatedResults);
+                                
+                                // 직원 검토 상태를 검토중으로 변경
+                                const updatedEmployeeStatus = [...employeeReviewStatus];
+                                const employeeIndex = updatedEmployeeStatus.findIndex(emp => emp.employeeId === selectedEmployeeId);
+                                if (employeeIndex !== -1) {
+                                  updatedEmployeeStatus[employeeIndex] = {
+                                    ...updatedEmployeeStatus[employeeIndex],
+                                    status: 'reviewing'
+                                  };
+                                  setEmployeeReviewStatus(updatedEmployeeStatus);
+                                }
                               }
                             }}
                             className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
@@ -773,30 +810,24 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
       {/* 요약 통계 */}
       {comparisonResults.length > 0 && (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-green-50 p-4 rounded-lg">
             <div className="text-2xl font-bold text-green-600">
-              {comparisonResults.filter(r => r.status === 'match').length}
+              {comparisonResults.filter(r => r.status === 'time_match').length}
             </div>
-            <div className="text-sm text-green-600">일치</div>
-          </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">
-              {comparisonResults.filter(r => r.status === 'over').length}
-            </div>
-            <div className="text-sm text-blue-600">초과</div>
-          </div>
-          <div className="bg-red-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-red-600">
-              {comparisonResults.filter(r => r.status === 'under').length}
-            </div>
-            <div className="text-sm text-red-600">부족</div>
+            <div className="text-sm text-green-600">시간일치</div>
           </div>
           <div className="bg-orange-50 p-4 rounded-lg">
             <div className="text-2xl font-bold text-orange-600">
               {comparisonResults.filter(r => r.status === 'review_required').length}
             </div>
-            <div className="text-sm text-orange-600">검토필요</div>
+            <div className="text-sm text-orange-600">확인필요</div>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">
+              {comparisonResults.filter(r => r.status === 'review_completed').length}
+            </div>
+            <div className="text-sm text-purple-600">확인완료</div>
           </div>
         </div>
       )}
