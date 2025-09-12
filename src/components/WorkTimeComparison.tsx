@@ -50,22 +50,55 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   const [actualWorkData, setActualWorkData] = useState<string>('');
   const [comparisonResults, setComparisonResults] = useState<WorkTimeComparison[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [, setEmployees] = useState<{id: string; name: string; branchId: string}[]>([]);
+  const [employees, setEmployees] = useState<{id: string; name: string; branchId: string}[]>([]);
+  const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
 
   useEffect(() => {
+    loadBranches();
     loadEmployees();
     // 현재 월을 기본값으로 설정
     const now = new Date();
     setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
-  }, []);
+    
+    // 매니저인 경우 해당 지점을 기본값으로 설정
+    if (isManager && userBranch) {
+      setSelectedBranchId(userBranch.id);
+    }
+  }, [isManager, userBranch]);
+
+  // 지점이 변경될 때 직원 목록 다시 로드
+  useEffect(() => {
+    if (selectedBranchId || (isManager && userBranch)) {
+      loadEmployees();
+    }
+  }, [selectedBranchId, isManager, userBranch]);
+
+  const loadBranches = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'branches'));
+      const branchesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || ''
+      }));
+      setBranches(branchesData);
+    } catch (error) {
+      console.error('지점 목록을 불러올 수 없습니다:', error);
+    }
+  };
 
   const loadEmployees = async () => {
     try {
       let querySnapshot;
       
-      // 매니저 권한이 있으면 해당 지점 직원만 로드
-      if (isManager && userBranch) {
+      // 선택된 지점이 있으면 해당 지점 직원만 로드
+      if (selectedBranchId) {
+        const q = query(collection(db, 'employees'), where('branchId', '==', selectedBranchId));
+        querySnapshot = await getDocs(q);
+      } else if (isManager && userBranch) {
+        // 매니저 권한이 있으면 해당 지점 직원만 로드
         const q = query(collection(db, 'employees'), where('branchId', '==', userBranch.id));
         querySnapshot = await getDocs(q);
       } else {
@@ -231,20 +264,70 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         </div>
       </div>
 
-      {/* 월 선택 */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          비교할 월 선택
-        </label>
-        <input
-          type="month"
-          value={selectedMonth}
-          onChange={(e) => {
-            setSelectedMonth(e.target.value);
-            loadSchedules(e.target.value);
-          }}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      {/* 필터 선택 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* 지점 선택 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            지점 선택
+          </label>
+          <select
+            value={selectedBranchId}
+            onChange={(e) => {
+              setSelectedBranchId(e.target.value);
+              setSelectedEmployeeId(''); // 지점 변경 시 직원 선택 초기화
+            }}
+            disabled={isManager} // 매니저는 지점 선택 불가
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          >
+            <option value="">전체 지점</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+          {isManager && (
+            <p className="text-xs text-gray-500 mt-1">
+              매니저는 해당 지점만 접근 가능합니다
+            </p>
+          )}
+        </div>
+
+        {/* 월 선택 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            비교할 월 선택
+          </label>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => {
+              setSelectedMonth(e.target.value);
+              loadSchedules(e.target.value);
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* 직원 선택 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            직원 선택
+          </label>
+          <select
+            value={selectedEmployeeId}
+            onChange={(e) => setSelectedEmployeeId(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">전체 직원</option>
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {employee.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* 실제근무 데이터 입력 */}
