@@ -547,25 +547,23 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {employee.name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <select
-                          value={employeeReviewStatus.find(status => status.employeeId === employee.id)?.status || '검토전'}
-                          onChange={(e) => {
-                            setEmployeeReviewStatus(prev => 
-                              prev.map(status => 
-                                status.employeeId === employee.id 
-                                  ? { ...status, status: e.target.value as '검토전' | '검토중' | '검토완료' }
-                                  : status
-                              )
-                            );
-                          }}
-                          onClick={(e) => e.stopPropagation()} // 행 클릭 이벤트 방지
-                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="검토전">검토전</option>
-                          <option value="검토중">검토중</option>
-                          <option value="검토완료">검토완료</option>
-                        </select>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {(() => {
+                          const empStatus = employeeReviewStatus.find(status => status.employeeId === employee.id)?.status || '검토전';
+                          const getStatusColor = (status: string) => {
+                            switch (status) {
+                              case '검토전': return 'text-gray-600 bg-gray-50';
+                              case '검토중': return 'text-orange-600 bg-orange-50';
+                              case '검토완료': return 'text-green-600 bg-green-50';
+                              default: return 'text-gray-600 bg-gray-50';
+                            }
+                          };
+                          return (
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(empStatus)}`}>
+                              {empStatus}
+                            </span>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))}
@@ -575,7 +573,11 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           </div>
           
           {/* 본사전송 버튼 */}
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              <span className="text-gray-500">💡 </span>
+              모든 직원이 검토완료 후에 전송 가능합니다
+            </div>
             <button
               onClick={() => {
                 alert('본사전송 기능은 향후 구현될 예정입니다.');
@@ -797,7 +799,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {result.status === 'review_required' && (
+                        {(result.status === 'review_required' || result.status === 'review_completed') && (
                           <button
                             onClick={() => {
                               // 현재 시간을 시간:분 형식으로 변환
