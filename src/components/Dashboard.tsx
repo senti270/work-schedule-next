@@ -155,16 +155,6 @@ export default function Dashboard({ user }: DashboardProps) {
               스케줄 관리
             </button>
             <button
-              onClick={() => handleTabChange('reports')}
-              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === 'reports'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
-              }`}
-            >
-              보고서
-            </button>
-            <button
               onClick={() => handleTabChange('payroll')}
               className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'payroll'
@@ -173,6 +163,16 @@ export default function Dashboard({ user }: DashboardProps) {
               }`}
             >
               급여작업
+            </button>
+            <button
+              onClick={() => handleTabChange('reports')}
+              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'reports'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              보고서
             </button>
           </div>
         </div>
@@ -249,7 +249,58 @@ export default function Dashboard({ user }: DashboardProps) {
           )}
           
           {activeTab === 'reports' && (
-            <ReportManagement />
+            <div className="space-y-6">
+              {/* 보고서 서브탭 네비게이션 */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="border-b border-gray-200">
+                  <nav className="-mb-px flex space-x-8 px-6">
+                    <button
+                      onClick={() => handleSubTabChange('work-report')}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                        activeSubTab === 'work-report'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      근무보고서
+                    </button>
+                    <button
+                      onClick={() => handleSubTabChange('payroll-report')}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                        activeSubTab === 'payroll-report'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      급여보고서
+                    </button>
+                  </nav>
+                </div>
+              </div>
+
+              {/* 서브탭 내용 */}
+              {activeSubTab === 'work-report' && (
+                <ReportManagement />
+              )}
+              
+              {activeSubTab === 'payroll-report' && (
+                <div className="bg-white shadow rounded-lg p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">급여보고서</h3>
+                  <div className="text-center py-12">
+                    <div className="text-gray-500 text-lg mb-4">급여보고서 기능</div>
+                    <p className="text-gray-400">급여 관련 보고서 기능이 여기에 구현될 예정입니다.</p>
+                    <div className="mt-6">
+                      <button
+                        disabled
+                        className="bg-gray-300 text-gray-500 px-6 py-2 rounded-md font-medium cursor-not-allowed"
+                      >
+                        개발 예정
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           
           {activeTab === 'payroll' && (
