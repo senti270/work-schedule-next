@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, where, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface Schedule {
@@ -95,6 +95,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       
       // 기존 비교 데이터가 있는지 확인하고 로드
       loadExistingComparisonData();
+    } else {
+      // 직원이 선택되지 않았으면 비교 결과 초기화
+      setComparisonResults([]);
     }
   }, [selectedEmployeeId, selectedMonth]);
 
@@ -299,7 +302,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     return records;
   };
 
-  const compareWorkTimes = () => {
+  const compareWorkTimes = async () => {
     console.log('근무시간 비교 시작');
     console.log('선택된 지점:', selectedBranchId);
     console.log('선택된 월:', selectedMonth);
@@ -426,6 +429,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     console.log('비교 결과:', comparisons);
     setComparisonResults(comparisons);
     
+    // 모든 비교 결과를 DB에 저장
+    await saveAllComparisonResults(comparisons);
+    
     // 모든 데이터가 확인완료 또는 시간일치인 경우 직원 검토 상태를 검토완료로 변경
     const allCompleted = comparisons.every(comp => 
       comp.status === 'review_completed' || comp.status === 'time_match'
@@ -501,9 +507,57 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         existingData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setComparisonResults(existingData);
         console.log('기존 비교 데이터 로드됨:', existingData);
+      } else {
+        // 기존 데이터가 없으면 비교 결과 초기화
+        setComparisonResults([]);
+        console.log('기존 비교 데이터 없음, 초기화됨');
       }
     } catch (error) {
       console.error('기존 비교 데이터 로드 실패:', error);
+      setComparisonResults([]);
+    }
+  };
+
+  // 모든 비교 결과를 DB에 저장하는 함수
+  const saveAllComparisonResults = async (results: WorkTimeComparison[]) => {
+    if (!selectedEmployeeId || !selectedMonth) return;
+    
+    try {
+      // 기존 데이터 삭제
+      const existingQuery = query(
+        collection(db, 'actualWorkRecords'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('month', '==', selectedMonth)
+      );
+      
+      const existingSnapshot = await getDocs(existingQuery);
+      const deletePromises = existingSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      // 새로운 데이터 저장
+      const savePromises = results.map(result => {
+        const actualWorkRecord = {
+          employeeId: selectedEmployeeId,
+          employeeName: result.employeeName,
+          date: result.date,
+          month: selectedMonth,
+          scheduledHours: result.scheduledHours,
+          actualHours: result.actualHours,
+          difference: result.difference,
+          status: result.status,
+          scheduledTimeRange: result.scheduledTimeRange,
+          actualTimeRange: result.actualTimeRange,
+          isModified: result.isModified,
+          createdAt: new Date()
+        };
+        
+        return addDoc(collection(db, 'actualWorkRecords'), actualWorkRecord);
+      });
+      
+      await Promise.all(savePromises);
+      console.log('모든 비교 결과가 DB에 저장되었습니다.');
+    } catch (error) {
+      console.error('비교 결과 저장 실패:', error);
     }
   };
 
