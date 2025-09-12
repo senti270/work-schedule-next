@@ -536,10 +536,38 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         <label className="block text-sm font-medium text-gray-700 mb-2">
           실제근무 데이터 (복사붙여넣기) <span className="text-red-500">*</span>
         </label>
+        
+        {/* 도움말 */}
+        <div className="mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-medium text-blue-900 mb-2">데이터 복사 방법</h4>
+              <div className="text-sm text-blue-800 space-y-2">
+                <p><strong>POS ASP 시스템에서 복사하기:</strong></p>
+                <ol className="list-decimal list-inside space-y-1 ml-2">
+                  <li>POS ASP 시스템 → 기타관리 → 근태관리 → 월근태내역</li>
+                  <li>조회일자 설정 후 "조회" 버튼 클릭</li>
+                  <li>아래 표에서 해당 직원의 <strong>전체 데이터 영역을 선택</strong>하여 복사</li>
+                  <li>복사한 데이터를 아래 텍스트 영역에 붙여넣기</li>
+                </ol>
+                <div className="mt-3 p-2 bg-white border border-blue-300 rounded text-xs">
+                  <p className="font-medium text-gray-700">복사 예시:</p>
+                  <p className="text-gray-600 font-mono">2025-09-11	2025-09-11 19:00:10	2025-09-11 22:11:05	2025-09-11	...	3:11</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <textarea
           value={actualWorkData}
           onChange={(e) => setActualWorkData(e.target.value)}
-          placeholder="실제근무 데이터를 복사해서 붙여넣으세요..."
+          placeholder="POS ASP 시스템에서 복사한 실제근무 데이터를 붙여넣으세요..."
           className="w-full h-40 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
