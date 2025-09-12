@@ -93,6 +93,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       // 직원이 변경되면 실제근무데이터 초기화
       setActualWorkData('');
       
+      // 먼저 비교 결과 초기화 (다른 직원 데이터가 보이지 않도록)
+      setComparisonResults([]);
+      
       // 기존 비교 데이터가 있는지 확인하고 로드
       loadExistingComparisonData();
     } else {
@@ -476,9 +479,14 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
   // 기존 비교 데이터를 불러오는 함수
   const loadExistingComparisonData = async () => {
-    if (!selectedEmployeeId || !selectedMonth) return;
+    if (!selectedEmployeeId || !selectedMonth) {
+      setComparisonResults([]);
+      return;
+    }
     
     try {
+      console.log('기존 비교 데이터 로드 시작:', selectedEmployeeId, selectedMonth);
+      
       const querySnapshot = await getDocs(
         query(
           collection(db, 'actualWorkRecords'),
@@ -486,6 +494,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           where('month', '==', selectedMonth)
         )
       );
+      
+      console.log('DB 쿼리 결과:', querySnapshot.docs.length, '건');
       
       if (!querySnapshot.empty) {
         const existingData = querySnapshot.docs.map(doc => {
@@ -520,9 +530,14 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
   // 모든 비교 결과를 DB에 저장하는 함수
   const saveAllComparisonResults = async (results: WorkTimeComparison[]) => {
-    if (!selectedEmployeeId || !selectedMonth) return;
+    if (!selectedEmployeeId || !selectedMonth) {
+      console.log('저장 실패: 직원ID 또는 월이 없음');
+      return;
+    }
     
     try {
+      console.log('DB 저장 시작:', selectedEmployeeId, selectedMonth, results.length, '건');
+      
       // 기존 데이터 삭제
       const existingQuery = query(
         collection(db, 'actualWorkRecords'),
@@ -531,6 +546,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       );
       
       const existingSnapshot = await getDocs(existingQuery);
+      console.log('기존 데이터 삭제:', existingSnapshot.docs.length, '건');
+      
       const deletePromises = existingSnapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
       
@@ -555,7 +572,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       });
       
       await Promise.all(savePromises);
-      console.log('모든 비교 결과가 DB에 저장되었습니다.');
+      console.log('모든 비교 결과가 DB에 저장되었습니다:', results.length, '건');
     } catch (error) {
       console.error('비교 결과 저장 실패:', error);
     }
