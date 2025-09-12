@@ -800,17 +800,39 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         {result.status === 'review_required' && (
                           <button
                             onClick={() => {
-                              const newHours = prompt('수정할 실제 근무시간을 입력하세요 (시간 단위):', result.actualHours.toString());
-                              if (newHours && !isNaN(parseFloat(newHours))) {
-                                const updatedResults = [...comparisonResults];
-                                updatedResults[index] = {
-                                  ...result,
-                                  actualHours: parseFloat(newHours),
-                                  difference: parseFloat(newHours) - result.scheduledHours,
-                                  status: 'review_completed',
-                                  isModified: true
-                                };
-                                setComparisonResults(updatedResults);
+                              // 현재 시간을 시간:분 형식으로 변환
+                              const currentHours = Math.floor(result.actualHours);
+                              const currentMinutes = Math.round((result.actualHours - currentHours) * 60);
+                              const currentTimeStr = `${currentHours}:${currentMinutes.toString().padStart(2, '0')}`;
+                              
+                              const newTimeStr = prompt('수정할 실제 근무시간을 입력하세요 (시간:분 형식, 예: 3:11):', currentTimeStr);
+                              
+                              if (newTimeStr) {
+                                // 시간:분 형식 파싱
+                                let newHours = 0;
+                                if (newTimeStr.includes(':')) {
+                                  const [hours, minutes] = newTimeStr.split(':').map(Number);
+                                  if (!isNaN(hours) && !isNaN(minutes)) {
+                                    newHours = hours + (minutes / 60);
+                                  }
+                                } else {
+                                  // 숫자만 입력된 경우
+                                  const numericValue = parseFloat(newTimeStr);
+                                  if (!isNaN(numericValue)) {
+                                    newHours = numericValue;
+                                  }
+                                }
+                                
+                                if (newHours > 0) {
+                                  const updatedResults = [...comparisonResults];
+                                  updatedResults[index] = {
+                                    ...result,
+                                    actualHours: newHours,
+                                    difference: newHours - result.scheduledHours,
+                                    status: 'review_completed',
+                                    isModified: true
+                                  };
+                                  setComparisonResults(updatedResults);
                                 
                                 // 직원 검토 상태를 검토중으로 변경
                                 setEmployeeReviewStatus(prev => 
