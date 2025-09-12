@@ -87,23 +87,16 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     }
   }, [selectedBranchId, selectedEmployeeId, selectedMonth]);
 
-  // 직원이 변경될 때 실제근무데이터 초기화 및 자동 비교 실행
+  // 직원이 변경될 때 실제근무데이터 초기화 및 기존 데이터 로드
   useEffect(() => {
     if (selectedEmployeeId) {
       // 직원이 변경되면 실제근무데이터 초기화
       setActualWorkData('');
-      setComparisonResults([]);
       
-      // 기존 데이터가 있으면 자동으로 비교 실행
-      if (selectedBranchId && selectedMonth && schedules.length > 0) {
-        // 약간의 지연을 두어 상태 업데이트가 완료된 후 실행
-        const timer = setTimeout(() => {
-          compareWorkTimes();
-        }, 100);
-        return () => clearTimeout(timer);
-      }
+      // 기존 비교 데이터가 있는지 확인하고 로드
+      loadExistingComparisonData();
     }
-  }, [selectedEmployeeId]);
+  }, [selectedEmployeeId, selectedMonth]);
 
   const loadBranches = async () => {
     try {
@@ -331,8 +324,11 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     }
 
     if (!actualWorkData.trim()) {
-      // 실제근무 데이터가 없으면 비교 결과만 초기화하고 종료
-      setComparisonResults([]);
+      // 실제근무 데이터가 없으면 기존 데이터가 있는지 확인
+      // 기존 데이터가 없으면 비교 결과 초기화
+      if (comparisonResults.length === 0) {
+        setComparisonResults([]);
+      }
       return;
     }
 
@@ -470,6 +466,45 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     const start = startTime.split(' ')[1]?.substring(0, 5) || startTime.substring(0, 5);
     const end = endTime.split(' ')[1]?.substring(0, 5) || endTime.substring(0, 5);
     return `${start}-${end}`;
+  };
+
+  // 기존 비교 데이터를 불러오는 함수
+  const loadExistingComparisonData = async () => {
+    if (!selectedEmployeeId || !selectedMonth) return;
+    
+    try {
+      const querySnapshot = await getDocs(
+        query(
+          collection(db, 'actualWorkRecords'),
+          where('employeeId', '==', selectedEmployeeId),
+          where('month', '==', selectedMonth)
+        )
+      );
+      
+      if (!querySnapshot.empty) {
+        const existingData = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            employeeName: data.employeeName,
+            date: data.date,
+            scheduledHours: data.scheduledHours || 0,
+            actualHours: data.actualHours,
+            difference: data.difference,
+            status: data.status,
+            scheduledTimeRange: data.scheduledTimeRange || '-',
+            actualTimeRange: data.actualTimeRange || '-',
+            isModified: data.isModified || false
+          };
+        });
+        
+        // 날짜순으로 정렬
+        existingData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        setComparisonResults(existingData);
+        console.log('기존 비교 데이터 로드됨:', existingData);
+      }
+    } catch (error) {
+      console.error('기존 비교 데이터 로드 실패:', error);
+    }
   };
 
   // 수정된 데이터를 DB에 저장
