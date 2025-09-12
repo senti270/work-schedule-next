@@ -55,6 +55,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<{id: string; name: string; branchId: string}[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
+  const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{[key: string]: '검토전' | '검토중' | '검토완료'}>({});
 
   useEffect(() => {
     loadBranches();
@@ -374,24 +375,6 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           />
         </div>
 
-        {/* 직원 선택 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            직원 선택 <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={selectedEmployeeId}
-            onChange={(e) => setSelectedEmployeeId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">직원을 선택하세요</option>
-            {employees.map((employee) => (
-              <option key={employee.id} value={employee.id}>
-                {employee.name}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       {/* 직원 리스트 테이블 */}
@@ -406,10 +389,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      선택
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       직원명
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      선택
+                      검토여부
                     </th>
                   </tr>
                 </thead>
@@ -422,9 +408,6 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       }`}
                       onClick={() => setSelectedEmployeeId(employee.id)}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {employee.name}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <input
                           type="radio"
@@ -435,11 +418,48 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                         />
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {employee.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <select
+                          value={employeeReviewStatus[employee.id] || '검토전'}
+                          onChange={(e) => {
+                            setEmployeeReviewStatus(prev => ({
+                              ...prev,
+                              [employee.id]: e.target.value as '검토전' | '검토중' | '검토완료'
+                            }));
+                          }}
+                          onClick={(e) => e.stopPropagation()} // 행 클릭 이벤트 방지
+                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="검토전">검토전</option>
+                          <option value="검토중">검토중</option>
+                          <option value="검토완료">검토완료</option>
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
+          
+          {/* 본사전송 버튼 */}
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={() => {
+                alert('본사전송 기능은 향후 구현될 예정입니다.');
+              }}
+              disabled={!employees.every(emp => employeeReviewStatus[emp.id] === '검토완료')}
+              className={`px-6 py-2 rounded-md font-medium ${
+                employees.every(emp => employeeReviewStatus[emp.id] === '검토완료')
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              본사전송
+            </button>
           </div>
         </div>
       )}
