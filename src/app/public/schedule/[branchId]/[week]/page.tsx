@@ -310,10 +310,9 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                               return (
                                 <div
                                   key={schedule.id}
-                                  className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200"
+                                  className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 whitespace-nowrap"
                                 >
-                                  <div className="font-medium">{scheduleInfo.name}</div>
-                                  <div className="text-xs">{scheduleInfo.time}</div>
+                                  <span className="font-medium">{scheduleInfo.name}</span> {scheduleInfo.time}
                                 </div>
                               );
                             })}
