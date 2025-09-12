@@ -1065,11 +1065,11 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                             {summary.employeeName}
                           </td>
                           {DAYS_OF_WEEK.map((day) => (
-                            <td key={day.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                            <td key={day.key} className="px-6 py-4 text-sm text-gray-900 text-center">
                               {summary.dailyHours[day.key] ? summary.dailyHours[day.key].toFixed(1) : '-'}
                             </td>
                           ))}
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900 text-center">
                             {summary.totalHours.toFixed(1)}
                           </td>
                         </tr>
