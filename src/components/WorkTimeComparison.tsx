@@ -33,7 +33,10 @@ interface WorkTimeComparison {
   scheduledHours: number;
   actualHours: number;
   difference: number;
-  status: 'match' | 'over' | 'under' | 'review_required';
+  status: 'match' | 'over' | 'under' | 'review_required' | 'modified';
+  scheduledTimeRange?: string; // "19:00-22:00" 형태
+  actualTimeRange?: string; // "19:00-22:11" 형태
+  isModified?: boolean; // 수정 여부
 }
 
 interface WorkTimeComparisonProps {
@@ -300,7 +303,10 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           scheduledHours: schedule.totalHours,
           actualHours: actualRecord.totalHours,
           difference,
-          status
+          status,
+          scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
+          actualTimeRange: formatTimeRange(actualRecord.startTime, actualRecord.endTime),
+          isModified: false
         });
 
         processedDates.add(scheduleDate);
@@ -312,7 +318,10 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           scheduledHours: schedule.totalHours,
           actualHours: 0,
           difference: -schedule.totalHours,
-          status: 'under'
+          status: 'under',
+          scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
+          actualTimeRange: '-',
+          isModified: false
         });
       }
     });
@@ -330,7 +339,10 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           scheduledHours: 0,
           actualHours: actualRecord.totalHours,
           difference: actualRecord.totalHours,
-          status: 'review_required' // 스케줄 없이 근무한 경우 검토필요
+          status: 'review_required', // 스케줄 없이 근무한 경우 검토필요
+          scheduledTimeRange: '-',
+          actualTimeRange: formatTimeRange(actualRecord.startTime, actualRecord.endTime),
+          isModified: false
         });
       }
     });
@@ -345,18 +357,28 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       case 'over': return 'text-blue-600 bg-blue-50';
       case 'under': return 'text-red-600 bg-red-50';
       case 'review_required': return 'text-orange-600 bg-orange-50';
+      case 'modified': return 'text-purple-600 bg-purple-50';
       default: return 'text-gray-600 bg-gray-50';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'match': return '일치';
+      case 'match': return '근무시간일치';
       case 'over': return '초과';
       case 'under': return '부족';
       case 'review_required': return '검토필요';
+      case 'modified': return '수정완료';
       default: return '알 수 없음';
     }
+  };
+
+  // 시간 범위 포맷 함수
+  const formatTimeRange = (startTime: string, endTime: string) => {
+    // "2025-09-11 19:00:10" -> "19:00"
+    const start = startTime.split(' ')[1]?.substring(0, 5) || startTime.substring(0, 5);
+    const end = endTime.split(' ')[1]?.substring(0, 5) || endTime.substring(0, 5);
+    return `${start}-${end}`;
   };
 
   return (
@@ -564,33 +586,68 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     상태
                   </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    작업
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {comparisonResults.map((result, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {result.employeeName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {result.date}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                      {result.scheduledHours.toFixed(1)}시간
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                      {result.actualHours.toFixed(1)}시간
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                      {result.difference > 0 ? '+' : ''}{result.difference.toFixed(1)}시간
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(result.status)}`}>
-                        {getStatusText(result.status)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {comparisonResults.map((result, index) => {
+                  // 행 배경색 결정
+                  const rowBgColor = (result.status === 'modified' || result.status === 'match') 
+                    ? 'bg-white' 
+                    : 'bg-yellow-50';
+                  
+                  return (
+                    <tr key={index} className={`hover:bg-gray-50 ${rowBgColor}`}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {result.employeeName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {result.date}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        <div>{result.scheduledHours.toFixed(1)}시간</div>
+                        <div className="text-xs text-gray-500">{result.scheduledTimeRange}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        <div>{result.actualHours.toFixed(1)}시간</div>
+                        <div className="text-xs text-gray-500">{result.actualTimeRange}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        {result.difference > 0 ? '+' : ''}{result.difference.toFixed(1)}시간
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(result.status)}`}>
+                          {getStatusText(result.status)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {result.status === 'review_required' && (
+                          <button
+                            onClick={() => {
+                              const newHours = prompt('수정할 실제 근무시간을 입력하세요 (시간 단위):', result.actualHours.toString());
+                              if (newHours && !isNaN(parseFloat(newHours))) {
+                                const updatedResults = [...comparisonResults];
+                                updatedResults[index] = {
+                                  ...result,
+                                  actualHours: parseFloat(newHours),
+                                  difference: parseFloat(newHours) - result.scheduledHours,
+                                  status: 'modified',
+                                  isModified: true
+                                };
+                                setComparisonResults(updatedResults);
+                              }
+                            }}
+                            className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
+                          >
+                            수정
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

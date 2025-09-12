@@ -174,14 +174,6 @@ export default function Dashboard({ user }: DashboardProps) {
             >
               급여작업
             </button>
-            <a
-              href="/development-guide"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="py-3 sm:py-4 px-2 sm:px-1 border-b-2 border-transparent font-medium text-sm text-gray-700 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap"
-            >
-              개발가이드
-            </a>
           </div>
         </div>
       </nav>
