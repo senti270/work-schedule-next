@@ -196,8 +196,19 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           console.log(`파싱된 데이터: 날짜=${date}, 시작=${startTime}, 종료=${endTime}, 총시간=${totalTimeStr}`);
 
           // 시간 문자열을 소수점 시간으로 변환 (예: "3:11" -> 3.18)
-          const [hours, minutes] = totalTimeStr.split(':').map(Number);
-          const totalHours = hours + (minutes / 60);
+          let totalHours = 0;
+          try {
+            const timeParts = totalTimeStr.split(':');
+            if (timeParts.length === 2) {
+              const hours = parseInt(timeParts[0], 10);
+              const minutes = parseInt(timeParts[1], 10);
+              if (!isNaN(hours) && !isNaN(minutes)) {
+                totalHours = hours + (minutes / 60);
+              }
+            }
+          } catch (error) {
+            console.error('시간 파싱 오류:', error, '원본 데이터:', totalTimeStr);
+          }
 
           records.push({
             date,
@@ -217,12 +228,30 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
   const compareWorkTimes = () => {
     console.log('근무시간 비교 시작');
+    console.log('선택된 지점:', selectedBranchId);
     console.log('선택된 월:', selectedMonth);
+    console.log('선택된 직원:', selectedEmployeeId);
     console.log('실제근무 데이터 길이:', actualWorkData.length);
     console.log('스케줄 개수:', schedules.length);
 
-    if (!selectedMonth || !actualWorkData.trim()) {
-      alert('월을 선택하고 실제근무 데이터를 입력해주세요.');
+    // 필수 항목 검증
+    if (!selectedBranchId) {
+      alert('지점을 선택해주세요.');
+      return;
+    }
+
+    if (!selectedMonth) {
+      alert('월을 선택해주세요.');
+      return;
+    }
+
+    if (!selectedEmployeeId) {
+      alert('직원을 선택해주세요.');
+      return;
+    }
+
+    if (!actualWorkData.trim()) {
+      alert('실제근무 데이터를 입력해주세요.');
       return;
     }
 
@@ -304,7 +333,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         {/* 지점 선택 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            지점 선택
+            지점 선택 <span className="text-red-500">*</span>
           </label>
           <select
             value={selectedBranchId}
@@ -332,7 +361,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         {/* 월 선택 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            비교할 월 선택
+            비교할 월 선택 <span className="text-red-500">*</span>
           </label>
           <input
             type="month"
@@ -348,14 +377,14 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         {/* 직원 선택 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            직원 선택
+            직원 선택 <span className="text-red-500">*</span>
           </label>
           <select
             value={selectedEmployeeId}
             onChange={(e) => setSelectedEmployeeId(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">전체 직원</option>
+            <option value="">직원을 선택하세요</option>
             {employees.map((employee) => (
               <option key={employee.id} value={employee.id}>
                 {employee.name}
@@ -365,10 +394,60 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         </div>
       </div>
 
+      {/* 직원 리스트 테이블 */}
+      {selectedBranchId && selectedMonth && employees.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            선택된 지점의 직원 목록
+          </h3>
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      직원명
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      선택
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {employees.map((employee) => (
+                    <tr 
+                      key={employee.id} 
+                      className={`hover:bg-gray-50 cursor-pointer ${
+                        selectedEmployeeId === employee.id ? 'bg-blue-50' : ''
+                      }`}
+                      onClick={() => setSelectedEmployeeId(employee.id)}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {employee.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <input
+                          type="radio"
+                          name="employee"
+                          value={employee.id}
+                          checked={selectedEmployeeId === employee.id}
+                          onChange={() => setSelectedEmployeeId(employee.id)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 실제근무 데이터 입력 */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          실제근무 데이터 (복사붙여넣기)
+          실제근무 데이터 (복사붙여넣기) <span className="text-red-500">*</span>
         </label>
         <textarea
           value={actualWorkData}
