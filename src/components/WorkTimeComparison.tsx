@@ -33,7 +33,7 @@ interface WorkTimeComparison {
   scheduledHours: number;
   actualHours: number;
   difference: number;
-  status: 'match' | 'over' | 'under';
+  status: 'match' | 'over' | 'under' | 'review_required';
 }
 
 interface WorkTimeComparisonProps {
@@ -269,8 +269,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     console.log('파싱된 실제근무 데이터:', actualRecords);
 
     const comparisons: WorkTimeComparison[] = [];
+    const processedDates = new Set<string>();
 
-    // 각 스케줄에 대해 실제근무 데이터와 비교
+    // 1. 스케줄이 있는 경우: 스케줄과 실제근무 데이터 비교
     schedules.forEach(schedule => {
       const scheduleDate = schedule.date.toISOString().split('T')[0];
       const actualRecord = actualRecords.find(record => record.date === scheduleDate);
@@ -280,9 +281,12 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
       if (actualRecord) {
         const difference = actualRecord.totalHours - schedule.totalHours;
-        let status: 'match' | 'over' | 'under' = 'match';
+        let status: 'match' | 'over' | 'under' | 'review_required' = 'match';
         
-        if (Math.abs(difference) < 0.1) {
+        // 10분(0.17시간) 이상 차이나면 검토필요
+        if (Math.abs(difference) >= 0.17) {
+          status = 'review_required';
+        } else if (Math.abs(difference) < 0.1) {
           status = 'match';
         } else if (difference > 0) {
           status = 'over';
@@ -298,6 +302,36 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           difference,
           status
         });
+
+        processedDates.add(scheduleDate);
+      } else {
+        // 스케줄은 있지만 실제근무 데이터가 없는 경우
+        comparisons.push({
+          employeeName: schedule.employeeName,
+          date: scheduleDate,
+          scheduledHours: schedule.totalHours,
+          actualHours: 0,
+          difference: -schedule.totalHours,
+          status: 'under'
+        });
+      }
+    });
+
+    // 2. 실제근무 데이터는 있지만 스케줄이 없는 경우
+    actualRecords.forEach(actualRecord => {
+      if (!processedDates.has(actualRecord.date)) {
+        // 선택된 직원의 이름을 사용 (실제근무 데이터에는 직원명이 없으므로)
+        const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+        const employeeName = selectedEmployee ? selectedEmployee.name : '알 수 없음';
+
+        comparisons.push({
+          employeeName: employeeName,
+          date: actualRecord.date,
+          scheduledHours: 0,
+          actualHours: actualRecord.totalHours,
+          difference: actualRecord.totalHours,
+          status: 'review_required' // 스케줄 없이 근무한 경우 검토필요
+        });
       }
     });
 
@@ -310,6 +344,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       case 'match': return 'text-green-600 bg-green-50';
       case 'over': return 'text-blue-600 bg-blue-50';
       case 'under': return 'text-red-600 bg-red-50';
+      case 'review_required': return 'text-orange-600 bg-orange-50';
       default: return 'text-gray-600 bg-gray-50';
     }
   };
@@ -319,6 +354,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       case 'match': return '일치';
       case 'over': return '초과';
       case 'under': return '부족';
+      case 'review_required': return '검토필요';
       default: return '알 수 없음';
     }
   };
@@ -563,7 +599,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
       {/* 요약 통계 */}
       {comparisonResults.length > 0 && (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-green-50 p-4 rounded-lg">
             <div className="text-2xl font-bold text-green-600">
               {comparisonResults.filter(r => r.status === 'match').length}
@@ -581,6 +617,12 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
               {comparisonResults.filter(r => r.status === 'under').length}
             </div>
             <div className="text-sm text-red-600">부족</div>
+          </div>
+          <div className="bg-orange-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600">
+              {comparisonResults.filter(r => r.status === 'review_required').length}
+            </div>
+            <div className="text-sm text-orange-600">검토필요</div>
           </div>
         </div>
       )}
