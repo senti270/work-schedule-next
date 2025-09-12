@@ -223,7 +223,10 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
     const endTimeDisplay = timeToDecimal(schedule.endTime);
     const breakTime = schedule.breakTime !== '0' ? formatDecimalTime(schedule.breakTime) : '';
     
-    return `${schedule.employeeName} ${startTimeDisplay}-${endTimeDisplay}${breakTime}`;
+    return {
+      name: schedule.employeeName,
+      time: `${startTimeDisplay}-${endTimeDisplay}${breakTime}`
+    };
   };
 
   const weekDates = getWeekDates(currentWeekStart);
@@ -248,25 +251,25 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
         
         {/* 주간 네비게이션 */}
         <div className="bg-white p-4 rounded-lg shadow border mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-col md:flex-row items-center justify-between space-y-3 md:space-y-0">
+            <div className="flex items-center space-x-2 md:space-x-4">
               <button
                 onClick={goToPreviousWeek}
-                className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm md:text-base font-medium text-gray-700"
               >
                 ← 이전주
               </button>
-              <span className="text-lg font-medium">
+              <span className="text-base md:text-lg font-semibold text-gray-900 text-center">
                 {currentWeekStart.getFullYear()}년 {currentWeekStart.getMonth() + 1}월 {currentWeekStart.getDate()}일 주간
               </span>
               <button
                 onClick={goToNextWeek}
-                className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm md:text-base font-medium text-gray-700"
               >
                 다음주 →
               </button>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-xs md:text-sm text-gray-600 font-medium">
               읽기 전용
             </div>
           </div>
@@ -302,14 +305,18 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                       return (
                         <td key={dayIndex} className="px-2 py-2 text-center">
                           <div className="space-y-1">
-                            {daySchedules.map((schedule) => (
-                              <div
-                                key={schedule.id}
-                                className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200"
-                              >
-                                {formatScheduleDisplay(schedule)}
-                              </div>
-                            ))}
+                            {daySchedules.map((schedule) => {
+                              const scheduleInfo = formatScheduleDisplay(schedule);
+                              return (
+                                <div
+                                  key={schedule.id}
+                                  className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200"
+                                >
+                                  <div className="font-medium">{scheduleInfo.name}</div>
+                                  <div className="text-xs">{scheduleInfo.time}</div>
+                                </div>
+                              );
+                            })}
                             {daySchedules.length === 0 && (
                               <div className="text-xs text-gray-400">-</div>
                             )}

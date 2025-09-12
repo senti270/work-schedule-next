@@ -1049,11 +1049,11 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                           이름
                         </th>
                         {DAYS_OF_WEEK.map((day) => (
-                          <th key={day.key} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th key={day.key} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                             {day.label}
                           </th>
                         ))}
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                           총합
                         </th>
                       </tr>
@@ -1065,11 +1065,11 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                             {summary.employeeName}
                           </td>
                           {DAYS_OF_WEEK.map((day) => (
-                            <td key={day.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td key={day.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                               {summary.dailyHours[day.key] ? summary.dailyHours[day.key].toFixed(1) : '-'}
                             </td>
                           ))}
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                             {summary.totalHours.toFixed(1)}
                           </td>
                         </tr>

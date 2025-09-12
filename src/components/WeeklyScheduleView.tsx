@@ -356,12 +356,12 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
                 {weekDates.map((date, index) => {
                   const dayOfWeek = DAYS_OF_WEEK[index];
                   return (
-                    <th key={index} className="px-6 py-3 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
+                    <th key={index} className="px-6 py-3 text-center text-xs font-medium text-gray-800 uppercase tracking-wider">
                       {date.getMonth() + 1}/{date.getDate()} ({dayOfWeek.label})
                     </th>
                   );
                 })}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-900 uppercase tracking-wider">
                   총합
                 </th>
               </tr>
@@ -373,11 +373,11 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
                     {summary.employeeName}
                   </td>
                   {DAYS_OF_WEEK.map((day) => (
-                    <td key={day.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td key={day.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                       {summary.dailyHours[day.key] ? summary.dailyHours[day.key].toFixed(1) : '-'}
                     </td>
                   ))}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                     {summary.totalHours.toFixed(1)}
                   </td>
                 </tr>

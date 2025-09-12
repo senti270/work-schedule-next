@@ -9,6 +9,7 @@ import EmployeeManagement from './EmployeeManagement';
 import ScheduleManagement from './ScheduleManagement';
 import BranchManagement from './BranchManagement';
 import ReportManagement from './ReportManagement';
+import WorkTimeComparison from './WorkTimeComparison';
 
 interface DashboardProps {
   user: User;
@@ -156,6 +157,16 @@ export default function Dashboard({ user }: DashboardProps) {
             >
               보고서
             </button>
+            <button
+              onClick={() => handleTabChange('work-comparison')}
+              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'work-comparison'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              근무시간 비교
+            </button>
             <a
               href="/development-guide"
               target="_blank"
@@ -240,6 +251,14 @@ export default function Dashboard({ user }: DashboardProps) {
           
           {activeTab === 'reports' && (
             <ReportManagement />
+          )}
+          
+          {activeTab === 'work-comparison' && (
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-4 sm:p-6">
+                <WorkTimeComparison userBranch={userBranch} isManager={isManager} />
+              </div>
+            </div>
           )}
         </div>
       </main>

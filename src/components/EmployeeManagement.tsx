@@ -80,13 +80,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const [showContractModal, setShowContractModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [contractFormData, setContractFormData] = useState({
-    contractType: '정규직',
     startDate: '',
-    endDate: '',
-    salary: '',
-    workingHours: '',
-    position: '',
-    notes: ''
+    contractFile: ''
   });
   const [editingContract, setEditingContract] = useState<EmploymentContract | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -208,6 +203,74 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       console.log('은행코드 데이터 로드됨:', bankCodesData);
     } catch (error) {
       console.error('은행코드 목록을 불러올 수 없습니다:', error);
+    }
+  };
+
+  const initializeBankCodes = async () => {
+    try {
+      console.log('은행코드 초기화 시작...');
+      
+      // 기존 데이터 확인
+      const existingSnapshot = await getDocs(collection(db, 'bankCodes'));
+      console.log('기존 은행코드 개수:', existingSnapshot.docs.length);
+      
+      if (existingSnapshot.docs.length > 0) {
+        console.log('기존 은행코드 데이터가 있습니다. 삭제 후 새로 추가합니다.');
+        
+        // 기존 데이터 삭제
+        for (const docSnapshot of existingSnapshot.docs) {
+          await deleteDoc(doc(db, 'bankCodes', docSnapshot.id));
+        }
+      }
+      
+      // 새 데이터 추가
+      const bankCodesData = [
+        { name: '국민은행', code: '004' },
+        { name: '신한은행', code: '088' },
+        { name: '우리은행', code: '020' },
+        { name: '하나은행', code: '081' },
+        { name: '농협은행', code: '011' },
+        { name: '기업은행', code: '003' },
+        { name: '카카오뱅크', code: '090' },
+        { name: '케이뱅크', code: '089' },
+        { name: 'SC제일은행', code: '023' },
+        { name: '한국씨티은행', code: '027' },
+        { name: '부산은행', code: '032' },
+        { name: '대구은행', code: '031' },
+        { name: '경남은행', code: '039' },
+        { name: '광주은행', code: '034' },
+        { name: '전북은행', code: '037' },
+        { name: '제주은행', code: '035' },
+        { name: '수협은행', code: '007' },
+        { name: '우체국', code: '071' },
+        { name: '새마을금고', code: '045' },
+        { name: '신협', code: '048' },
+        { name: '산업은행', code: '002' },
+        { name: '한국은행', code: '001' },
+        { name: '저축은행중앙회', code: '050' },
+        { name: 'HSBC은행', code: '054' },
+        { name: '도이치은행', code: '055' }
+      ];
+      
+      const promises = bankCodesData.map(async (bankCode) => {
+        const docRef = await addDoc(collection(db, 'bankCodes'), {
+          ...bankCode,
+          createdAt: new Date()
+        });
+        console.log(`은행코드 추가됨: ${bankCode.name} (${bankCode.code}) - ID: ${docRef.id}`);
+        return docRef;
+      });
+      
+      await Promise.all(promises);
+      console.log('모든 은행코드가 성공적으로 추가되었습니다!');
+      
+      // 데이터 다시 로드
+      await loadBankCodes();
+      alert('은행코드가 성공적으로 초기화되었습니다!');
+      
+    } catch (error) {
+      console.error('은행코드 초기화 중 오류:', error);
+      alert('은행코드 초기화 중 오류가 발생했습니다.');
     }
   };
 
@@ -582,13 +645,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     try {
       const contractData = {
         employeeId: selectedEmployee.id,
-        contractType: contractFormData.contractType,
         startDate: new Date(contractFormData.startDate),
-        endDate: contractFormData.endDate ? new Date(contractFormData.endDate) : null,
-        salary: contractFormData.salary ? parseFloat(contractFormData.salary) : 0,
-        workingHours: contractFormData.workingHours,
-        position: contractFormData.position,
-        notes: contractFormData.notes,
+        contractFile: contractFormData.contractFile,
         updatedAt: new Date()
       };
       
@@ -615,13 +673,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const handleContractEdit = (contract: EmploymentContract) => {
     setEditingContract(contract);
     setContractFormData({
-      contractType: contract.contractType,
       startDate: contract.startDate.toISOString().split('T')[0],
-      endDate: contract.endDate ? contract.endDate.toISOString().split('T')[0] : '',
-      salary: contract.salary?.toString() || '',
-      workingHours: contract.workingHours || '',
-      position: contract.position || '',
-      notes: contract.notes || ''
+      contractFile: contract.contractFile || ''
     });
   };
 
@@ -642,13 +695,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   // 근로계약서 폼 리셋
   const resetContractForm = () => {
     setContractFormData({
-      contractType: '정규직',
       startDate: '',
-      endDate: '',
-      salary: '',
-      workingHours: '',
-      position: '',
-      notes: ''
+      contractFile: ''
     });
     setEditingContract(null);
     setSelectedFile(null);
@@ -752,21 +800,31 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">직원 관리</h1>
-        <button
-          onClick={() => {
-            // 매니저 권한이 있으면 해당 지점으로 자동 설정
-            if (isManager && userBranch) {
-              setFormData(prev => ({
-                ...prev,
-                branchId: userBranch.id
-              }));
-            }
-            setShowForm(true);
-          }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
-        >
-          직원 추가
-        </button>
+        <div className="flex gap-2">
+          {bankCodes.length === 0 && (
+            <button
+              onClick={initializeBankCodes}
+              className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 font-medium"
+            >
+              은행코드 초기화
+            </button>
+          )}
+          <button
+            onClick={() => {
+              // 매니저 권한이 있으면 해당 지점으로 자동 설정
+              if (isManager && userBranch) {
+                setFormData(prev => ({
+                  ...prev,
+                  branchId: userBranch.id
+                }));
+              }
+              setShowForm(true);
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
+          >
+            직원 추가
+          </button>
+        </div>
       </div>
 
       {/* 지점 선택 */}
@@ -1057,13 +1115,18 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                   }}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                  <option value="">은행 선택</option>
+                                  <option value="">은행 선택 ({bankCodes.length}개)</option>
                                   {bankCodes.map(bank => (
                                     <option key={bank.id} value={bank.code}>
-                                      {bank.name}
+                                      {bank.name} ({bank.code})
                                     </option>
                                   ))}
                                 </select>
+                                {bankCodes.length === 0 && (
+                                  <p className="text-sm text-red-500 mt-1">
+                                    은행코드가 없습니다. "은행코드 초기화" 버튼을 클릭하세요.
+                                  </p>
+                                )}
                               </div>
                               
                               <div>
@@ -1381,35 +1444,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        계약 유형
-                      </label>
-                      <select
-                        value={contractFormData.contractType}
-                        onChange={(e) => setContractFormData({ ...contractFormData, contractType: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="정규직">정규직</option>
-                        <option value="계약직">계약직</option>
-                        <option value="아르바이트">아르바이트</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        직급/포지션
-                      </label>
-                      <input
-                        type="text"
-                        value={contractFormData.position}
-                        onChange={(e) => setContractFormData({ ...contractFormData, position: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="예: 매니저, 직원"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        근로 시작일
+                        기준일
                       </label>
                       <input
                         type="date"
@@ -1422,54 +1457,21 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        근로 종료일 (계약직만)
+                        파일 업로드
                       </label>
                       <input
-                        type="date"
-                        value={contractFormData.endDate}
-                        onChange={(e) => setContractFormData({ ...contractFormData, endDate: e.target.value })}
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setSelectedFile(file);
+                            setContractFormData({ ...contractFormData, contractFile: file.name });
+                          }
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        급여 (월급)
-                      </label>
-                      <input
-                        type="number"
-                        value={contractFormData.salary}
-                        onChange={(e) => setContractFormData({ ...contractFormData, salary: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="예: 3000000"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        근무 시간
-                      </label>
-                      <input
-                        type="text"
-                        value={contractFormData.workingHours}
-                        onChange={(e) => setContractFormData({ ...contractFormData, workingHours: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="예: 09:00-18:00, 주 40시간"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      비고
-                    </label>
-                    <textarea
-                      value={contractFormData.notes}
-                      onChange={(e) => setContractFormData({ ...contractFormData, notes: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="추가 사항이나 특이사항을 입력하세요"
-                    />
                   </div>
                   
                   <div className="flex gap-2 pt-4">
@@ -1503,22 +1505,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            계약 유형
+                            기준일
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            직급
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            근로 기간
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            급여
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            근무 시간
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            계약서 파일
+                            파일
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             작업
@@ -1529,32 +1519,13 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         {contracts.map((contract) => (
                           <tr key={contract.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {contract.contractType}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {contract.position || '-'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <div>
-                                <div>{contract.startDate.toLocaleDateString()}</div>
-                                {contract.endDate && (
-                                  <div className="text-xs text-gray-400">
-                                    ~ {contract.endDate.toLocaleDateString()}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {contract.salary ? `${contract.salary.toLocaleString()}원` : '-'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {contract.workingHours || '-'}
+                              {contract.startDate.toLocaleDateString('ko-KR')}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="space-y-2">
                                 {contract.contractFile ? (
                                   <div className="flex items-center space-x-2">
-                                    <span className="text-green-600 text-xs">✓ {contract.contractFileName}</span>
+                                    <span className="text-green-600 text-xs">✓ {contract.contractFileName || '계약서 파일'}</span>
                                     <button
                                       onClick={() => handleFileDownload(contract)}
                                       className="text-blue-600 hover:text-blue-900 text-xs"
@@ -1596,18 +1567,20 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <button
-                                onClick={() => handleContractEdit(contract)}
-                                className="text-blue-600 hover:text-blue-900 mr-3"
-                              >
-                                수정
-                              </button>
-                              <button
-                                onClick={() => handleContractDelete(contract.id)}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                삭제
-                              </button>
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleContractEdit(contract)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  수정
+                                </button>
+                                <button
+                                  onClick={() => handleContractDelete(contract.id)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  삭제
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
