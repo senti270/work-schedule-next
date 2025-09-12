@@ -331,7 +331,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     }
 
     if (!actualWorkData.trim()) {
-      alert('실제근무 데이터를 입력해주세요.');
+      // 실제근무 데이터가 없으면 비교 결과만 초기화하고 종료
+      setComparisonResults([]);
       return;
     }
 
@@ -352,10 +353,12 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     const comparisons: WorkTimeComparison[] = [];
     const processedDates = new Set<string>();
 
-    // 1. 스케줄이 있는 경우: 스케줄과 실제근무 데이터 비교
-    schedules.forEach(schedule => {
-      const scheduleDate = schedule.date.toISOString().split('T')[0];
-      const actualRecord = actualRecords.find(record => record.date === scheduleDate);
+    // 1. 스케줄이 있는 경우: 스케줄과 실제근무 데이터 비교 (선택된 직원만)
+    schedules
+      .filter(schedule => schedule.employeeId === selectedEmployeeId)
+      .forEach(schedule => {
+        const scheduleDate = schedule.date.toISOString().split('T')[0];
+        const actualRecord = actualRecords.find(record => record.date === scheduleDate);
 
       console.log(`스케줄: ${schedule.employeeName} ${scheduleDate}`, schedule);
       console.log(`실제근무 데이터 찾기:`, actualRecord);
@@ -822,27 +825,25 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         <div>{(() => {
-                          const totalMinutes = result.scheduledHours * 60;
-                          const hours = Math.floor(totalMinutes);
-                          const minutes = Math.round((totalMinutes - hours) * 60);
+                          const hours = Math.floor(result.scheduledHours);
+                          const minutes = Math.round((result.scheduledHours - hours) * 60);
                           return `${hours}:${minutes.toString().padStart(2, '0')}`;
                         })()}</div>
                         <div className="text-xs text-gray-500">{result.scheduledTimeRange}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         <div>{(() => {
-                          const totalMinutes = result.actualHours * 60;
-                          const hours = Math.floor(totalMinutes);
-                          const minutes = Math.round((totalMinutes - hours) * 60);
+                          const hours = Math.floor(result.actualHours);
+                          const minutes = Math.round((result.actualHours - hours) * 60);
                           return `${hours}:${minutes.toString().padStart(2, '0')}`;
                         })()}</div>
                         <div className="text-xs text-gray-500">{result.actualTimeRange}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {(() => {
-                          const totalMinutes = Math.abs(result.difference) * 60;
-                          const hours = Math.floor(totalMinutes);
-                          const minutes = Math.round((totalMinutes - hours) * 60);
+                          const absDifference = Math.abs(result.difference);
+                          const hours = Math.floor(absDifference);
+                          const minutes = Math.round((absDifference - hours) * 60);
                           const sign = result.difference > 0 ? '+' : result.difference < 0 ? '-' : '';
                           return `${sign}${hours}:${minutes.toString().padStart(2, '0')}`;
                         })()}
