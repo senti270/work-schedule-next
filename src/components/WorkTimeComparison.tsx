@@ -58,7 +58,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<{id: string; name: string; branchId: string}[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
-  const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{[key: string]: '검토전' | '검토중' | '검토완료'}>({});
+  const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, status: '검토전' | '검토중' | '검토완료'}[]>([]);
 
   useEffect(() => {
     loadBranches();
@@ -122,6 +122,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         branchId: doc.data().branchId || ''
       }));
       setEmployees(employeesData);
+      
+      // 직원 검토 상태 초기화
+      const initialReviewStatus = employeesData.map(emp => ({
+        employeeId: emp.id,
+        status: '검토전' as '검토전' | '검토중' | '검토완료'
+      }));
+      setEmployeeReviewStatus(initialReviewStatus);
     } catch (error) {
       console.error('직원 목록을 불러올 수 없습니다:', error);
     }
@@ -397,15 +404,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     );
     
     if (allCompleted && comparisons.length > 0) {
-      const updatedEmployeeStatus = [...employeeReviewStatus];
-      const employeeIndex = updatedEmployeeStatus.findIndex(emp => emp.employeeId === selectedEmployeeId);
-      if (employeeIndex !== -1) {
-        updatedEmployeeStatus[employeeIndex] = {
-          ...updatedEmployeeStatus[employeeIndex],
-          status: 'completed'
-        };
-        setEmployeeReviewStatus(updatedEmployeeStatus);
-      }
+      setEmployeeReviewStatus(prev => 
+        prev.map(status => 
+          status.employeeId === selectedEmployeeId 
+            ? { ...status, status: '검토완료' }
+            : status
+        )
+      );
     }
   };
 
@@ -544,12 +549,15 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <select
-                          value={employeeReviewStatus[employee.id] || '검토전'}
+                          value={employeeReviewStatus.find(status => status.employeeId === employee.id)?.status || '검토전'}
                           onChange={(e) => {
-                            setEmployeeReviewStatus(prev => ({
-                              ...prev,
-                              [employee.id]: e.target.value as '검토전' | '검토중' | '검토완료'
-                            }));
+                            setEmployeeReviewStatus(prev => 
+                              prev.map(status => 
+                                status.employeeId === employee.id 
+                                  ? { ...status, status: e.target.value as '검토전' | '검토중' | '검토완료' }
+                                  : status
+                              )
+                            );
                           }}
                           onClick={(e) => e.stopPropagation()} // 행 클릭 이벤트 방지
                           className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -574,12 +582,12 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
               }}
               disabled={!employees.every(emp => {
                 const empStatus = employeeReviewStatus.find(status => status.employeeId === emp.id);
-                return empStatus?.status === 'completed';
+                return empStatus?.status === '검토완료';
               })}
               className={`px-6 py-2 rounded-md font-medium ${
                 employees.every(emp => {
                   const empStatus = employeeReviewStatus.find(status => status.employeeId === emp.id);
-                  return empStatus?.status === 'completed';
+                  return empStatus?.status === '검토완료';
                 })
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -782,15 +790,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                 setComparisonResults(updatedResults);
                                 
                                 // 직원 검토 상태를 검토중으로 변경
-                                const updatedEmployeeStatus = [...employeeReviewStatus];
-                                const employeeIndex = updatedEmployeeStatus.findIndex(emp => emp.employeeId === selectedEmployeeId);
-                                if (employeeIndex !== -1) {
-                                  updatedEmployeeStatus[employeeIndex] = {
-                                    ...updatedEmployeeStatus[employeeIndex],
-                                    status: 'reviewing'
-                                  };
-                                  setEmployeeReviewStatus(updatedEmployeeStatus);
-                                }
+                                setEmployeeReviewStatus(prev => 
+                                  prev.map(status => 
+                                    status.employeeId === selectedEmployeeId 
+                                      ? { ...status, status: '검토중' }
+                                      : status
+                                  )
+                                );
                               }
                             }}
                             className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"

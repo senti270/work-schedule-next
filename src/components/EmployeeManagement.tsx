@@ -199,6 +199,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         code: doc.data().code,
         createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date()
       })) as BankCode[];
+      
+      // 은행명을 가나다 순으로 정렬
+      bankCodesData.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+      
       setBankCodes(bankCodesData);
       console.log('은행코드 데이터 로드됨:', bankCodesData);
     } catch (error) {
