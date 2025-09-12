@@ -634,7 +634,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         const modal = document.createElement('div');
                         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
                         modal.innerHTML = `
-                          <div class="bg-white p-4 rounded-lg max-w-4xl max-h-[90vh] overflow-auto">
+                          <div class="bg-white p-4 rounded-lg max-w-6xl max-h-[90vh] overflow-auto">
                             <div class="flex justify-between items-center mb-4">
                               <h3 class="text-lg font-semibold">POS ASP 시스템 화면 예시</h3>
                               <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
@@ -645,40 +645,20 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                             </div>
                             <div class="bg-gray-100 p-4 rounded border">
                               <p class="text-xs text-gray-500 mb-2">POS ASP 시스템 → 기타관리 → 근태관리 → 월근태내역 화면</p>
-                              <div class="bg-white border rounded p-3 text-xs">
-                                <div class="grid grid-cols-12 gap-1 mb-2 font-semibold border-b pb-1">
-                                  <div>No.</div><div>사원</div><div>총근무시간</div><div>일자</div><div>출근시각</div><div>퇴근시각</div><div>근무시각</div><div>시급</div><div>외시급</div><div>근무시간</div><div>근무시간외</div><div>총근무시간</div>
-                                </div>
-                                <div class="grid grid-cols-12 gap-1 text-gray-600">
-                                  <div>1</div><div>나인</div><div>44:00</div><div>-</div><div>-</div><div>-</div><div>-</div><div>-</div><div>-</div><div>-</div><div>-</div><div>-</div>
-                                </div>
-                                <div class="grid grid-cols-12 gap-1 text-gray-600">
-                                  <div>2</div><div>김아잉</div><div>4:28</div><div>2025-09-11</div><div>2025-09-11 19:00:10</div><div>2025-09-11 22:11:05</div><div>3:11</div><div>0</div><div>0</div><div>3:11</div><div>0:00</div><div>3:11</div>
-                                </div>
-                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
-                                  <div>3</div><div>빠잉헤인린</div><div>50:37</div><div>2025-09-09</div><div>2025-09-09 10:07:07</div><div>2025-09-09 21:58:55</div><div>11:52</div><div>0</div><div>0</div><div>11:52</div><div>0:00</div><div>11:52</div>
-                                </div>
-                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
-                                  <div></div><div></div><div></div><div>2025-09-07</div><div>2025-09-07 11:09:19</div><div>2025-09-07 22:01:56</div><div>10:53</div><div>0</div><div>0</div><div>10:53</div><div>0:00</div><div>10:53</div>
-                                </div>
-                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
-                                  <div></div><div></div><div></div><div>2025-09-05</div><div>2025-09-05 17:04:03</div><div>2025-09-05 22:54:10</div><div>5:50</div><div>0</div><div>0</div><div>5:50</div><div>0:00</div><div>5:50</div>
-                                </div>
-                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
-                                  <div></div><div></div><div></div><div>2025-09-04</div><div>2025-09-04 17:00:52</div><div>2025-09-04 22:59:36</div><div>5:59</div><div>0</div><div>0</div><div>5:59</div><div>0:00</div><div>5:59</div>
-                                </div>
-                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
-                                  <div></div><div></div><div></div><div>2025-09-03</div><div>2025-09-03 16:59:18</div><div>2025-09-03 22:00:40</div><div>5:01</div><div>0</div><div>0</div><div>5:01</div><div>0:00</div><div>5:01</div>
-                                </div>
-                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
-                                  <div></div><div></div><div></div><div>2025-09-02</div><div>2025-09-02 14:09:20</div><div>2025-09-02 22:00:23</div><div>7:51</div><div>0</div><div>0</div><div>7:51</div><div>0:00</div><div>7:51</div>
-                                </div>
-                                <div class="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                                  <p class="font-medium text-yellow-800">💡 복사 방법:</p>
-                                  <p class="text-yellow-700">위 표에서 "빠잉헤인린" 직원의 데이터 행들(파란색 배경)을 마우스로 드래그하여 선택한 후 Ctrl+C로 복사하세요.</p>
-                                  <p class="text-yellow-700 mt-1">• 헤더는 제외하고 데이터 행만 복사</p>
-                                  <p class="text-yellow-700">• 여러 날의 데이터가 있는 경우 모든 행을 포함</p>
-                                </div>
+                              <div class="bg-white border rounded p-3">
+                                <img 
+                                  src="/images/pos-asp-example.png" 
+                                  alt="POS ASP 시스템 화면 예시" 
+                                  class="w-full h-auto border rounded"
+                                />
+                              </div>
+                              <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                                <p class="font-medium text-yellow-800 mb-2">💡 복사 방법:</p>
+                                <ul class="text-yellow-700 space-y-1">
+                                  <li>• 위 표에서 해당 직원의 데이터 행들을 마우스로 드래그하여 선택한 후 Ctrl+C로 복사하세요.</li>
+                                  <li>• 헤더는 제외하고 데이터 행만 복사</li>
+                                  <li>• 여러 날의 데이터가 있는 경우 모든 행을 포함</li>
+                                </ul>
                               </div>
                             </div>
                           </div>
