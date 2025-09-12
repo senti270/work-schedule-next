@@ -197,27 +197,42 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           const endTime = columns[2].trim(); // "2025-09-11 22:11:05"
           const totalTimeStr = columns[6].trim(); // "3:11" 형태
 
+          console.log(`전체 컬럼 정보:`, columns.map((col, idx) => `${idx}: "${col}"`));
           console.log(`파싱된 데이터: 날짜=${date}, 시작=${startTime}, 종료=${endTime}, 총시간=${totalTimeStr}`);
 
           // 시간 문자열을 소수점 시간으로 변환 (예: "3:11" -> 3.18)
           let totalHours = 0;
           try {
-            const timeParts = totalTimeStr.split(':');
-            console.log(`시간 파싱: ${totalTimeStr} -> parts:`, timeParts);
+            console.log(`7번째 컬럼 원본 데이터: "${totalTimeStr}"`);
             
-            if (timeParts.length === 2) {
-              const hours = parseInt(timeParts[0], 10);
-              const minutes = parseInt(timeParts[1], 10);
-              console.log(`시간 변환: hours=${hours}, minutes=${minutes}`);
+            // 여러 가지 시간 형식 시도
+            if (totalTimeStr.includes(':')) {
+              const timeParts = totalTimeStr.split(':');
+              console.log(`시간 파싱: ${totalTimeStr} -> parts:`, timeParts);
               
-              if (!isNaN(hours) && !isNaN(minutes)) {
-                totalHours = hours + (minutes / 60);
-                console.log(`최종 계산: ${hours} + (${minutes}/60) = ${totalHours}`);
+              if (timeParts.length === 2) {
+                const hours = parseInt(timeParts[0], 10);
+                const minutes = parseInt(timeParts[1], 10);
+                console.log(`시간 변환: hours=${hours}, minutes=${minutes}`);
+                
+                if (!isNaN(hours) && !isNaN(minutes)) {
+                  totalHours = hours + (minutes / 60);
+                  console.log(`최종 계산: ${hours} + (${minutes}/60) = ${totalHours}`);
+                } else {
+                  console.error('시간 파싱 실패: hours 또는 minutes가 NaN', { hours, minutes });
+                }
               } else {
-                console.error('시간 파싱 실패: hours 또는 minutes가 NaN', { hours, minutes });
+                console.error('시간 형식 오류: 콜론이 1개가 아님', timeParts);
               }
             } else {
-              console.error('시간 형식 오류: 콜론이 1개가 아님', timeParts);
+              // 콜론이 없는 경우 숫자로만 파싱 시도
+              const numericValue = parseFloat(totalTimeStr);
+              if (!isNaN(numericValue)) {
+                totalHours = numericValue;
+                console.log(`숫자로 파싱: ${totalTimeStr} -> ${totalHours}`);
+              } else {
+                console.error('시간 파싱 실패: 숫자도 아니고 시간 형식도 아님', totalTimeStr);
+              }
             }
           } catch (error) {
             console.error('시간 파싱 오류:', error, '원본 데이터:', totalTimeStr);
@@ -347,6 +362,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       }
     });
 
+    // 날짜순으로 정렬
+    comparisons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
     console.log('비교 결과:', comparisons);
     setComparisonResults(comparisons);
   };
