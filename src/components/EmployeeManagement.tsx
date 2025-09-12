@@ -24,6 +24,13 @@ interface Employee {
   bankCode?: string;
   accountNumber?: string;
   accountHolder?: string; // 예금주명
+  // 정직원 주간 근무시간
+  weeklyWorkHours?: number; // 주간 근무시간 (정직원만)
+  // 수습기간 관리
+  probationStartDate?: Date; // 수습 시작일
+  probationEndDate?: Date; // 수습 종료일
+  probationPeriod?: number; // 수습기간 (개월)
+  isOnProbation?: boolean; // 현재 수습 중인지 여부
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,7 +53,7 @@ interface BankCode {
 interface EmploymentContract {
   id: string;
   employeeId: string;
-  contractType: string; // '정규직', '계약직', '아르바이트'
+  contractType: string; // '근로소득자', '사업소득자', '일용직', '외국인 사업소득자'
   startDate: Date;
   endDate?: Date; // 계약직의 경우 종료일
   salary?: number;
@@ -93,12 +100,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     branchId: '',
     residentNumber: '',
     hireDate: '',
-    type: '아르바이트',
+    type: '사업소득자',
     // 급여관리용 은행 정보
     bankName: '',
     bankCode: '',
     accountNumber: '',
-    accountHolder: ''
+    accountHolder: '',
+    // 정직원 주간 근무시간
+    weeklyWorkHours: 40,
+    // 수습기간 관리
+    probationStartDate: '',
+    probationEndDate: '',
+    probationPeriod: 3,
+    isOnProbation: false
   });
 
   useEffect(() => {
@@ -208,6 +222,17 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     } catch (error) {
       console.error('은행코드 목록을 불러올 수 없습니다:', error);
     }
+  };
+
+  // 수습기간 계산 함수
+  const calculateProbationPeriod = (startDate: string, periodMonths: number) => {
+    if (!startDate) return '';
+    
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + periodMonths);
+    
+    return end.toISOString().split('T')[0];
   };
 
   const initializeBankCodes = async () => {
@@ -456,12 +481,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         branchId: '',
         residentNumber: '',
         hireDate: '',
-        type: '정규직',
+        type: '사업소득자',
         // 급여관리용 은행 정보
         bankName: '',
         bankCode: '',
         accountNumber: '',
-        accountHolder: ''
+        accountHolder: '',
+        // 정직원 주간 근무시간
+        weeklyWorkHours: 40,
+        // 수습기간 관리
+        probationStartDate: '',
+        probationEndDate: '',
+        probationPeriod: 3,
+        isOnProbation: false
       });
       setShowForm(false);
       setEditingEmployee(null);
@@ -498,12 +530,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       branchId: employee.branchId || '',
       residentNumber: employee.residentNumber || '',
       hireDate: employee.hireDate ? employee.hireDate.toISOString().split('T')[0] : '',
-      type: employee.type || '아르바이트',
+      type: employee.type || '사업소득자',
       // 급여관리용 은행 정보
       bankName: employee.bankName || '',
       bankCode: employee.bankCode || '',
       accountNumber: employee.accountNumber || '',
-      accountHolder: employee.accountHolder || ''
+      accountHolder: employee.accountHolder || '',
+      // 정직원 주간 근무시간
+      weeklyWorkHours: employee.weeklyWorkHours || 40,
+      // 수습기간 관리
+      probationStartDate: employee.probationStartDate ? employee.probationStartDate.toISOString().split('T')[0] : '',
+      probationEndDate: employee.probationEndDate ? employee.probationEndDate.toISOString().split('T')[0] : '',
+      probationPeriod: employee.probationPeriod || 3,
+      isOnProbation: employee.isOnProbation || false
     });
     setShowForm(true);
     
@@ -567,12 +606,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       branchId: isManager && userBranch ? userBranch.id : '',
       residentNumber: '',
       hireDate: '',
-      type: '정규직',
+      type: '사업소득자',
       // 급여관리용 은행 정보
       bankName: '',
       bankCode: '',
       accountNumber: '',
-      accountHolder: ''
+      accountHolder: '',
+      // 정직원 주간 근무시간
+      weeklyWorkHours: 40,
+      // 수습기간 관리
+      probationStartDate: '',
+      probationEndDate: '',
+      probationPeriod: 3,
+      isOnProbation: false
     });
     setEditingEmployee(null);
     setShowForm(false);
@@ -1092,11 +1138,107 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                               >
-                                <option value="정규직">정규직</option>
-                                <option value="계약직">계약직</option>
-                                <option value="아르바이트">아르바이트</option>
+                                <option value="근로소득자">근로소득자</option>
+                                <option value="사업소득자">사업소득자</option>
+                                <option value="일용직">일용직</option>
+                                <option value="외국인 사업소득자">외국인 사업소득자</option>
                               </select>
                             </div>
+                            
+                            {/* 근로소득자 주간 근무시간 필드 */}
+                            {formData.type === '근로소득자' && (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  주간 근무시간 (시간)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="60"
+                                  value={formData.weeklyWorkHours}
+                                  onChange={(e) => setFormData({ ...formData, weeklyWorkHours: parseInt(e.target.value) || 40 })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="40"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">근로소득자의 주간 근무시간을 입력하세요 (기본값: 40시간)</p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* 수습기간 관리 */}
+                          <div className="border-t border-gray-200 pt-4">
+                            <h4 className="text-md font-medium text-gray-900 mb-4">수습기간 관리</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  수습 시작일
+                                </label>
+                                <input
+                                  type="date"
+                                  value={formData.probationStartDate}
+                                  onChange={(e) => {
+                                    const startDate = e.target.value;
+                                    const endDate = calculateProbationPeriod(startDate, formData.probationPeriod);
+                                    setFormData({ 
+                                      ...formData, 
+                                      probationStartDate: startDate,
+                                      probationEndDate: endDate
+                                    });
+                                  }}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  수습기간 (개월)
+                                </label>
+                                <select
+                                  value={formData.probationPeriod}
+                                  onChange={(e) => {
+                                    const period = parseInt(e.target.value);
+                                    const endDate = calculateProbationPeriod(formData.probationStartDate, period);
+                                    setFormData({ 
+                                      ...formData, 
+                                      probationPeriod: period,
+                                      probationEndDate: endDate
+                                    });
+                                  }}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value={1}>1개월</option>
+                                  <option value={2}>2개월</option>
+                                  <option value={3}>3개월</option>
+                                  <option value={6}>6개월</option>
+                                  <option value={12}>12개월</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  수습 종료일
+                                </label>
+                                <input
+                                  type="date"
+                                  value={formData.probationEndDate}
+                                  readOnly
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+                                />
+                              </div>
+                              <div className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  id="isOnProbation"
+                                  checked={formData.isOnProbation}
+                                  onChange={(e) => setFormData({ ...formData, isOnProbation: e.target.checked })}
+                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor="isOnProbation" className="ml-2 block text-sm text-gray-700">
+                                  현재 수습 중
+                                </label>
+                              </div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                              수습 시작일과 기간을 입력하면 자동으로 종료일이 계산됩니다.
+                            </p>
                           </div>
                           
                           {/* 급여관리용 은행 정보 */}

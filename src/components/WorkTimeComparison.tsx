@@ -59,6 +59,15 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   const [employees, setEmployees] = useState<{id: string; name: string; branchId: string}[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
   const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, status: '검토전' | '검토중' | '검토완료'}[]>([]);
+  
+  // 전월 이월 연장근무시간 입력 팝업 상태
+  const [showOvertimePopup, setShowOvertimePopup] = useState(false);
+  const [overtimeInput, setOvertimeInput] = useState('');
+  const [pendingOvertimeCalculation, setPendingOvertimeCalculation] = useState<{
+    employeeId: string;
+    currentWeekStart: Date;
+    actualWorkHours: number;
+  } | null>(null);
 
   useEffect(() => {
     loadBranches();
@@ -432,8 +441,55 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     console.log('비교 결과:', comparisons);
     setComparisonResults(comparisons);
     
+    // 연장근무시간 계산 (정직원인 경우만)
+    if (selectedEmployeeId) {
+      try {
+        // 직원 정보 확인
+        const employeeQuery = query(
+          collection(db, 'employees'),
+          where('__name__', '==', selectedEmployeeId)
+        );
+        const employeeSnapshot = await getDocs(employeeQuery);
+        
+        if (!employeeSnapshot.empty) {
+          const employeeData = employeeSnapshot.docs[0].data();
+          
+          // 정직원인 경우에만 연장근무시간 계산
+          if (employeeData.type === '정규직') {
+            // 이번주 총 실제 근무시간 계산
+            const totalActualHours = comparisons.reduce((sum, comp) => sum + comp.actualHours, 0);
+            
+            // 이번주 시작일 계산 (월요일)
+            const currentDate = new Date(selectedMonth);
+            const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+            const firstMonday = new Date(firstDay);
+            const dayOfWeek = firstDay.getDay();
+            const daysToMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+            firstMonday.setDate(firstDay.getDate() + daysToMonday);
+            
+            // 연장근무시간 계산
+            const accumulatedOvertime = await calculateOvertimeHours(selectedEmployeeId, firstMonday, totalActualHours);
+            console.log('계산된 누적 연장근무시간:', accumulatedOvertime);
+          }
+        }
+      } catch (error) {
+        console.error('연장근무시간 계산 중 오류:', error);
+      }
+    }
+    
     // 모든 비교 결과를 DB에 저장
     await saveAllComparisonResults(comparisons);
+    
+    // 비교결과 데이터가 한건이라도 있으면 검토중으로 상태 변경
+    if (comparisons.length > 0) {
+      setEmployeeReviewStatus(prev => 
+        prev.map(status => 
+          status.employeeId === selectedEmployeeId 
+            ? { ...status, status: '검토중' }
+            : status
+        )
+      );
+    }
     
     // 모든 데이터가 확인완료 또는 시간일치인 경우 직원 검토 상태를 검토완료로 변경
     const allCompleted = comparisons.every(comp => 
@@ -475,6 +531,74 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     const start = startTime.split(' ')[1]?.substring(0, 5) || startTime.substring(0, 5);
     const end = endTime.split(' ')[1]?.substring(0, 5) || endTime.substring(0, 5);
     return `${start}-${end}`;
+  };
+
+  // 연장근무시간 계산 함수
+  const calculateOvertimeHours = async (employeeId: string, currentWeekStart: Date, actualWorkHours: number) => {
+    try {
+      // 직원 정보에서 주간 근무시간 가져오기
+      const employeeQuery = query(
+        collection(db, 'employees'),
+        where('__name__', '==', employeeId)
+      );
+      const employeeSnapshot = await getDocs(employeeQuery);
+      
+      if (employeeSnapshot.empty) {
+        console.log('직원 정보를 찾을 수 없습니다:', employeeId);
+        return 0;
+      }
+      
+      const employeeData = employeeSnapshot.docs[0].data();
+      const weeklyWorkHours = employeeData.weeklyWorkHours || 40; // 기본값 40시간
+      
+      console.log('직원 주간 근무시간:', weeklyWorkHours, '실제 근무시간:', actualWorkHours);
+      
+      // 전주 누적 연장근무시간 가져오기
+      const previousWeekStart = new Date(currentWeekStart);
+      previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+      
+      const overtimeQuery = query(
+        collection(db, 'overtimeRecords'),
+        where('employeeId', '==', employeeId),
+        where('weekStart', '==', previousWeekStart)
+      );
+      
+      const overtimeSnapshot = await getDocs(overtimeQuery);
+      let previousOvertime = 0;
+      
+      if (!overtimeSnapshot.empty) {
+        previousOvertime = overtimeSnapshot.docs[0].data().accumulatedOvertime || 0;
+      }
+      
+      // 연장근무시간 계산: 전주 누적 + max(0, 실근무시간 - 주간근무시간)
+      const currentWeekOvertime = Math.max(0, actualWorkHours - weeklyWorkHours);
+      const newAccumulatedOvertime = previousOvertime + currentWeekOvertime;
+      
+      console.log('전주 누적 연장근무:', previousOvertime, '이번주 연장근무:', currentWeekOvertime, '새 누적:', newAccumulatedOvertime);
+      
+      // 이번주 연장근무시간 기록 저장
+      const overtimeRecord = {
+        employeeId: employeeId,
+        weekStart: currentWeekStart,
+        actualWorkHours: actualWorkHours,
+        weeklyWorkHours: weeklyWorkHours,
+        currentWeekOvertime: currentWeekOvertime,
+        accumulatedOvertime: newAccumulatedOvertime,
+        createdAt: new Date()
+      };
+      
+      // 기존 기록이 있으면 업데이트, 없으면 새로 생성
+      if (!overtimeSnapshot.empty) {
+        await updateDoc(overtimeSnapshot.docs[0].ref, overtimeRecord);
+      } else {
+        await addDoc(collection(db, 'overtimeRecords'), overtimeRecord);
+      }
+      
+      return newAccumulatedOvertime;
+    } catch (error) {
+      console.error('연장근무시간 계산 실패:', error);
+      return 0;
+    }
   };
 
   // 기존 비교 데이터를 불러오는 함수
@@ -629,12 +753,30 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         <h1 className="text-2xl font-bold text-gray-900 mb-4">근무시간 비교</h1>
         
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 className="text-lg font-medium text-blue-900 mb-2">사용 방법</h3>
-          <ul className="text-sm text-blue-800 space-y-1">
-            <li>• 매월 한번씩 스케줄과 실제근무 시간을 비교합니다</li>
-            <li>• 비교할 월을 선택하고 실제근무 데이터를 복사붙여넣기합니다</li>
-            <li>• 차이가 있는 경우 초과/부족 시간을 확인할 수 있습니다</li>
-          </ul>
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800 mb-2">메뉴 설명</h3>
+              <div className="text-sm text-blue-700 space-y-1">
+                <p>• 매월 초 한번씩 전달의 스케쥴과 실제근무 시간을 비교합니다</p>
+                <p>• 비교할 월을 선택하고 실제근무 데이터를 복사붙여넣기합니다</p>
+                <p>• 차이가 있는 경우 초과/부족 시간을 확인하고, 수정할 수 있습니다</p>
+              </div>
+              
+              <h3 className="text-sm font-medium text-blue-800 mt-4 mb-2">사용 방법</h3>
+              <div className="text-sm text-blue-700 space-y-1">
+                <p>1. 지점, 비교할 월 선택 후, 직원 선택</p>
+                <p>2. POS에서 실제 근무 데이터 붙여넣기</p>
+                <p>3. 근무시간 비교 버튼 클릭해서 차이나는 시간을 조정</p>
+                <p>4. 모든 스케쥴 수정/확인 완료 시 검토완료 상태로 변경</p>
+                <p>5. 모든 직원 검토완료 상태 시 본사에 전송하면 끝!</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -911,6 +1053,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                     상태
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    연장근무시간
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     작업
                   </th>
                 </tr>
@@ -958,6 +1103,24 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(result.status)}`}>
                           {getStatusText(result.status)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        {/* 연장근무시간은 정직원만 표시 */}
+                        {(() => {
+                          // 정직원인지 확인 (실제로는 직원 정보를 확인해야 함)
+                          const isRegularEmployee = true; // 임시로 true, 실제로는 직원 타입 확인
+                          if (!isRegularEmployee) return '-';
+                          
+                          // 연장근무시간 계산 (실제 근무시간 - 주간 근무시간)
+                          const weeklyWorkHours = 40; // 기본값, 실제로는 직원 정보에서 가져와야 함
+                          const overtimeHours = Math.max(0, result.actualHours - weeklyWorkHours);
+                          
+                          if (overtimeHours === 0) return '0:00';
+                          
+                          const hours = Math.floor(overtimeHours);
+                          const minutes = Math.round((overtimeHours - hours) * 60);
+                          return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(result.status === 'review_required' || result.status === 'review_completed') && (

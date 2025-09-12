@@ -44,7 +44,7 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<'weekly-view' | 'multi-week' | 'calendar'>('weekly-view');
+  const [activeTab, setActiveTab] = useState<'weekly-view' | 'multi-week' | 'calendar'>('multi-week');
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [formData, setFormData] = useState({
     employeeId: '',
@@ -381,16 +381,6 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
-            onClick={() => setActiveTab('weekly-view')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'weekly-view'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
-            }`}
-          >
-            주간 보기
-          </button>
-          <button
             onClick={() => setActiveTab('multi-week')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'multi-week'
@@ -401,6 +391,16 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
             스케줄 입력
           </button>
           <button
+            onClick={() => setActiveTab('weekly-view')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'weekly-view'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+            주간보기
+          </button>
+          <button
             onClick={() => setActiveTab('calendar')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'calendar'
@@ -408,7 +408,7 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
                 : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
-            달력 보기
+            달력보기
           </button>
         </nav>
       </div>
