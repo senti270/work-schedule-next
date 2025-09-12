@@ -752,7 +752,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
               <tbody className="bg-white divide-y divide-gray-200">
                 {comparisonResults.map((result, index) => {
                   // 행 배경색 결정
-                  const rowBgColor = (result.status === 'modified' || result.status === 'match') 
+                  const rowBgColor = (result.status === 'review_completed' || result.status === 'time_match') 
                     ? 'bg-white' 
                     : 'bg-yellow-50';
                   
