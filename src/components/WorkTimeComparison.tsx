@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface Schedule {
@@ -469,6 +469,51 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     return `${start}-${end}`;
   };
 
+  // 수정된 데이터를 DB에 저장
+  const saveModifiedData = async (result: WorkTimeComparison) => {
+    try {
+      const actualWorkRecord = {
+        employeeId: selectedEmployeeId,
+        employeeName: result.employeeName,
+        date: result.date,
+        actualHours: result.actualHours,
+        scheduledHours: result.scheduledHours,
+        difference: result.difference,
+        status: result.status,
+        isModified: true,
+        modifiedAt: new Date(),
+        branchId: selectedBranchId,
+        month: selectedMonth
+      };
+
+      // 기존 데이터가 있는지 확인
+      const existingQuery = query(
+        collection(db, 'actualWorkRecords'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('date', '==', result.date),
+        where('month', '==', selectedMonth)
+      );
+      
+      const existingDocs = await getDocs(existingQuery);
+      
+      if (existingDocs.empty) {
+        // 새로 추가
+        await addDoc(collection(db, 'actualWorkRecords'), actualWorkRecord);
+        console.log('새로운 실제근무 데이터 저장됨:', actualWorkRecord);
+      } else {
+        // 기존 데이터 업데이트
+        const docId = existingDocs.docs[0].id;
+        await updateDoc(doc(db, 'actualWorkRecords', docId), actualWorkRecord);
+        console.log('기존 실제근무 데이터 업데이트됨:', actualWorkRecord);
+      }
+      
+      alert('수정된 데이터가 저장되었습니다.');
+    } catch (error) {
+      console.error('데이터 저장 실패:', error);
+      alert('데이터 저장에 실패했습니다.');
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -851,6 +896,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                         : status
                                     )
                                   );
+                                  
+                                  // DB에 저장
+                                  saveModifiedData(updatedResults[index]);
                                 }
                               }
                             }}
