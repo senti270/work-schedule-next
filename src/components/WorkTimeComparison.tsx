@@ -87,14 +87,21 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     }
   }, [selectedBranchId, selectedEmployeeId, selectedMonth]);
 
-  // 직원이 변경될 때 자동으로 비교 실행 (필요한 데이터가 모두 있을 때만)
+  // 직원이 변경될 때 실제근무데이터 초기화 및 자동 비교 실행
   useEffect(() => {
-    if (selectedEmployeeId && selectedBranchId && selectedMonth && actualWorkData.trim() && schedules.length > 0) {
-      // 약간의 지연을 두어 상태 업데이트가 완료된 후 실행
-      const timer = setTimeout(() => {
-        compareWorkTimes();
-      }, 100);
-      return () => clearTimeout(timer);
+    if (selectedEmployeeId) {
+      // 직원이 변경되면 실제근무데이터 초기화
+      setActualWorkData('');
+      setComparisonResults([]);
+      
+      // 기존 데이터가 있으면 자동으로 비교 실행
+      if (selectedBranchId && selectedMonth && schedules.length > 0) {
+        // 약간의 지연을 두어 상태 업데이트가 완료된 후 실행
+        const timer = setTimeout(() => {
+          compareWorkTimes();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
     }
   }, [selectedEmployeeId]);
 
@@ -672,6 +679,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                   src="/images/pos-asp-example.png" 
                                   alt="POS ASP 시스템 화면 예시" 
                                   class="w-full h-auto border rounded"
+                                  onerror="console.log('이미지 로드 실패:', this); this.style.display='none';"
                                 />
                               </div>
                               <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
