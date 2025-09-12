@@ -51,7 +51,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   const [comparisonResults, setComparisonResults] = useState<WorkTimeComparison[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [employees, setEmployees] = useState<{id: string; name: string; branchId: string}[]>([]);
+  const [, setEmployees] = useState<{id: string; name: string; branchId: string}[]>([]);
 
   useEffect(() => {
     loadEmployees();
@@ -74,7 +74,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       
       const employeesData = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        name: doc.data().name || '',
+        branchId: doc.data().branchId || ''
       }));
       setEmployees(employeesData);
     } catch (error) {

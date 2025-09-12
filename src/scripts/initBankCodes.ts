@@ -1,12 +1,6 @@
 import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-interface BankCode {
-  id?: string;
-  name: string;
-  code: string;
-  createdAt: Date;
-}
 
 const bankCodesData = [
   { name: '국민은행', code: '004' },
@@ -79,5 +73,5 @@ export const initializeBankCodes = async () => {
 
 // 브라우저에서 직접 실행할 수 있도록 window 객체에 추가
 if (typeof window !== 'undefined') {
-  (window as any).initializeBankCodes = initializeBankCodes;
+  (window as unknown as Record<string, unknown>).initializeBankCodes = initializeBankCodes;
 }

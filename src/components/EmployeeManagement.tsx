@@ -1124,7 +1124,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 </select>
                                 {bankCodes.length === 0 && (
                                   <p className="text-sm text-red-500 mt-1">
-                                    은행코드가 없습니다. "은행코드 초기화" 버튼을 클릭하세요.
+                                    은행코드가 없습니다. &quot;은행코드 초기화&quot; 버튼을 클릭하세요.
                                   </p>
                                 )}
                               </div>
