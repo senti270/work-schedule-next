@@ -76,6 +76,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     }
   }, [selectedBranchId, isManager, userBranch]);
 
+  // 지점이나 직원이 변경될 때 스케줄 다시 로드
+  useEffect(() => {
+    if (selectedMonth) {
+      loadSchedules(selectedMonth);
+    }
+  }, [selectedBranchId, selectedEmployeeId, selectedMonth]);
+
   const loadBranches = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
@@ -143,17 +150,25 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       });
 
       // 선택된 월의 스케줄만 필터링
-      const filteredSchedules = schedulesData.filter(schedule => {
+      let filteredSchedules = schedulesData.filter(schedule => {
         const scheduleDate = new Date(schedule.date);
         return scheduleDate >= startDate && scheduleDate <= endDate;
       });
 
-      // 매니저 권한이 있으면 해당 지점만 필터링
-      const finalSchedules = isManager && userBranch 
-        ? filteredSchedules.filter(schedule => schedule.branchId === userBranch.id)
-        : filteredSchedules;
+      // 선택된 지점으로 필터링
+      if (selectedBranchId) {
+        filteredSchedules = filteredSchedules.filter(schedule => schedule.branchId === selectedBranchId);
+      } else if (isManager && userBranch) {
+        // 매니저 권한이 있으면 해당 지점만 필터링
+        filteredSchedules = filteredSchedules.filter(schedule => schedule.branchId === userBranch.id);
+      }
 
-      setSchedules(finalSchedules);
+      // 선택된 직원으로 필터링
+      if (selectedEmployeeId) {
+        filteredSchedules = filteredSchedules.filter(schedule => schedule.employeeId === selectedEmployeeId);
+      }
+
+      setSchedules(filteredSchedules);
     } catch (error) {
       console.error('스케줄 로드 중 오류:', error);
     } finally {
@@ -192,18 +207,28 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   };
 
   const compareWorkTimes = () => {
+    console.log('근무시간 비교 시작');
+    console.log('선택된 월:', selectedMonth);
+    console.log('실제근무 데이터 길이:', actualWorkData.length);
+    console.log('스케줄 개수:', schedules.length);
+
     if (!selectedMonth || !actualWorkData.trim()) {
       alert('월을 선택하고 실제근무 데이터를 입력해주세요.');
       return;
     }
 
     const actualRecords = parseActualWorkData(actualWorkData);
+    console.log('파싱된 실제근무 데이터:', actualRecords);
+
     const comparisons: WorkTimeComparison[] = [];
 
     // 각 스케줄에 대해 실제근무 데이터와 비교
     schedules.forEach(schedule => {
       const scheduleDate = schedule.date.toISOString().split('T')[0];
       const actualRecord = actualRecords.find(record => record.date === scheduleDate);
+
+      console.log(`스케줄: ${schedule.employeeName} ${scheduleDate}`, schedule);
+      console.log(`실제근무 데이터 찾기:`, actualRecord);
 
       if (actualRecord) {
         const difference = actualRecord.totalHours - schedule.totalHours;
@@ -228,6 +253,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       }
     });
 
+    console.log('비교 결과:', comparisons);
     setComparisonResults(comparisons);
   };
 
