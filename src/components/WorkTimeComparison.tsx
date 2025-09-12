@@ -648,11 +648,34 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                   <div>No.</div><div>사원</div><div>총근무시간</div><div>일자</div><div>출근시각</div><div>퇴근시각</div><div>근무시각</div><div>시급</div><div>외시급</div><div>근무시간</div><div>근무시간외</div><div>총근무시간</div>
                                 </div>
                                 <div class="grid grid-cols-12 gap-1 text-gray-600">
-                                  <div>1</div><div>빠잉</div><div>50:37</div><div>2025-09-11</div><div>19:00:10</div><div>22:11:05</div><div>3:11</div><div>0</div><div>0</div><div>3:11</div><div>0:00</div><div>3:11</div>
+                                  <div>1</div><div>나인</div><div>44:00</div><div>-</div><div>-</div><div>-</div><div>-</div><div>-</div><div>-</div><div>-</div><div>-</div><div>-</div>
+                                </div>
+                                <div class="grid grid-cols-12 gap-1 text-gray-600">
+                                  <div>2</div><div>김아잉</div><div>4:28</div><div>2025-09-11</div><div>2025-09-11 19:00:10</div><div>2025-09-11 22:11:05</div><div>3:11</div><div>0</div><div>0</div><div>3:11</div><div>0:00</div><div>3:11</div>
+                                </div>
+                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
+                                  <div>3</div><div>빠잉헤인린</div><div>50:37</div><div>2025-09-09</div><div>2025-09-09 10:07:07</div><div>2025-09-09 21:58:55</div><div>11:52</div><div>0</div><div>0</div><div>11:52</div><div>0:00</div><div>11:52</div>
+                                </div>
+                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
+                                  <div></div><div></div><div></div><div>2025-09-07</div><div>2025-09-07 11:09:19</div><div>2025-09-07 22:01:56</div><div>10:53</div><div>0</div><div>0</div><div>10:53</div><div>0:00</div><div>10:53</div>
+                                </div>
+                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
+                                  <div></div><div></div><div></div><div>2025-09-05</div><div>2025-09-05 17:04:03</div><div>2025-09-05 22:54:10</div><div>5:50</div><div>0</div><div>0</div><div>5:50</div><div>0:00</div><div>5:50</div>
+                                </div>
+                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
+                                  <div></div><div></div><div></div><div>2025-09-04</div><div>2025-09-04 17:00:52</div><div>2025-09-04 22:59:36</div><div>5:59</div><div>0</div><div>0</div><div>5:59</div><div>0:00</div><div>5:59</div>
+                                </div>
+                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
+                                  <div></div><div></div><div></div><div>2025-09-03</div><div>2025-09-03 16:59:18</div><div>2025-09-03 22:00:40</div><div>5:01</div><div>0</div><div>0</div><div>5:01</div><div>0:00</div><div>5:01</div>
+                                </div>
+                                <div class="grid grid-cols-12 gap-1 text-gray-600 bg-blue-50">
+                                  <div></div><div></div><div></div><div>2025-09-02</div><div>2025-09-02 14:09:20</div><div>2025-09-02 22:00:23</div><div>7:51</div><div>0</div><div>0</div><div>7:51</div><div>0:00</div><div>7:51</div>
                                 </div>
                                 <div class="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
                                   <p class="font-medium text-yellow-800">💡 복사 방법:</p>
-                                  <p class="text-yellow-700">위 표에서 "빠잉" 직원의 데이터 행 전체를 마우스로 드래그하여 선택한 후 Ctrl+C로 복사하세요.</p>
+                                  <p class="text-yellow-700">위 표에서 "빠잉헤인린" 직원의 데이터 행들(파란색 배경)을 마우스로 드래그하여 선택한 후 Ctrl+C로 복사하세요.</p>
+                                  <p class="text-yellow-700 mt-1">• 헤더는 제외하고 데이터 행만 복사</p>
+                                  <p class="text-yellow-700">• 여러 날의 데이터가 있는 경우 모든 행을 포함</p>
                                 </div>
                               </div>
                             </div>
