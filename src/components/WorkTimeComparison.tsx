@@ -526,7 +526,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       </div>
 
       {/* 직원 리스트 테이블 */}
-      {selectedBranchId && selectedMonth && employees.length > 0 && (
+      {selectedBranchId && selectedMonth && employees.length > 0 ? (
         <div className="mb-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             선택된 지점의 직원 목록
@@ -620,17 +620,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
               본사전송
             </button>
           </div>
-        ) : (
-          <div className="px-6 py-12 text-center">
-            <div className="text-gray-500 text-lg mb-2">📊</div>
-            <div className="text-gray-500 text-lg mb-2">비교결과 데이터 없음</div>
-            <div className="text-gray-400 text-sm">
-              지점, 월, 직원을 선택하고 실제근무 데이터를 입력한 후<br />
-              "근무시간 비교" 버튼을 클릭해주세요.
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {/* 실제근무 데이터 입력 */}
       <div className="mb-6">
@@ -734,9 +725,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           </h3>
         </div>
         
-        {comparisonResults.length > 0 ? (
+        {comparisonResults.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -762,15 +753,14 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white">
                 {comparisonResults.map((result, index) => {
-                  // 행 배경색 결정
                   const rowBgColor = (result.status === 'review_completed' || result.status === 'time_match') 
                     ? 'bg-white' 
                     : 'bg-yellow-50';
                   
                   return (
-                    <tr key={index} className={`hover:bg-gray-50 ${rowBgColor}`}>
+                    <tr key={index} className={`hover:bg-gray-50 ${rowBgColor} border-t border-gray-200`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {result.employeeName}
                       </td>
@@ -780,8 +770,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         <div>{(() => {
                           const totalMinutes = result.scheduledHours * 60;
-                          const hours = Math.floor(totalMinutes / 60);
-                          const minutes = Math.round(totalMinutes % 60);
+                          const hours = Math.floor(totalMinutes);
+                          const minutes = Math.round((totalMinutes - hours) * 60);
                           return `${hours}:${minutes.toString().padStart(2, '0')}`;
                         })()}</div>
                         <div className="text-xs text-gray-500">{result.scheduledTimeRange}</div>
@@ -789,8 +779,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         <div>{(() => {
                           const totalMinutes = result.actualHours * 60;
-                          const hours = Math.floor(totalMinutes / 60);
-                          const minutes = Math.round(totalMinutes % 60);
+                          const hours = Math.floor(totalMinutes);
+                          const minutes = Math.round((totalMinutes - hours) * 60);
                           return `${hours}:${minutes.toString().padStart(2, '0')}`;
                         })()}</div>
                         <div className="text-xs text-gray-500">{result.actualTimeRange}</div>
@@ -798,8 +788,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {(() => {
                           const totalMinutes = Math.abs(result.difference) * 60;
-                          const hours = Math.floor(totalMinutes / 60);
-                          const minutes = Math.round(totalMinutes % 60);
+                          const hours = Math.floor(totalMinutes);
+                          const minutes = Math.round((totalMinutes - hours) * 60);
                           const sign = result.difference > 0 ? '+' : result.difference < 0 ? '-' : '';
                           return `${sign}${hours}:${minutes.toString().padStart(2, '0')}`;
                         })()}
@@ -813,7 +803,6 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         {(result.status === 'review_required' || result.status === 'review_completed') && (
                           <button
                             onClick={() => {
-                              // 현재 시간을 시간:분 형식으로 변환
                               const currentHours = Math.floor(result.actualHours);
                               const currentMinutes = Math.round((result.actualHours - currentHours) * 60);
                               const currentTimeStr = `${currentHours}:${currentMinutes.toString().padStart(2, '0')}`;
@@ -821,15 +810,15 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                               const newTimeStr = prompt('수정할 실제 근무시간을 입력하세요 (시간:분 형식, 예: 3:11):', currentTimeStr);
                               
                               if (newTimeStr) {
-                                // 시간:분 형식 파싱
                                 let newHours = 0;
                                 if (newTimeStr.includes(':')) {
-                                  const [hours, minutes] = newTimeStr.split(':').map(Number);
+                                  const parts = newTimeStr.split(':');
+                                  const hours = parseInt(parts[0]);
+                                  const minutes = parseInt(parts[1]);
                                   if (!isNaN(hours) && !isNaN(minutes)) {
                                     newHours = hours + (minutes / 60);
                                   }
                                 } else {
-                                  // 숫자만 입력된 경우
                                   const numericValue = parseFloat(newTimeStr);
                                   if (!isNaN(numericValue)) {
                                     newHours = numericValue;
@@ -846,8 +835,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                     isModified: true
                                   };
                                   setComparisonResults(updatedResults);
-                                
-                                  // 직원 검토 상태를 검토중으로 변경
+                                  
                                   setEmployeeReviewStatus(prev => 
                                     prev.map(status => 
                                       status.employeeId === selectedEmployeeId 
@@ -870,8 +858,19 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+
+        {comparisonResults.length === 0 && (
+          <div className="px-6 py-12 text-center">
+            <div className="text-gray-500 text-lg mb-2">📊</div>
+            <div className="text-gray-500 text-lg mb-2">비교결과 데이터 없음</div>
+            <div className="text-gray-400 text-sm">
+              지점, 월, 직원을 선택하고 실제근무 데이터를 입력한 후<br />
+              &quot;근무시간 비교&quot; 버튼을 클릭해주세요.
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 요약 통계 */}
       {comparisonResults.length > 0 && (
