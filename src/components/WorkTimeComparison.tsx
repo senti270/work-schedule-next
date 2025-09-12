@@ -836,14 +836,15 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                   };
                                   setComparisonResults(updatedResults);
                                 
-                                // 직원 검토 상태를 검토중으로 변경
-                                setEmployeeReviewStatus(prev => 
-                                  prev.map(status => 
-                                    status.employeeId === selectedEmployeeId 
-                                      ? { ...status, status: '검토중' }
-                                      : status
-                                  )
-                                );
+                                  // 직원 검토 상태를 검토중으로 변경
+                                  setEmployeeReviewStatus(prev => 
+                                    prev.map(status => 
+                                      status.employeeId === selectedEmployeeId 
+                                        ? { ...status, status: '검토중' }
+                                        : status
+                                    )
+                                  );
+                                }
                               }
                             }}
                             className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
