@@ -602,6 +602,45 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                 <div className="mt-3 p-2 bg-white border border-blue-300 rounded text-xs">
                   <p className="font-medium text-gray-700">복사 예시:</p>
                   <p className="text-gray-600 font-mono">2025-09-11	2025-09-11 19:00:10	2025-09-11 22:11:05	2025-09-11	...	3:11</p>
+                  <div className="mt-2">
+                    <button
+                      onClick={() => {
+                        const modal = document.createElement('div');
+                        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                        modal.innerHTML = `
+                          <div class="bg-white p-4 rounded-lg max-w-4xl max-h-[90vh] overflow-auto">
+                            <div class="flex justify-between items-center mb-4">
+                              <h3 class="text-lg font-semibold">POS ASP 시스템 화면 예시</h3>
+                              <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+                            </div>
+                            <div class="text-sm text-gray-600 mb-4">
+                              <p><strong>복사할 영역:</strong> 아래 표에서 해당 직원의 전체 데이터 행을 선택하여 복사하세요.</p>
+                              <p><strong>주의:</strong> 표 헤더는 제외하고 데이터 행만 복사해야 합니다.</p>
+                            </div>
+                            <div class="bg-gray-100 p-4 rounded border">
+                              <p class="text-xs text-gray-500 mb-2">POS ASP 시스템 → 기타관리 → 근태관리 → 월근태내역 화면</p>
+                              <div class="bg-white border rounded p-3 text-xs">
+                                <div class="grid grid-cols-12 gap-1 mb-2 font-semibold border-b pb-1">
+                                  <div>No.</div><div>사원</div><div>총근무시간</div><div>일자</div><div>출근시각</div><div>퇴근시각</div><div>근무시각</div><div>시급</div><div>외시급</div><div>근무시간</div><div>근무시간외</div><div>총근무시간</div>
+                                </div>
+                                <div class="grid grid-cols-12 gap-1 text-gray-600">
+                                  <div>1</div><div>빠잉</div><div>50:37</div><div>2025-09-11</div><div>19:00:10</div><div>22:11:05</div><div>3:11</div><div>0</div><div>0</div><div>3:11</div><div>0:00</div><div>3:11</div>
+                                </div>
+                                <div class="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                                  <p class="font-medium text-yellow-800">💡 복사 방법:</p>
+                                  <p class="text-yellow-700">위 표에서 "빠잉" 직원의 데이터 행 전체를 마우스로 드래그하여 선택한 후 Ctrl+C로 복사하세요.</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        `;
+                        document.body.appendChild(modal);
+                      }}
+                      className="text-blue-600 hover:text-blue-800 text-xs underline"
+                    >
+                      📷 POS ASP 화면 예시 보기
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
