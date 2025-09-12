@@ -200,12 +200,21 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           let totalHours = 0;
           try {
             const timeParts = totalTimeStr.split(':');
+            console.log(`시간 파싱: ${totalTimeStr} -> parts:`, timeParts);
+            
             if (timeParts.length === 2) {
               const hours = parseInt(timeParts[0], 10);
               const minutes = parseInt(timeParts[1], 10);
+              console.log(`시간 변환: hours=${hours}, minutes=${minutes}`);
+              
               if (!isNaN(hours) && !isNaN(minutes)) {
                 totalHours = hours + (minutes / 60);
+                console.log(`최종 계산: ${hours} + (${minutes}/60) = ${totalHours}`);
+              } else {
+                console.error('시간 파싱 실패: hours 또는 minutes가 NaN', { hours, minutes });
               }
+            } else {
+              console.error('시간 형식 오류: 콜론이 1개가 아님', timeParts);
             }
           } catch (error) {
             console.error('시간 파싱 오류:', error, '원본 데이터:', totalTimeStr);
