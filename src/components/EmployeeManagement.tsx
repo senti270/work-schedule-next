@@ -43,6 +43,19 @@ interface Branch {
   businessNumber?: string;
 }
 
+interface EmployeeBranch {
+  id: string;
+  employeeId: string;
+  branchId: string;
+  branchName: string;
+  role: 'main' | 'additional'; // 메인/부가 지점
+  startDate: Date;
+  endDate?: Date;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface BankCode {
   id: string;
   name: string;
