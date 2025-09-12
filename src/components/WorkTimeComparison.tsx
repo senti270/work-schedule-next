@@ -180,14 +180,20 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     const lines = data.trim().split('\n');
     const records: ActualWorkRecord[] = [];
 
-    lines.forEach(line => {
+    console.log('실제근무 데이터 파싱 시작, 총 라인 수:', lines.length);
+
+    lines.forEach((line, index) => {
       if (line.trim()) {
         const columns = line.split('\t');
+        console.log(`라인 ${index + 1}:`, columns);
+        
         if (columns.length >= 8) {
-          const date = columns[0];
-          const startTime = columns[1];
-          const endTime = columns[2];
-          const totalTimeStr = columns[6]; // "3:11" 형태
+          const date = columns[0].trim(); // "2025-09-11"
+          const startTime = columns[1].trim(); // "2025-09-11 19:00:10"
+          const endTime = columns[2].trim(); // "2025-09-11 22:11:05"
+          const totalTimeStr = columns[6].trim(); // "3:11" 형태
+
+          console.log(`파싱된 데이터: 날짜=${date}, 시작=${startTime}, 종료=${endTime}, 총시간=${totalTimeStr}`);
 
           // 시간 문자열을 소수점 시간으로 변환 (예: "3:11" -> 3.18)
           const [hours, minutes] = totalTimeStr.split(':').map(Number);
@@ -199,10 +205,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
             endTime,
             totalHours
           });
+        } else {
+          console.log(`라인 ${index + 1} 컬럼 수 부족:`, columns.length);
         }
       }
     });
 
+    console.log('파싱 완료된 실제근무 데이터:', records);
     return records;
   };
 
