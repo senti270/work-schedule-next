@@ -87,6 +87,17 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     }
   }, [selectedBranchId, selectedEmployeeId, selectedMonth]);
 
+  // 직원이 변경될 때 자동으로 비교 실행 (필요한 데이터가 모두 있을 때만)
+  useEffect(() => {
+    if (selectedEmployeeId && selectedBranchId && selectedMonth && actualWorkData.trim() && schedules.length > 0) {
+      // 약간의 지연을 두어 상태 업데이트가 완료된 후 실행
+      const timer = setTimeout(() => {
+        compareWorkTimes();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedEmployeeId]);
+
   const loadBranches = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
@@ -315,6 +326,17 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     if (!actualWorkData.trim()) {
       alert('실제근무 데이터를 입력해주세요.');
       return;
+    }
+
+    // 이미 비교결과가 있고 수정된 내용이 있는 경우 경고
+    if (comparisonResults.length > 0) {
+      const hasModifiedResults = comparisonResults.some(result => result.isModified);
+      if (hasModifiedResults) {
+        const confirmed = confirm('이미 수정한 근무시간 데이터가 있습니다.\n다시 비교하면 모든 수정내용이 초기화됩니다.\n계속하시겠습니까?');
+        if (!confirmed) {
+          return;
+        }
+      }
     }
 
     const actualRecords = parseActualWorkData(actualWorkData);
@@ -598,8 +620,17 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
               본사전송
             </button>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="px-6 py-12 text-center">
+            <div className="text-gray-500 text-lg mb-2">📊</div>
+            <div className="text-gray-500 text-lg mb-2">비교결과 데이터 없음</div>
+            <div className="text-gray-400 text-sm">
+              지점, 월, 직원을 선택하고 실제근무 데이터를 입력한 후<br />
+              "근무시간 비교" 버튼을 클릭해주세요.
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 실제근무 데이터 입력 */}
       <div className="mb-6">
@@ -696,13 +727,14 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       </div>
 
       {/* 비교 결과 */}
-      {comparisonResults.length > 0 && (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">
-              비교 결과 ({comparisonResults.length}건)
-            </h3>
-          </div>
+      <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">
+            비교 결과 {comparisonResults.length > 0 ? `(${comparisonResults.length}건)` : ''}
+          </h3>
+        </div>
+        
+        {comparisonResults.length > 0 ? (
           
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
