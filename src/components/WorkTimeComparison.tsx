@@ -71,6 +71,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     currentWeekStart: Date;
     actualWorkHours: number;
   } | null>(null);
+  const [hasShownOvertimePopup, setHasShownOvertimePopup] = useState(false); // 팝업 표시 여부 추적
 
   useEffect(() => {
     loadBranches();
@@ -107,6 +108,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       
       // 먼저 비교 결과 초기화 (다른 직원 데이터가 보이지 않도록)
       setComparisonResults([]);
+      
+      // 팝업 표시 상태 초기화 (새 직원 선택 시 팝업 다시 표시 가능)
+      setHasShownOvertimePopup(false);
       
       // 기존 비교 데이터가 있는지 확인하고 로드
       loadExistingComparisonData();
@@ -589,6 +593,18 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       
       if (!overtimeSnapshot.empty) {
         previousOvertime = overtimeSnapshot.docs[0].data().accumulatedOvertime || 0;
+      } else {
+        // 전주 누적 연장근무시간이 없고, 아직 팝업을 보여주지 않았다면 팝업 표시
+        if (!hasShownOvertimePopup) {
+          setPendingOvertimeCalculation({
+            employeeId: employeeId,
+            currentWeekStart: currentWeekStart,
+            actualWorkHours: actualWorkHours
+          });
+          setShowOvertimePopup(true);
+          setHasShownOvertimePopup(true);
+          return 0; // 팝업에서 입력받을 때까지 대기
+        }
       }
       
       // 연장근무시간 계산: 전주 누적 + max(0, 실근무시간 - 주간근무시간)
@@ -619,6 +635,57 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     } catch (error) {
       console.error('연장근무시간 계산 실패:', error);
       return 0;
+    }
+  };
+
+  // 팝업에서 전월 이월 연장근무시간을 입력받은 후 계산을 완료하는 함수
+  const completeOvertimeCalculation = async (inputOvertime: number) => {
+    if (!pendingOvertimeCalculation) return;
+    
+    try {
+      const { employeeId, currentWeekStart, actualWorkHours } = pendingOvertimeCalculation;
+      
+      // 직원 정보에서 주간 근무시간 가져오기
+      const employeeQuery = query(
+        collection(db, 'employees'),
+        where('__name__', '==', employeeId)
+      );
+      const employeeSnapshot = await getDocs(employeeQuery);
+      
+      if (employeeSnapshot.empty) {
+        console.log('직원 정보를 찾을 수 없습니다:', employeeId);
+        return;
+      }
+      
+      const employeeData = employeeSnapshot.docs[0].data();
+      const weeklyWorkHours = employeeData.weeklyWorkHours || 40;
+      
+      // 연장근무시간 계산: 입력받은 전월 이월 + max(0, 실근무시간 - 주간근무시간)
+      const currentWeekOvertime = Math.max(0, actualWorkHours - weeklyWorkHours);
+      const newAccumulatedOvertime = inputOvertime + currentWeekOvertime;
+      
+      // 이번주 연장근무시간 기록 저장
+      const overtimeRecord = {
+        employeeId: employeeId,
+        weekStart: currentWeekStart,
+        actualWorkHours: actualWorkHours,
+        weeklyWorkHours: weeklyWorkHours,
+        currentWeekOvertime: currentWeekOvertime,
+        accumulatedOvertime: newAccumulatedOvertime,
+        createdAt: new Date()
+      };
+      
+      await addDoc(collection(db, 'overtimeRecords'), overtimeRecord);
+      
+      console.log('전월 이월 연장근무시간 입력 완료:', inputOvertime, '새 누적:', newAccumulatedOvertime);
+      
+      // 팝업 상태 초기화
+      setShowOvertimePopup(false);
+      setOvertimeInput('');
+      setPendingOvertimeCalculation(null);
+      
+    } catch (error) {
+      console.error('연장근무시간 계산 완료 실패:', error);
     }
   };
 
@@ -1276,6 +1343,58 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
               {comparisonResults.filter(r => r.status === 'review_completed').length}
             </div>
             <div className="text-sm text-purple-600">확인완료</div>
+          </div>
+        </div>
+      )}
+
+      {/* 전월 이월 연장근무시간 입력 팝업 */}
+      {showOvertimePopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              전월 이월 연장근무시간 입력
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              최초 연장근무시간 계산을 위해 전월 이월 연장근무시간을 입력해주세요.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                전월 이월 연장근무시간 (시간)
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                value={overtimeInput}
+                onChange={(e) => setOvertimeInput(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="예: 5.5"
+              />
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowOvertimePopup(false);
+                  setOvertimeInput('');
+                  setPendingOvertimeCalculation(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  const inputValue = parseFloat(overtimeInput);
+                  if (!isNaN(inputValue) && inputValue >= 0) {
+                    completeOvertimeCalculation(inputValue);
+                  }
+                }}
+                disabled={!overtimeInput || isNaN(parseFloat(overtimeInput)) || parseFloat(overtimeInput) < 0}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                확인
+              </button>
+            </div>
           </div>
         </div>
       )}
