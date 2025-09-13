@@ -37,6 +37,9 @@ interface WorkTimeComparison {
   scheduledTimeRange?: string; // "19:00-22:00" 형태
   actualTimeRange?: string; // "19:00-22:11" 형태
   isModified?: boolean; // 수정 여부
+  // 휴게시간 및 실근무시간
+  breakTime?: number; // 휴게시간 (시간)
+  actualWorkHours?: number; // 실근무시간 (실제근무시간 - 휴게시간)
 }
 
 interface WorkTimeComparisonProps {
@@ -385,6 +388,10 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           status = 'time_match';
         }
 
+        // 휴게시간과 실근무시간 계산
+        const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
+        const actualWorkHours = Math.max(0, actualRecord.totalHours - breakTime); // 실근무시간 (실제근무시간 - 휴게시간)
+        
         comparisons.push({
           employeeName: schedule.employeeName,
           date: scheduleDate,
@@ -394,12 +401,18 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           status,
           scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
           actualTimeRange: formatTimeRange(actualRecord.startTime, actualRecord.endTime),
-          isModified: false
+          isModified: false,
+          breakTime: breakTime,
+          actualWorkHours: actualWorkHours
         });
 
         processedDates.add(scheduleDate);
       } else {
         // 스케줄은 있지만 실제근무 데이터가 없는 경우
+        // 휴게시간과 실근무시간 계산 (실제근무 데이터가 없는 경우)
+        const breakTime = parseFloat(schedule.breakTime) || 0;
+        const actualWorkHours = 0; // 실제근무 데이터가 없으므로 0
+        
         comparisons.push({
           employeeName: schedule.employeeName,
           date: scheduleDate,
@@ -409,7 +422,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           status: 'review_required',
           scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
           actualTimeRange: '-',
-          isModified: false
+          isModified: false,
+          breakTime: breakTime,
+          actualWorkHours: actualWorkHours
         });
       }
     });
@@ -421,6 +436,10 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
         const employeeName = selectedEmployee ? selectedEmployee.name : '알 수 없음';
 
+        // 스케줄이 없는 경우 휴게시간은 0으로 가정
+        const breakTime = 0; // 스케줄이 없으므로 휴게시간 정보 없음
+        const actualWorkHours = actualRecord.totalHours; // 휴게시간이 없으므로 실제근무시간 = 실근무시간
+        
         comparisons.push({
           employeeName: employeeName,
           date: actualRecord.date,
@@ -430,7 +449,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           status: 'review_required', // 스케줄 없이 근무한 경우 검토필요
           scheduledTimeRange: '-',
           actualTimeRange: formatTimeRange(actualRecord.startTime, actualRecord.endTime),
-          isModified: false
+          isModified: false,
+          breakTime: breakTime,
+          actualWorkHours: actualWorkHours
         });
       }
     });
@@ -633,7 +654,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
             status: data.status,
             scheduledTimeRange: data.scheduledTimeRange || '-',
             actualTimeRange: data.actualTimeRange || '-',
-            isModified: data.isModified || false
+            isModified: data.isModified || false,
+            breakTime: data.breakTime || 0,
+            actualWorkHours: data.actualWorkHours || 0
           };
         });
         
@@ -700,6 +723,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           scheduledTimeRange: result.scheduledTimeRange,
           actualTimeRange: result.actualTimeRange,
           isModified: result.isModified,
+          breakTime: result.breakTime || 0,
+          actualWorkHours: result.actualWorkHours || 0,
           createdAt: new Date()
         };
         
@@ -1058,6 +1083,12 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                     실제 시간
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    휴게시간
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    실근무시간
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     차이
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1100,6 +1131,22 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                           return `${hours}:${minutes.toString().padStart(2, '0')}`;
                         })()}</div>
                         <div className="text-xs text-gray-500">{result.actualTimeRange}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        {(() => {
+                          const breakTime = result.breakTime || 0;
+                          const hours = Math.floor(breakTime);
+                          const minutes = Math.round((breakTime - hours) * 60);
+                          return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        {(() => {
+                          const actualWorkHours = result.actualWorkHours || 0;
+                          const hours = Math.floor(actualWorkHours);
+                          const minutes = Math.round((actualWorkHours - hours) * 60);
+                          return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {(() => {
