@@ -796,7 +796,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
       // 스케줄 다시 로드
       await loadSchedules();
-      alert('이전 주 데이터가 성공적으로 복사되었습니다.');
       
     } catch (error) {
       console.error('이전 주 데이터 복사 중 오류:', error);
