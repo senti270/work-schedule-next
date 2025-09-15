@@ -98,6 +98,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [contracts, setContracts] = useState<EmploymentContract[]>([]);
   const [showContractModal, setShowContractModal] = useState(false);
+  // 필터링 및 검색 상태
+  const [showResignedEmployees, setShowResignedEmployees] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [contractFormData, setContractFormData] = useState({
     startDate: '',
@@ -1002,20 +1005,51 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
   };
 
-  // 선택된 지점의 직원만 필터링하고 정렬
-  const filteredEmployees = (selectedBranchId 
-    ? employees.filter(emp => {
+  // 직원 필터링 및 검색 로직
+  const filteredEmployees = employees
+    .filter(emp => {
+      // 지점 필터링
+      if (selectedBranchId) {
         const selectedBranch = branches.find(b => b.id === selectedBranchId);
-        return selectedBranch && emp.branchNames?.includes(selectedBranch.name);
-      })
-    : employees
-  ).sort((a, b) => {
-    if (sortOrder === 'asc') {
-      return a.name.localeCompare(b.name);
-    } else {
-      return b.name.localeCompare(a.name);
-    }
-  });
+        if (!selectedBranch || !emp.branchNames?.includes(selectedBranch.name)) {
+          return false;
+        }
+      }
+
+      // 재직/퇴사 필터링
+      if (!showResignedEmployees) {
+        // 재직중만 보기 (기본값)
+        if (emp.status === 'inactive' || emp.resignationDate) {
+          return false;
+        }
+      } else {
+        // 퇴사직원만 보기
+        if (emp.status !== 'inactive' && !emp.resignationDate) {
+          return false;
+        }
+      }
+
+      // 검색어 필터링
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          emp.name.toLowerCase().includes(searchLower) ||
+          emp.userId?.toLowerCase().includes(searchLower) ||
+          emp.phone?.includes(searchTerm) ||
+          emp.residentNumber?.includes(searchTerm) ||
+          emp.branchNames?.some(name => name.toLowerCase().includes(searchLower))
+        );
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortOrder === 'asc') {
+        return a.name.localeCompare(b.name);
+      } else {
+        return b.name.localeCompare(a.name);
+      }
+    });
 
   return (
     <div className="p-6">
@@ -1090,7 +1124,63 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       {/* 직원 목록 */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">직원 목록</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+            <h2 className="text-lg font-semibold text-gray-900">직원 목록</h2>
+            
+            {/* 필터링 및 검색 UI */}
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+              {/* 검색 입력 */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="직원명, 아이디, 전화번호, 주민번호 검색..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              
+              {/* 재직/퇴사 필터 */}
+              <div className="flex items-center space-x-2">
+                <label className="flex items-center space-x-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={showResignedEmployees}
+                    onChange={(e) => setShowResignedEmployees(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700">퇴사직원 보기</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          {/* 검색 결과 및 필터 상태 표시 */}
+          {(searchTerm || showResignedEmployees) && (
+            <div className="mt-3 text-sm text-gray-600">
+              {searchTerm && (
+                <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2">
+                  검색: &quot;{searchTerm}&quot;
+                </span>
+              )}
+              {showResignedEmployees && (
+                <span className="inline-block bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                  퇴사직원 포함
+                </span>
+              )}
+              <span className="ml-2">
+                총 {filteredEmployees.length}명
+              </span>
+            </div>
+          )}
         </div>
         
         {/* 데스크톱 테이블 */}
@@ -1760,7 +1850,18 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         </div>
         {filteredEmployees.length === 0 && (
           <div className="text-center py-8 text-gray-500">
-            {selectedBranchId ? '선택된 지점에 등록된 직원이 없습니다.' : '등록된 직원이 없습니다.'}
+            {searchTerm ? (
+              <div>
+                <p>검색 결과가 없습니다.</p>
+                <p className="text-sm mt-1">다른 검색어를 시도해보세요.</p>
+              </div>
+            ) : showResignedEmployees ? (
+              '퇴사한 직원이 없습니다.'
+            ) : selectedBranchId ? (
+              '선택된 지점에 등록된 직원이 없습니다.'
+            ) : (
+              '등록된 직원이 없습니다.'
+            )}
           </div>
         )}
       </div>
