@@ -1238,6 +1238,102 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           </table>
         </div>
       </div>
+
+      {/* 주간 근무시간 막대그래프 */}
+      {weeklySummary.length > 0 && (
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">주간 근무시간 그래프</h3>
+          </div>
+          <div className="p-6">
+            {/* 요일 헤더 */}
+            <div className="flex items-end space-x-2 mb-4">
+              <div className="w-24 text-sm font-medium text-gray-700">직원명</div>
+              {['월', '화', '수', '목', '금', '토', '일'].map((day, index) => (
+                <div key={index} className="flex-1 text-center">
+                  <div className="text-sm font-medium text-gray-700 mb-2">{day}</div>
+                  <div className="h-32 bg-gray-50 rounded-t border-t border-l border-r border-gray-200 relative">
+                    {/* Y축 눈금 */}
+                    <div className="absolute left-0 top-0 w-full h-full">
+                      {[8, 6, 4, 2].map((tick, tickIndex) => (
+                        <div key={tickIndex} className="absolute w-full border-t border-gray-200" 
+                             style={{ top: `${(8 - tick) * 12.5}%` }}>
+                          <span className="absolute -left-8 text-xs text-gray-500 -mt-1">{tick}h</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="w-16 text-sm font-medium text-gray-700 text-center">총계</div>
+            </div>
+
+            {/* 직원별 막대그래프 */}
+            <div className="space-y-3">
+              {weeklySummary.map((summary, index) => (
+                <div key={index} className="flex items-end space-x-2">
+                  {/* 직원명 */}
+                  <div className="w-24 text-sm font-medium text-gray-700 truncate">
+                    {summary.employeeName}
+                  </div>
+                  
+                  {/* 일별 막대 */}
+                  {summary.dailyHours.map((hours, dayIndex) => {
+                    const barHeight = Math.min((hours / 8) * 100, 100); // 최대 8시간 기준
+                    const barColor = hours > 0 ? 
+                      (hours >= 8 ? 'bg-green-500' : hours >= 6 ? 'bg-blue-500' : 'bg-yellow-500') : 
+                      'bg-gray-200';
+                    
+                    return (
+                      <div key={dayIndex} className="flex-1 flex flex-col items-center">
+                        <div className="h-32 bg-gray-50 rounded-t border-t border-l border-r border-gray-200 flex flex-col justify-end relative">
+                          {hours > 0 && (
+                            <div 
+                              className={`w-full ${barColor} rounded-t transition-all duration-300 relative group`}
+                              style={{ height: `${Math.max(barHeight, 2)}%` }}
+                              title={`${hours.toFixed(1)}시간`}
+                            >
+                              {/* 시간 표시 (막대 위에) */}
+                              <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs font-medium text-gray-700 bg-white px-1 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                                {hours.toFixed(1)}h
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* 총 시간 */}
+                  <div className="w-16 text-sm font-bold text-gray-900 text-center">
+                    {summary.totalHours.toFixed(1)}h
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* 범례 */}
+            <div className="mt-6 flex justify-center space-x-6 text-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-green-500 rounded"></div>
+                <span className="text-gray-600">8시간 이상</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                <span className="text-gray-600">6-8시간</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+                <span className="text-gray-600">6시간 미만</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                <span className="text-gray-600">근무없음</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
