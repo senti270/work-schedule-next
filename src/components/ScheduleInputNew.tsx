@@ -656,6 +656,96 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     return summary;
   };
 
+  // 이전 주 데이터 복사 핸들러
+  const handleCopyPreviousWeek = async (employeeId: string) => {
+    if (isLocked) {
+      alert('급여 작업이 완료되어 수정할 수 없습니다.');
+      return;
+    }
+
+    const confirmMessage = `이전 주 데이터를 복사하시겠습니까?\n\n주의: 현재 입력된 데이터는 삭제됩니다.`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      // 이전 주 날짜 계산
+      const previousWeekStart = new Date(currentWeekStart);
+      previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+      
+      // 이전 주의 스케줄 데이터 가져오기
+      const previousWeekSchedules = schedules.filter(schedule => {
+        const scheduleDate = schedule.date;
+        const weekStart = new Date(previousWeekStart);
+        const weekEnd = new Date(previousWeekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        
+        return schedule.employeeId === employeeId && 
+               scheduleDate >= weekStart && 
+               scheduleDate <= weekEnd;
+      });
+
+      if (previousWeekSchedules.length === 0) {
+        alert('이전 주에 복사할 데이터가 없습니다.');
+        return;
+      }
+
+      // 현재 주의 기존 스케줄 삭제
+      const currentWeekSchedules = schedules.filter(schedule => {
+        const scheduleDate = schedule.date;
+        const weekStart = new Date(currentWeekStart);
+        const weekEnd = new Date(currentWeekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        
+        return schedule.employeeId === employeeId && 
+               scheduleDate >= weekStart && 
+               scheduleDate <= weekEnd;
+      });
+
+      // 기존 스케줄 삭제
+      for (const schedule of currentWeekSchedules) {
+        await deleteDoc(doc(db, 'schedules', schedule.id));
+      }
+
+      // 이전 주 데이터를 현재 주로 복사
+      const weekDates = getWeekDates();
+      const branch = branches.find(b => b.id === selectedBranchId);
+      
+      for (const prevSchedule of previousWeekSchedules) {
+        const prevDate = new Date(prevSchedule.date);
+        const dayOfWeek = prevDate.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const prevWeekStart = new Date(prevDate);
+        prevWeekStart.setDate(prevDate.getDate() + mondayOffset);
+        
+        // 현재 주의 같은 요일에 복사
+        const targetDate = new Date(weekDates[dayOfWeek === 0 ? 6 : dayOfWeek - 1]);
+        
+        await addDoc(collection(db, 'schedules'), {
+          employeeId: employeeId,
+          employeeName: prevSchedule.employeeName,
+          branchId: selectedBranchId,
+          branchName: branch?.name || '',
+          date: targetDate,
+          startTime: prevSchedule.startTime,
+          endTime: prevSchedule.endTime,
+          breakTime: prevSchedule.breakTime,
+          totalHours: prevSchedule.totalHours,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+
+      // 스케줄 다시 로드
+      await loadSchedules();
+      alert('이전 주 데이터가 성공적으로 복사되었습니다.');
+      
+    } catch (error) {
+      console.error('이전 주 데이터 복사 중 오류:', error);
+      alert('데이터 복사 중 오류가 발생했습니다.');
+    }
+  };
+
   // 마우스 호버 핸들러
   const handleMouseEnter = (employeeId: string, date: Date) => {
     const existingSchedule = getScheduleForDate(employeeId, date);
@@ -871,7 +961,16 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
               {employees.map((employee) => (
                 <tr key={employee.id} className="hover:bg-gray-50">
                   <td className="w-24 px-2 py-3 text-center text-sm font-medium text-gray-900 truncate">
-                    {employee.name}
+                    <div className="flex items-center justify-center space-x-1">
+                      <span>{employee.name}</span>
+                      <button
+                        onClick={() => handleCopyPreviousWeek(employee.id)}
+                        className="text-blue-600 hover:text-blue-800 text-xs"
+                        title="이전 주 데이터 복사"
+                      >
+                        📋
+                      </button>
+                    </div>
                   </td>
                   {weekDates.map((date, index) => {
                     const dateString = date.toISOString().split('T')[0];

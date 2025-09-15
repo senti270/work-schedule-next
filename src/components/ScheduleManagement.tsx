@@ -360,16 +360,6 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
         <div className="space-y-3">
           <label className="text-sm font-medium text-gray-700">지점 선택:</label>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedBranchId('')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                selectedBranchId === ''
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              전체 지점
-            </button>
             {branches.map((branch) => (
               <button
                 key={branch.id}
