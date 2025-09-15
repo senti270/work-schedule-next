@@ -543,19 +543,12 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       return;
     }
 
-    const confirmDelete = window.confirm(
-      `${existingSchedule.employeeName}의 ${date.toLocaleDateString('ko-KR')} 스케줄을 삭제하시겠습니까?\n` +
-      `스케줄: ${timeToDecimal(existingSchedule.startTime)}-${timeToDecimal(existingSchedule.endTime)}(${existingSchedule.breakTime})`
-    );
-
-    if (confirmDelete) {
-      try {
-        await deleteDoc(doc(db, 'schedules', existingSchedule.id));
-        await loadSchedules();
-      } catch (error) {
-        console.error('스케줄 삭제 오류:', error);
-        alert('스케줄 삭제 중 오류가 발생했습니다.');
-      }
+    try {
+      await deleteDoc(doc(db, 'schedules', existingSchedule.id));
+      await loadSchedules();
+    } catch (error) {
+      console.error('스케줄 삭제 오류:', error);
+      alert('스케줄 삭제 중 오류가 발생했습니다.');
     }
   };
 
