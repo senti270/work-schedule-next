@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import WeeklyScheduleView from './WeeklyScheduleView';
-import ScheduleInputNew from './ScheduleInputNew';
-import ScheduleManagementOld from './ScheduleManagementOld';
+import MultiWeekScheduleView from './MultiWeekScheduleView';
 
 interface Schedule {
   id: string;
@@ -38,14 +37,14 @@ interface ScheduleManagementProps {
   isManager?: boolean;
 }
 
-export default function ScheduleManagement({ }: ScheduleManagementProps) {
+export default function ScheduleManagementOld({ }: ScheduleManagementProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<'schedule-input' | 'schedule-input-old' | 'weekly-view' | 'calendar'>('schedule-input');
+  const [activeTab, setActiveTab] = useState<'weekly-view' | 'multi-week' | 'calendar'>('multi-week');
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [formData, setFormData] = useState({
     employeeId: '',
@@ -343,7 +342,7 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg leading-6 font-medium text-gray-900">
-          스케줄 관리
+          스케줄 관리 (구)
         </h3>
         {activeTab === 'calendar' && (
           <button
@@ -382,19 +381,9 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
-            onClick={() => setActiveTab('schedule-input')}
+            onClick={() => setActiveTab('multi-week')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'schedule-input'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
-            }`}
-          >
-            스케줄 입력
-          </button>
-          <button
-            onClick={() => setActiveTab('schedule-input-old')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'schedule-input-old'
+              activeTab === 'multi-week'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
             }`}
@@ -425,14 +414,6 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
       </div>
 
       {/* 탭 내용 */}
-      {activeTab === 'schedule-input' && (
-        <ScheduleInputNew selectedBranchId={selectedBranchId} />
-      )}
-
-      {activeTab === 'schedule-input-old' && (
-        <ScheduleManagementOld />
-      )}
-
       {activeTab === 'calendar' && (
         <>
           {/* 년월 선택 및 네비게이션 */}
@@ -594,6 +575,10 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
 
       {activeTab === 'weekly-view' && (
         <WeeklyScheduleView selectedBranchId={selectedBranchId} />
+      )}
+
+      {activeTab === 'multi-week' && (
+        <MultiWeekScheduleView selectedBranchId={selectedBranchId} />
       )}
 
       {showForm && activeTab === 'calendar' && (
