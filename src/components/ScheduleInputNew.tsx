@@ -1245,8 +1245,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
               const weekDates = getWeekDates();
               const timeSlots = [];
               
-              // 6시부터 24시까지 1시간 단위로 시간대 생성
-              for (let hour = 6; hour <= 24; hour++) {
+              // 9시부터 23시까지 1시간 단위로 시간대 생성
+              for (let hour = 9; hour <= 23; hour++) {
                 timeSlots.push(hour);
               }
               
