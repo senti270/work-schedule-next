@@ -956,8 +956,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         <p className="text-sm text-blue-700">
           휴게시간 없는 경우: 시작시간-종료시간 &nbsp;&nbsp; ex) 18-23
         </p>
-        <p className="text-sm text-blue-700 mt-1">
+        
+        <h4 className="text-sm font-medium text-blue-800 mb-2 mt-3">입력 방법 안내</h4>
+        <p className="text-sm text-blue-700">
           &bull; Enter: 저장 &bull; Tab: 다음 입력칸 이동 &bull; 드래그: 스케줄 이동 &bull; Ctrl+드래그: 스케줄 복사 &bull; 더블클릭: 스케줄 삭제
+        </p>
+        <p className="text-sm text-blue-700">
+          &bull; 이름 옆 아이콘 클릭시 이전 주 데이터 복사
         </p>
       </div>
 
