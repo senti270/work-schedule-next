@@ -658,14 +658,14 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       {/* 스케줄 입력 테이블 */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="w-full table-fixed divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-24 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   지점직원
                 </th>
                 {weekDates.map((date, index) => (
-                  <th key={index} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th key={index} className="w-20 px-1 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {date.getDate()}({['일', '월', '화', '수', '목', '금', '토'][date.getDay()]})
                   </th>
                 ))}
@@ -674,7 +674,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             <tbody className="bg-white divide-y divide-gray-200">
               {employees.map((employee) => (
                 <tr key={employee.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  <td className="w-24 px-2 py-3 text-center text-sm font-medium text-gray-900 truncate">
                     {employee.name}
                   </td>
                   {weekDates.map((date, index) => {
@@ -684,7 +684,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                     const existingSchedule = getScheduleForDate(employee.id, date);
                     
                     return (
-                      <td key={index} className="px-2 py-3 text-center">
+                      <td key={index} className="w-20 px-1 py-2 text-center">
                         {isEditing ? (
                           <div className="space-y-1">
                             <input
@@ -695,20 +695,20 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                                 [inputKey]: e.target.value
                               }))}
                               onKeyDown={(e) => handleKeyDown(e, employee.id, date)}
-                              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-full max-w-16 px-1 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                               placeholder="10-22(2)"
                               autoFocus
                             />
-                            <div className="flex space-x-1">
+                            <div className="flex space-x-1 justify-center">
                               <button
                                 onClick={() => handleCellSave(employee.id, date)}
-                                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                className="px-1 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                               >
                                 ✓
                               </button>
                               <button
                                 onClick={() => handleCellCancel(employee.id, date)}
-                                className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                                className="px-1 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
                               >
                                 ✕
                               </button>
@@ -716,7 +716,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                           </div>
                         ) : (
                           <div
-                            className={`relative px-2 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 ${
+                            className={`relative px-1 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 ${
                               existingSchedule ? 'bg-blue-100 text-blue-800' : 'bg-gray-50 text-gray-500'
                             } ${isLocked ? 'cursor-not-allowed opacity-50' : ''} ${
                               dragState.isDragging && dragState.targetCell?.employeeId === employee.id && 
@@ -734,17 +734,19 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                               '클릭하여 입력'
                             }
                           >
-                            {existingSchedule 
-                              ? `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime})`
-                              : '클릭하여 입력'
-                            }
+                            <div className="truncate">
+                              {existingSchedule 
+                                ? `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime})`
+                                : '클릭하여 입력'
+                              }
+                            </div>
                             
                             {/* 드래그 아이콘 및 툴팁 */}
                             {hoveredCell?.employeeId === employee.id && 
                              hoveredCell?.date.toDateString() === date.toDateString() && 
                              existingSchedule && 
                              !isLocked && (
-                              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                              <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
                                 <div className="flex items-center space-x-1">
                                   <span>↕️</span>
                                   <span>드래그: 이동</span>
@@ -760,7 +762,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                              hoveredCell?.date.toDateString() === date.toDateString() && 
                              existingSchedule && 
                              !isLocked && (
-                              <div className="absolute top-0 right-0 transform translate-x-1 -translate-y-1 text-gray-600 text-xs">
+                              <div className="absolute top-0 right-0 transform translate-x-0.5 -translate-y-0.5 text-gray-600 text-xs">
                                 ↕️
                               </div>
                             )}
