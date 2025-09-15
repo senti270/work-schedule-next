@@ -387,6 +387,36 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   };
 
+  // 스케줄 삭제
+  const handleScheduleDelete = async (employeeId: string, date: Date) => {
+    if (isLocked) {
+      alert('급여 작업이 완료된 월은 수정할 수 없습니다.');
+      return;
+    }
+
+    const existingSchedule = getScheduleForDate(employeeId, date);
+    if (!existingSchedule) {
+      alert('삭제할 스케줄이 없습니다.');
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `${existingSchedule.employeeName}의 ${date.toLocaleDateString('ko-KR')} 스케줄을 삭제하시겠습니까?\n` +
+      `스케줄: ${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime})`
+    );
+
+    if (confirmDelete) {
+      try {
+        await deleteDoc(doc(db, 'schedules', existingSchedule.id));
+        await loadSchedules();
+        alert('스케줄이 삭제되었습니다.');
+      } catch (error) {
+        console.error('스케줄 삭제 오류:', error);
+        alert('스케줄 삭제 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
   // 셀 편집 완료
   const handleCellSave = async (employeeId: string, date: Date) => {
     const dateString = date.toISOString().split('T')[0];
@@ -701,7 +731,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           &bull; 시작시간: 10 (10시) &bull; 종료시간: 22 (22시) &bull; 휴식시간: 2 (2시간)
         </p>
         <p className="text-sm text-blue-700 mt-1">
-          &bull; Tab: 다음 셀로 이동 &bull; 드래그: 시간 이동 &bull; Ctrl+드래그: 시간 복사
+          &bull; Tab: 다음 셀로 이동 &bull; 드래그: 시간 이동 &bull; Ctrl+드래그: 시간 복사 &bull; 더블클릭: 스케줄 삭제
         </p>
       </div>
 
@@ -774,13 +804,14 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                                 ? 'bg-yellow-200 border-2 border-yellow-400' : ''
                             }`}
                             onClick={() => handleCellEdit(employee.id, date)}
+                            onDoubleClick={() => handleScheduleDelete(employee.id, date)}
                             onMouseDown={(e) => handleMouseDown(e, employee.id, date)}
                             onMouseEnter={() => handleMouseEnter(employee.id, date)}
                             onMouseLeave={handleMouseLeave}
                             onMouseOver={(e) => handleDragOver(e, employee.id, date)}
                             onMouseUp={handleMouseUp}
                             title={existingSchedule ? 
-                              `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime})` : 
+                              `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime}) - 더블클릭: 삭제` : 
                               '클릭하여 입력'
                             }
                           >
@@ -796,12 +827,14 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                              hoveredCell?.date.toDateString() === date.toDateString() && 
                              existingSchedule && 
                              !isLocked && (
-                              <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                              <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
                                 <div className="flex items-center space-x-1">
                                   <span>↕️</span>
                                   <span>드래그: 이동</span>
                                   <span>|</span>
                                   <span>Ctrl+드래그: 복사</span>
+                                  <span>|</span>
+                                  <span>🗑️ 더블클릭: 삭제</span>
                                 </div>
                                 <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                               </div>
