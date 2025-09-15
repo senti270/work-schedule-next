@@ -86,12 +86,12 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     }
   }, [isManager, userBranch]);
 
-  // 지점이 변경될 때 직원 목록 다시 로드
+  // 지점이나 월이 변경될 때 직원 목록 다시 로드
   useEffect(() => {
-    if (selectedBranchId || (isManager && userBranch)) {
+    if ((selectedBranchId || (isManager && userBranch)) && selectedMonth) {
       loadEmployees();
     }
-  }, [selectedBranchId, isManager, userBranch]);
+  }, [selectedBranchId, isManager, userBranch, selectedMonth]);
 
   // 지점이나 직원이 변경될 때 스케줄 다시 로드
   useEffect(() => {
@@ -135,25 +135,74 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
   const loadEmployees = async () => {
     try {
-      let querySnapshot;
-      
-      // 선택된 지점이 있으면 해당 지점 직원만 로드
+      // 선택된 월이 없으면 빈 배열로 설정
+      if (!selectedMonth) {
+        setEmployees([]);
+        setEmployeeReviewStatus([]);
+        return;
+      }
+
+      // 먼저 해당 월의 스케줄을 로드하여 스케줄이 있는 직원들을 찾음
+      const [year, monthNum] = selectedMonth.split('-').map(Number);
+      const startDate = new Date(year, monthNum - 1, 1);
+      const endDate = new Date(year, monthNum, 0, 23, 59, 59, 999);
+
+      const schedulesSnapshot = await getDocs(collection(db, 'schedules'));
+      const schedulesData = schedulesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          employeeId: data.employeeId,
+          employeeName: data.employeeName,
+          branchId: data.branchId,
+          branchName: data.branchName,
+          date: data.date?.toDate ? data.date.toDate() : new Date(),
+          startTime: data.startTime,
+          endTime: data.endTime,
+          breakTime: data.breakTime,
+          totalHours: data.totalHours,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
+        };
+      });
+
+      // 선택된 월의 스케줄만 필터링
+      let filteredSchedules = schedulesData.filter(schedule => {
+        const scheduleDate = new Date(schedule.date);
+        return scheduleDate >= startDate && scheduleDate <= endDate;
+      });
+
+      // 선택된 지점으로 필터링
       if (selectedBranchId) {
-        const q = query(collection(db, 'employees'), where('branchId', '==', selectedBranchId));
-        querySnapshot = await getDocs(q);
+        filteredSchedules = filteredSchedules.filter(schedule => schedule.branchId === selectedBranchId);
       } else if (isManager && userBranch) {
-        // 매니저 권한이 있으면 해당 지점 직원만 로드
-        const q = query(collection(db, 'employees'), where('branchId', '==', userBranch.id));
-        querySnapshot = await getDocs(q);
-      } else {
-        querySnapshot = await getDocs(collection(db, 'employees'));
+        // 매니저 권한이 있으면 해당 지점만 필터링
+        filteredSchedules = filteredSchedules.filter(schedule => schedule.branchId === userBranch.id);
+      }
+
+      // 스케줄이 있는 직원들의 고유 ID 추출
+      const employeeIdsWithSchedules = [...new Set(filteredSchedules.map(schedule => schedule.employeeId))];
+      
+      if (employeeIdsWithSchedules.length === 0) {
+        setEmployees([]);
+        setEmployeeReviewStatus([]);
+        return;
+      }
+
+      // 스케줄이 있는 직원들의 정보만 로드
+      const employeesData = [];
+      for (const employeeId of employeeIdsWithSchedules) {
+        const employeeDoc = await getDocs(query(collection(db, 'employees'), where('__name__', '==', employeeId)));
+        if (!employeeDoc.empty) {
+          const doc = employeeDoc.docs[0];
+          employeesData.push({
+            id: doc.id,
+            name: doc.data().name || '',
+            branchId: doc.data().branchId || ''
+          });
+        }
       }
       
-      const employeesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name || '',
-        branchId: doc.data().branchId || ''
-      }));
       setEmployees(employeesData);
       
       // 직원 검토 상태 초기화
