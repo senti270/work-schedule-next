@@ -764,13 +764,10 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="text-sm font-medium text-blue-800 mb-2">입력 형식 안내</h4>
         <p className="text-sm text-blue-700">
-          각 셀에 &quot;시작시간-종료시간(휴식시간)&quot; 형식으로 입력하세요. 예: 10-22(2)
+          입력 예: 10-22(2) &quot;시작시간-종료시간(휴식시간)&quot; 형식으로 입력하세요.
         </p>
         <p className="text-sm text-blue-700 mt-1">
-          &bull; 시작시간: 10 (10시) &bull; 종료시간: 22 (22시) &bull; 휴식시간: 2 (2시간)
-        </p>
-        <p className="text-sm text-blue-700 mt-1">
-          &bull; Tab: 다음 셀로 이동 &bull; 드래그: 시간 이동 &bull; Ctrl+드래그: 시간 복사 &bull; 더블클릭: 스케줄 삭제
+          &bull; Tab: 다음 입력칸 이동 &bull; 드래그: 스케줄 이동 &bull; Ctrl+드래그: 스케줄 복사 &bull; 더블클릭: 스케줄 삭제
         </p>
       </div>
 
