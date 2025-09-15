@@ -448,7 +448,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       try {
         await deleteDoc(doc(db, 'schedules', existingSchedule.id));
         await loadSchedules();
-        alert('스케줄이 삭제되었습니다.');
       } catch (error) {
         console.error('스케줄 삭제 오류:', error);
         alert('스케줄 삭제 중 오류가 발생했습니다.');
