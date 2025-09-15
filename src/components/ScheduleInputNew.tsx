@@ -656,6 +656,25 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     return summary;
   };
 
+  // 이전 주 데이터가 있는지 확인하는 함수
+  const hasPreviousWeekData = (employeeId: string) => {
+    const previousWeekStart = new Date(currentWeekStart);
+    previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+    
+    const previousWeekSchedules = schedules.filter(schedule => {
+      const scheduleDate = schedule.date;
+      const weekStart = new Date(previousWeekStart);
+      const weekEnd = new Date(previousWeekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      return schedule.employeeId === employeeId && 
+             scheduleDate >= weekStart && 
+             scheduleDate <= weekEnd;
+    });
+    
+    return previousWeekSchedules.length > 0;
+  };
+
   // 이전 주 데이터 복사 핸들러
   const handleCopyPreviousWeek = async (employeeId: string) => {
     if (isLocked) {
@@ -713,13 +732,12 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       for (const prevSchedule of previousWeekSchedules) {
         const prevDate = new Date(prevSchedule.date);
-        const dayOfWeek = prevDate.getDay();
-        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const prevWeekStart = new Date(prevDate);
-        prevWeekStart.setDate(prevDate.getDate() + mondayOffset);
+        const dayOfWeek = prevDate.getDay(); // 0=일요일, 1=월요일, ..., 6=토요일
         
-        // 현재 주의 같은 요일에 복사
-        const targetDate = new Date(weekDates[dayOfWeek === 0 ? 6 : dayOfWeek - 1]);
+        // getWeekDates()는 월요일부터 시작하는 배열 [월, 화, 수, 목, 금, 토, 일]
+        // dayOfWeek를 배열 인덱스로 변환: 월요일(1)->0, 화요일(2)->1, ..., 일요일(0)->6
+        const weekIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const targetDate = new Date(weekDates[weekIndex]);
         
         await addDoc(collection(db, 'schedules'), {
           employeeId: employeeId,
@@ -891,9 +909,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         <div className="flex items-center space-x-3">
           <button
             onClick={handleShare}
-            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center space-x-2"
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
           >
-            <span>📤</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+            </svg>
             <span>공유</span>
           </button>
           {isLocked && (
@@ -963,13 +983,18 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                   <td className="w-24 px-2 py-3 text-center text-sm font-medium text-gray-900 truncate">
                     <div className="flex items-center justify-center space-x-1">
                       <span>{employee.name}</span>
-                      <button
-                        onClick={() => handleCopyPreviousWeek(employee.id)}
-                        className="text-blue-600 hover:text-blue-800 text-xs"
-                        title="이전 주 데이터 복사"
-                      >
-                        📋
-                      </button>
+                      {hasPreviousWeekData(employee.id) && (
+                        <button
+                          onClick={() => handleCopyPreviousWeek(employee.id)}
+                          className="text-blue-600 hover:text-blue-800 text-xs"
+                          title="이전 주 데이터 복사"
+                        >
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                            <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </td>
                   {weekDates.map((date, index) => {
