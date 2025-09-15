@@ -60,6 +60,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [scheduleInputs, setScheduleInputs] = useState<{[key: string]: string}>({});
   const [editingCell, setEditingCell] = useState<{employeeId: string, date: string} | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [hoveredCell, setHoveredCell] = useState<{employeeId: string, date: Date} | null>(null);
   
   // 드래그 상태
   const [dragState, setDragState] = useState<{
@@ -98,11 +99,22 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       }
     };
 
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (dragState.isDragging) {
+        // 드래그 중일 때 커서 변경
+        document.body.style.cursor = dragState.isCopyMode ? 'copy' : 'move';
+      }
+    };
+
     document.addEventListener('mouseup', handleGlobalMouseUp);
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    
     return () => {
       document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.body.style.cursor = 'default';
     };
-  }, [dragState.isDragging]);
+  }, [dragState.isDragging, dragState.isCopyMode]);
 
   const loadData = async () => {
     setLoading(true);
@@ -284,6 +296,35 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     };
   };
 
+  // 다음 셀 찾기 함수
+  const getNextCell = (currentEmployeeId: string, currentDate: Date) => {
+    const weekDates = getWeekDates();
+    const currentEmployeeIndex = employees.findIndex(emp => emp.id === currentEmployeeId);
+    const currentDateIndex = weekDates.findIndex(d => d.toDateString() === currentDate.toDateString());
+    
+    // 같은 직원의 다음 날짜
+    if (currentDateIndex < weekDates.length - 1) {
+      return {
+        employeeId: currentEmployeeId,
+        date: weekDates[currentDateIndex + 1]
+      };
+    }
+    
+    // 다음 직원의 첫 번째 날짜
+    if (currentEmployeeIndex < employees.length - 1) {
+      return {
+        employeeId: employees[currentEmployeeIndex + 1].id,
+        date: weekDates[0]
+      };
+    }
+    
+    // 마지막 셀이면 첫 번째 셀로
+    return {
+      employeeId: employees[0].id,
+      date: weekDates[0]
+    };
+  };
+
   // 셀 편집 시작
   const handleCellEdit = (employeeId: string, date: Date) => {
     if (isLocked) {
@@ -391,6 +432,22 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     });
   };
 
+  // Tab 키 이벤트 핸들러
+  const handleKeyDown = (e: React.KeyboardEvent, employeeId: string, date: Date) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      
+      // 현재 셀 저장
+      handleCellSave(employeeId, date);
+      
+      // 다음 셀로 이동
+      const nextCell = getNextCell(employeeId, date);
+      setTimeout(() => {
+        handleCellEdit(nextCell.employeeId, nextCell.date);
+      }, 100);
+    }
+  };
+
   // 1주 집계 계산
   const calculateWeeklySummary = () => {
     const weekDates = getWeekDates();
@@ -410,6 +467,18 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     });
     
     return summary;
+  };
+
+  // 마우스 호버 핸들러
+  const handleMouseEnter = (employeeId: string, date: Date) => {
+    const existingSchedule = getScheduleForDate(employeeId, date);
+    if (existingSchedule && !isLocked) {
+      setHoveredCell({ employeeId, date });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredCell(null);
   };
 
   // 드래그 시작 (마우스 다운)
@@ -432,7 +501,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   };
 
   // 드래그 중 (마우스 오버)
-  const handleMouseEnter = (e: React.MouseEvent, employeeId: string, date: Date) => {
+  const handleDragOver = (e: React.MouseEvent, employeeId: string, date: Date) => {
     if (!dragState.isDragging) return;
     
     setDragState(prev => ({
@@ -582,7 +651,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           &bull; 시작시간: 10 (10시) &bull; 종료시간: 22 (22시) &bull; 휴식시간: 2 (2시간)
         </p>
         <p className="text-sm text-blue-700 mt-1">
-          &bull; 드래그: 시간 이동 &bull; Ctrl+드래그: 시간 복사
+          &bull; Tab: 다음 셀로 이동 &bull; 드래그: 시간 이동 &bull; Ctrl+드래그: 시간 복사
         </p>
       </div>
 
@@ -625,6 +694,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                                 ...prev,
                                 [inputKey]: e.target.value
                               }))}
+                              onKeyDown={(e) => handleKeyDown(e, employee.id, date)}
                               className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                               placeholder="10-22(2)"
                               autoFocus
@@ -646,7 +716,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                           </div>
                         ) : (
                           <div
-                            className={`px-2 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 ${
+                            className={`relative px-2 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 ${
                               existingSchedule ? 'bg-blue-100 text-blue-800' : 'bg-gray-50 text-gray-500'
                             } ${isLocked ? 'cursor-not-allowed opacity-50' : ''} ${
                               dragState.isDragging && dragState.targetCell?.employeeId === employee.id && 
@@ -655,10 +725,12 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                             }`}
                             onClick={() => handleCellEdit(employee.id, date)}
                             onMouseDown={(e) => handleMouseDown(e, employee.id, date)}
-                            onMouseEnter={(e) => handleMouseEnter(e, employee.id, date)}
+                            onMouseEnter={() => handleMouseEnter(employee.id, date)}
+                            onMouseLeave={handleMouseLeave}
+                            onMouseOver={(e) => handleDragOver(e, employee.id, date)}
                             onMouseUp={handleMouseUp}
                             title={existingSchedule ? 
-                              `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime}) - 드래그하여 이동, Ctrl+드래그하여 복사` : 
+                              `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime})` : 
                               '클릭하여 입력'
                             }
                           >
@@ -666,6 +738,32 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                               ? `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime})`
                               : '클릭하여 입력'
                             }
+                            
+                            {/* 드래그 아이콘 및 툴팁 */}
+                            {hoveredCell?.employeeId === employee.id && 
+                             hoveredCell?.date.toDateString() === date.toDateString() && 
+                             existingSchedule && 
+                             !isLocked && (
+                              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                                <div className="flex items-center space-x-1">
+                                  <span>↕️</span>
+                                  <span>드래그: 이동</span>
+                                  <span>|</span>
+                                  <span>Ctrl+드래그: 복사</span>
+                                </div>
+                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                              </div>
+                            )}
+                            
+                            {/* 드래그 아이콘 */}
+                            {hoveredCell?.employeeId === employee.id && 
+                             hoveredCell?.date.toDateString() === date.toDateString() && 
+                             existingSchedule && 
+                             !isLocked && (
+                              <div className="absolute top-0 right-0 transform translate-x-1 -translate-y-1 text-gray-600 text-xs">
+                                ↕️
+                              </div>
+                            )}
                           </div>
                         )}
                       </td>
