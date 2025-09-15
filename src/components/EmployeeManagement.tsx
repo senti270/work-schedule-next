@@ -1585,6 +1585,313 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         )}
       </div>
 
+      {/* 새 직원 추가 폼 */}
+      {showForm && !editingEmployee && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-900">새 직원 추가</h2>
+                <button
+                  onClick={resetForm}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      이름 *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="직원 이름"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      이메일
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="이메일 주소"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      전화번호
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="전화번호"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      지점
+                    </label>
+                    <select
+                      value={formData.branchId}
+                      onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                      required
+                      disabled={isManager}
+                    >
+                      <option value="">지점 선택 *</option>
+                      {branches.map(branch => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))}
+                    </select>
+                    {isManager && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        매니저 권한으로 {userBranch?.name} 지점에 자동 설정됩니다.
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      주민등록번호
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.residentNumber}
+                      onChange={(e) => setFormData({ ...formData, residentNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="주민등록번호"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      입사일
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.hireDate}
+                      onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      고용 형태
+                    </label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="근로소득자">근로소득자</option>
+                      <option value="사업소득자">사업소득자</option>
+                      <option value="일용직">일용직</option>
+                      <option value="외국인 사업소득자">외국인 사업소득자</option>
+                    </select>
+                  </div>
+                  
+                  {/* 근로소득자 주간 근무시간 필드 */}
+                  {formData.type === '근로소득자' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        주간 근무시간 (시간)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={formData.weeklyWorkHours}
+                        onChange={(e) => setFormData({ ...formData, weeklyWorkHours: parseInt(e.target.value) || 40 })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="40"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">근로소득자의 주간 근무시간을 입력하세요 (기본값: 40시간)</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* 수습기간 관리 */}
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="text-md font-medium text-gray-900 mb-4">수습기간 관리</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        수습 시작일
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.probationStartDate}
+                        onChange={(e) => {
+                          const startDate = e.target.value;
+                          const endDate = calculateProbationPeriod(startDate, formData.probationPeriod);
+                          const isOnProbation = isCurrentlyOnProbation(startDate, endDate);
+                          setFormData({ 
+                            ...formData, 
+                            probationStartDate: startDate,
+                            probationEndDate: endDate,
+                            isOnProbation: isOnProbation
+                          });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        수습기간 (개월)
+                      </label>
+                      <select
+                        value={formData.probationPeriod}
+                        onChange={(e) => {
+                          const period = parseInt(e.target.value);
+                          const endDate = calculateProbationPeriod(formData.probationStartDate, period);
+                          const isOnProbation = isCurrentlyOnProbation(formData.probationStartDate, endDate);
+                          setFormData({ 
+                            ...formData, 
+                            probationPeriod: period,
+                            probationEndDate: endDate,
+                            isOnProbation: isOnProbation
+                          });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value={1}>1개월</option>
+                        <option value={2}>2개월</option>
+                        <option value={3}>3개월</option>
+                        <option value={6}>6개월</option>
+                        <option value={12}>12개월</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        수습 종료일
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.probationEndDate}
+                        readOnly
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="isOnProbation"
+                        checked={formData.isOnProbation}
+                        readOnly
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded bg-gray-100"
+                      />
+                      <label htmlFor="isOnProbation" className="ml-2 block text-sm text-gray-700">
+                        현재 수습 중 (자동 계산)
+                      </label>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    수습 시작일과 기간을 입력하면 자동으로 종료일이 계산됩니다.
+                  </p>
+                </div>
+                
+                {/* 급여관리용 은행 정보 */}
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="text-md font-medium text-gray-900 mb-4">급여 계좌 정보</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        은행명
+                      </label>
+                      <select
+                        value={formData.bankCode}
+                        onChange={(e) => {
+                          const selectedBank = bankCodes.find(bank => bank.code === e.target.value);
+                          setFormData({ 
+                            ...formData, 
+                            bankCode: e.target.value,
+                            bankName: selectedBank?.name || ''
+                          });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">은행 선택 ({bankCodes.length}개)</option>
+                        {bankCodes.map(bank => (
+                          <option key={bank.id} value={bank.code}>
+                            {bank.name} ({bank.code})
+                          </option>
+                        ))}
+                      </select>
+                      {bankCodes.length === 0 && (
+                        <p className="text-sm text-red-500 mt-1">
+                          은행코드가 없습니다. &quot;은행코드 초기화&quot; 버튼을 클릭하세요.
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        계좌번호
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.accountNumber}
+                        onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="계좌번호 (숫자만 입력)"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        예금주명
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.accountHolder}
+                        onChange={(e) => setFormData({ ...formData, accountHolder: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="예금주명"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="submit"
+                    className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-medium"
+                  >
+                    추가
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 font-medium"
+                  >
+                    취소
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 근로계약서 모달 */}
       {showContractModal && selectedEmployee && (
