@@ -126,7 +126,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     probationPeriod: 3,
     isOnProbation: false
   });
-  const [employeeBranches, setEmployeeBranches] = useState<EmployeeBranch[]>([]);
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
 
   useEffect(() => {
@@ -194,9 +193,24 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         
         // 직원의 지점명들 가져오기
         const employeeBranchList = employeeBranchesMap.get(doc.id) || [];
-        const branchNames = employeeBranchList
-          .filter(eb => eb.isActive)
-          .map(eb => eb.branchName);
+        let branchNames: string[] = [];
+        
+        if (employeeBranchList.length > 0) {
+          // 새로운 EmployeeBranch 관계가 있는 경우
+          branchNames = employeeBranchList
+            .filter(eb => eb.isActive)
+            .map(eb => eb.branchName);
+        } else {
+          // 기존 데이터 호환성 (branchId, branchName 사용)
+          if (data.branchId) {
+            const branchName = branchesMap.get(data.branchId);
+            if (branchName) {
+              branchNames = [branchName];
+            }
+          } else if (data.branchName) {
+            branchNames = [data.branchName];
+          }
+        }
         
         const employee = {
           id: doc.id,
@@ -535,13 +549,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         const employeeRef = doc(db, 'employees', editingEmployee.id);
         console.log('문서 참조:', employeeRef);
         
-        const updateData = {
+        const updateData: Record<string, unknown> = {
           ...formData,
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
-          probationStartDate: formData.probationStartDate ? new Date(formData.probationStartDate) : undefined,
-          probationEndDate: formData.probationEndDate ? new Date(formData.probationEndDate) : undefined,
           updatedAt: new Date()
         };
+        
+        // undefined 값들을 제거하고 유효한 값만 추가
+        if (formData.probationStartDate) {
+          updateData.probationStartDate = new Date(formData.probationStartDate);
+        }
+        if (formData.probationEndDate) {
+          updateData.probationEndDate = new Date(formData.probationEndDate);
+        }
         
         console.log('업데이트할 데이터:', updateData);
         
@@ -556,7 +576,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         console.log('새 직원 추가 시도');
         console.log('formData:', formData);
         
-        const employeeData = {
+        const employeeData: Record<string, unknown> = {
           name: formData.name,
           userId: formData.userId || '',
           phone: formData.phone || '',
@@ -571,13 +591,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           // 정직원 주간 근무시간
           weeklyWorkHours: formData.weeklyWorkHours || 40,
           // 수습기간 관리
-          probationStartDate: formData.probationStartDate ? new Date(formData.probationStartDate) : undefined,
-          probationEndDate: formData.probationEndDate ? new Date(formData.probationEndDate) : undefined,
           probationPeriod: formData.probationPeriod || 3,
           isOnProbation: formData.isOnProbation || false,
           createdAt: new Date(),
           updatedAt: new Date()
         };
+        
+        // undefined 값들을 제거하고 유효한 값만 추가
+        if (formData.probationStartDate) {
+          employeeData.probationStartDate = new Date(formData.probationStartDate);
+        }
+        if (formData.probationEndDate) {
+          employeeData.probationEndDate = new Date(formData.probationEndDate);
+        }
         
         console.log('저장할 데이터:', employeeData);
         
@@ -641,9 +667,23 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         query(collection(db, 'employeeBranches'), where('employeeId', '==', employee.id))
       );
       
-      const employeeBranchIds = employeeBranchesSnapshot.docs.map(doc => doc.data().branchId);
-      setSelectedBranches(employeeBranchIds);
+      let employeeBranchIds: string[] = [];
       
+      if (!employeeBranchesSnapshot.empty) {
+        // 새로운 EmployeeBranch 관계가 있는 경우
+        employeeBranchIds = employeeBranchesSnapshot.docs.map(doc => doc.data().branchId);
+      } else {
+        // 기존 데이터 호환성 (branchId 사용)
+        // Employee 인터페이스에서 branchId를 제거했으므로, 원본 데이터에서 직접 가져와야 함
+        const employeeDoc = await getDocs(collection(db, 'employees'));
+        const employeeData = employeeDoc.docs.find(doc => doc.id === employee.id)?.data();
+        
+        if (employeeData?.branchId) {
+          employeeBranchIds = [employeeData.branchId];
+        }
+      }
+      
+      setSelectedBranches(employeeBranchIds);
       console.log('직원의 지점 ID들:', employeeBranchIds);
     } catch (error) {
       console.error('직원 지점 정보 로드 중 오류:', error);
