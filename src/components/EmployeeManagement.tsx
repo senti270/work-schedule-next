@@ -1137,7 +1137,15 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     <div className="space-y-1">
-                      <div className="font-medium">{employee.branchNames?.join(', ') || '-'}</div>
+                      <div className="font-medium">
+                        {employee.branchNames && employee.branchNames.length > 0 ? (
+                          <div className="space-y-1">
+                            {employee.branchNames.map((branchName, index) => (
+                              <div key={index}>{branchName}</div>
+                            ))}
+                          </div>
+                        ) : '-'}
+                      </div>
                       <div className="text-xs text-gray-400">{employee.type || '-'}</div>
                     </div>
                   </td>

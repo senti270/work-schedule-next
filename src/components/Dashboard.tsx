@@ -152,16 +152,6 @@ export default function Dashboard({ user }: DashboardProps) {
               직원 관리
             </button>
             <button
-              onClick={() => handleTabChange('manager-accounts')}
-              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === 'manager-accounts'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
-              }`}
-            >
-              매니저 계정 관리
-            </button>
-            <button
               onClick={() => handleTabChange('schedule')}
               className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'schedule'
@@ -223,13 +213,6 @@ export default function Dashboard({ user }: DashboardProps) {
                     <p className="text-green-600 text-sm">직원 정보를 관리합니다</p>
                   </button>
                   <button 
-                    onClick={() => setActiveTab('manager-accounts')}
-                    className="bg-indigo-50 p-4 rounded-lg hover:bg-indigo-100 transition-colors duration-200 cursor-pointer text-left w-full"
-                  >
-                    <h4 className="font-medium text-indigo-900">매니저 계정 관리</h4>
-                    <p className="text-indigo-600 text-sm">지점별 매니저 계정을 관리합니다</p>
-                  </button>
-                  <button 
                     onClick={() => setActiveTab('schedule')}
                     className="bg-purple-50 p-4 rounded-lg hover:bg-purple-100 transition-colors duration-200 cursor-pointer text-left w-full"
                   >
@@ -249,10 +232,51 @@ export default function Dashboard({ user }: DashboardProps) {
           )}
           
           {activeTab === 'branches' && (
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-4 sm:p-6">
-                <BranchManagement />
+            <div className="space-y-6">
+              {/* 지점 관리 서브탭 네비게이션 */}
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex space-x-8">
+                    <button
+                      onClick={() => setActiveSubTab('')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeSubTab === ''
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      지점 정보 관리
+                    </button>
+                    <button
+                      onClick={() => setActiveSubTab('manager-accounts')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeSubTab === 'manager-accounts'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      매니저 계정 관리
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {/* 서브탭 컨텐츠 */}
+              {activeSubTab === '' && (
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-4 sm:p-6">
+                    <BranchManagement />
+                  </div>
+                </div>
+              )}
+
+              {activeSubTab === 'manager-accounts' && (
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-4 sm:p-6">
+                    <ManagerAccountManagement userBranch={userBranch} isManager={isManager} />
+                  </div>
+                </div>
+              )}
             </div>
           )}
           
@@ -264,13 +288,6 @@ export default function Dashboard({ user }: DashboardProps) {
             </div>
           )}
           
-          {activeTab === 'manager-accounts' && (
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-4 sm:p-6">
-                <ManagerAccountManagement userBranch={userBranch} isManager={isManager} />
-              </div>
-            </div>
-          )}
           
           {activeTab === 'schedule' && (
             <div className="bg-white overflow-hidden shadow rounded-lg">
