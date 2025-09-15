@@ -56,6 +56,23 @@ interface ScheduleInputNewProps {
   selectedBranchId?: string;
 }
 
+interface TutorialStep {
+  id: string;
+  title: string;
+  description: string;
+  targetSelector?: string;
+  action?: 'click' | 'type' | 'drag' | 'keyboard';
+  expectedValue?: string;
+  completed: boolean;
+}
+
+interface TutorialState {
+  isActive: boolean;
+  currentStep: number;
+  steps: TutorialStep[];
+  showOverlay: boolean;
+}
+
 export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -91,6 +108,79 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     sourceCell: null,
     targetCell: null,
     isCopyMode: false
+  });
+
+  // 튜토리얼 상태
+  const [tutorial, setTutorial] = useState<TutorialState>({
+    isActive: false,
+    currentStep: 0,
+    steps: [
+      {
+        id: 'welcome',
+        title: '스케줄 입력 튜토리얼에 오신 것을 환영합니다!',
+        description: '이 튜토리얼을 통해 스케줄 입력의 다양한 기능들을 익혀보세요.',
+        completed: false
+      },
+      {
+        id: 'basic_input',
+        title: '기본 입력 방법',
+        description: '셀을 클릭하여 스케줄을 입력해보세요. 예: 10-22(2)',
+        action: 'type',
+        expectedValue: '10-22(2)',
+        completed: false
+      },
+      {
+        id: 'tab_navigation',
+        title: 'Tab 키로 이동하기',
+        description: 'Tab 키를 눌러 다음 입력 칸으로 이동해보세요.',
+        action: 'keyboard',
+        expectedValue: 'Tab',
+        completed: false
+      },
+      {
+        id: 'enter_save',
+        title: 'Enter 키로 저장하기',
+        description: 'Enter 키를 눌러 입력한 스케줄을 저장해보세요.',
+        action: 'keyboard',
+        expectedValue: 'Enter',
+        completed: false
+      },
+      {
+        id: 'drag_move',
+        title: '드래그로 스케줄 이동하기',
+        description: '스케줄이 있는 셀을 드래그하여 다른 셀로 이동해보세요.',
+        action: 'drag',
+        completed: false
+      },
+      {
+        id: 'ctrl_drag_copy',
+        title: 'Ctrl+드래그로 스케줄 복사하기',
+        description: 'Ctrl 키를 누른 상태에서 드래그하여 스케줄을 복사해보세요.',
+        action: 'drag',
+        completed: false
+      },
+      {
+        id: 'double_click_delete',
+        title: '더블클릭으로 스케줄 삭제하기',
+        description: '스케줄이 있는 셀을 더블클릭하여 삭제해보세요.',
+        action: 'click',
+        completed: false
+      },
+      {
+        id: 'copy_previous_week',
+        title: '이전 주 데이터 복사하기',
+        description: '직원 이름 옆의 복사 아이콘을 클릭하여 이전 주 데이터를 복사해보세요.',
+        action: 'click',
+        completed: false
+      },
+      {
+        id: 'complete',
+        title: '튜토리얼 완료!',
+        description: '모든 기능을 익히셨습니다. 이제 스케줄 입력을 자유롭게 사용하세요!',
+        completed: false
+      }
+    ],
+    showOverlay: false
   });
 
   useEffect(() => {
@@ -143,6 +233,100 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       }
     };
   }, [clickTimeout]);
+
+  // 튜토리얼 관련 함수들
+  const startTutorial = () => {
+    setTutorial(prev => ({
+      ...prev,
+      isActive: true,
+      currentStep: 0,
+      showOverlay: true
+    }));
+  };
+
+  const nextTutorialStep = () => {
+    setTutorial(prev => {
+      const newSteps = [...prev.steps];
+      newSteps[prev.currentStep].completed = true;
+      
+      if (prev.currentStep < prev.steps.length - 1) {
+        return {
+          ...prev,
+          currentStep: prev.currentStep + 1,
+          steps: newSteps
+        };
+      } else {
+        // 튜토리얼 완료
+        return {
+          ...prev,
+          isActive: false,
+          showOverlay: false,
+          steps: newSteps
+        };
+      }
+    });
+  };
+
+  const skipTutorial = () => {
+    setTutorial(prev => ({
+      ...prev,
+      isActive: false,
+      showOverlay: false
+    }));
+  };
+
+  const checkTutorialAction = (action: string, data?: string | { isCopyMode: boolean }) => {
+    if (!tutorial.isActive) return;
+    
+    const currentStep = tutorial.steps[tutorial.currentStep];
+    if (!currentStep) return;
+
+    let shouldComplete = false;
+
+    switch (currentStep.id) {
+      case 'basic_input':
+        if (action === 'type' && typeof data === 'string' && data.includes('10-22(2)')) {
+          shouldComplete = true;
+        }
+        break;
+      case 'tab_navigation':
+        if (action === 'keyboard' && data === 'Tab') {
+          shouldComplete = true;
+        }
+        break;
+      case 'enter_save':
+        if (action === 'keyboard' && data === 'Enter') {
+          shouldComplete = true;
+        }
+        break;
+      case 'drag_move':
+        if (action === 'drag' && data && typeof data === 'object' && !data.isCopyMode) {
+          shouldComplete = true;
+        }
+        break;
+      case 'ctrl_drag_copy':
+        if (action === 'drag' && data && typeof data === 'object' && data.isCopyMode) {
+          shouldComplete = true;
+        }
+        break;
+      case 'double_click_delete':
+        if (action === 'double_click') {
+          shouldComplete = true;
+        }
+        break;
+      case 'copy_previous_week':
+        if (action === 'copy_previous_week') {
+          shouldComplete = true;
+        }
+        break;
+    }
+
+    if (shouldComplete) {
+      setTimeout(() => {
+        nextTutorialStep();
+      }, 1000);
+    }
+  };
 
   // 공유 기능
   const handleShare = async () => {
@@ -580,6 +764,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     try {
       await deleteDoc(doc(db, 'schedules', existingSchedule.id));
       await loadSchedules();
+      
+      // 튜토리얼 체크
+      checkTutorialAction('double_click');
     } catch (error) {
       console.error('스케줄 삭제 오류:', error);
       alert('스케줄 삭제 중 오류가 발생했습니다.');
@@ -641,6 +828,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
               });
             }
             await loadSchedules();
+            
+            // 튜토리얼 체크
+            checkTutorialAction('type', inputValue);
           } catch (error) {
             console.error('스케줄 저장 오류:', error);
             alert('스케줄 저장 중 오류가 발생했습니다.');
@@ -677,6 +867,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     if (e.key === 'Tab') {
       e.preventDefault();
       
+      // 튜토리얼 체크
+      checkTutorialAction('keyboard', 'Tab');
+      
       // 현재 셀 저장
       handleCellSave(employeeId, date);
       
@@ -687,6 +880,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       }, 100);
     } else if (e.key === 'Enter') {
       e.preventDefault();
+      
+      // 튜토리얼 체크
+      checkTutorialAction('keyboard', 'Enter');
       
       // 현재 셀 저장
       handleCellSave(employeeId, date);
@@ -824,6 +1020,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       // 스케줄 다시 로드
       await loadSchedules();
       
+      // 튜토리얼 체크
+      checkTutorialAction('copy_previous_week');
+      
     } catch (error) {
       console.error('이전 주 데이터 복사 중 오류:', error);
       alert('데이터 복사 중 오류가 발생했습니다.');
@@ -940,6 +1139,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         }
 
         await loadSchedules();
+        
+        // 튜토리얼 체크
+        checkTutorialAction('drag', { isCopyMode });
       } catch (error) {
         console.error('드래그 작업 오류:', error);
         alert('드래그 작업 중 오류가 발생했습니다.');
@@ -973,6 +1175,15 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           스케줄 입력 (새 형식)
         </h3>
         <div className="flex items-center space-x-3">
+          <button
+            onClick={startTutorial}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            <span>튜토리얼</span>
+          </button>
           <button
             onClick={handleShare}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
@@ -1387,6 +1598,90 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* 튜토리얼 모달 */}
+      {tutorial.isActive && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {tutorial.steps[tutorial.currentStep]?.title}
+                </h3>
+                <button
+                  onClick={skipTutorial}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <p className="text-gray-600 mb-6">
+                {tutorial.steps[tutorial.currentStep]?.description}
+              </p>
+              
+              {/* 진행률 표시 */}
+              <div className="mb-6">
+                <div className="flex justify-between text-sm text-gray-500 mb-2">
+                  <span>진행률</span>
+                  <span>{tutorial.currentStep + 1} / {tutorial.steps.length}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${((tutorial.currentStep + 1) / tutorial.steps.length) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              {/* 단계별 체크리스트 */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">학습 단계</h4>
+                <div className="space-y-1">
+                  {tutorial.steps.map((step, index) => (
+                    <div key={step.id} className="flex items-center space-x-2 text-sm">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                        index < tutorial.currentStep ? 'bg-green-500' : 
+                        index === tutorial.currentStep ? 'bg-blue-500' : 'bg-gray-300'
+                      }`}>
+                        {index < tutorial.currentStep ? (
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        ) : index === tutorial.currentStep ? (
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        ) : null}
+                      </div>
+                      <span className={`${
+                        index <= tutorial.currentStep ? 'text-gray-900' : 'text-gray-400'
+                      }`}>
+                        {step.title}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={skipTutorial}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  건너뛰기
+                </button>
+                <button
+                  onClick={nextTutorialStep}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  {tutorial.currentStep === tutorial.steps.length - 1 ? '완료' : '다음'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
