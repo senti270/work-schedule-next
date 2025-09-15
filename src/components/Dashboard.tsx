@@ -83,7 +83,13 @@ export default function Dashboard({ user }: DashboardProps) {
   const handleTabChange = (tab: string) => {
     console.log('탭 변경됨:', tab);
     setActiveTab(tab);
-    setActiveSubTab(''); // 탭 변경 시 서브탭 초기화
+    
+    // 보고서 탭인 경우 근무보고서를 기본으로 설정
+    if (tab === 'reports') {
+      setActiveSubTab('work-report');
+    } else {
+      setActiveSubTab(''); // 다른 탭 변경 시 서브탭 초기화
+    }
   };
 
   const handleSubTabChange = (subTab: string) => {
