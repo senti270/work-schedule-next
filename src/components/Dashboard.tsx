@@ -10,6 +10,7 @@ import ScheduleManagement from './ScheduleManagement';
 import BranchManagement from './BranchManagement';
 import ReportManagement from './ReportManagement';
 import WorkTimeComparison from './WorkTimeComparison';
+import ManagerAccountManagement from './ManagerAccountManagement';
 
 interface DashboardProps {
   user: User;
@@ -18,13 +19,17 @@ interface DashboardProps {
 interface Branch {
   id: string;
   name: string;
-  managerEmail?: string;
+  managerId?: string; // managerEmail 대신 managerId 사용
 }
 
 export default function Dashboard({ user }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
   const [activeSubTab, setActiveSubTab] = useState('');
-  const [userBranch, setUserBranch] = useState<Branch | null>(null);
+  const [userBranch, setUserBranch] = useState<{
+    id: string;
+    name: string;
+    managerId?: string;
+  } | null>(null);
   const [isManager, setIsManager] = useState(false);
 
   useEffect(() => {
@@ -33,12 +38,14 @@ export default function Dashboard({ user }: DashboardProps) {
 
   const checkManagerRole = async () => {
     try {
-      console.log('매니저 권한 확인 중:', user.email);
+      // drawing555@naver.com을 drawing555로 변경
+      const userId = user.email === 'drawing555@naver.com' ? 'drawing555' : user.email;
+      console.log('매니저 권한 확인 중:', userId);
       
-      // 매니저 이메일로 지점을 찾기
+      // 매니저 ID로 지점을 찾기
       const branchesQuery = query(
         collection(db, 'branches'),
-        where('managerEmail', '==', user.email)
+        where('managerId', '==', userId)
       );
       
       const querySnapshot = await getDocs(branchesQuery);
@@ -50,7 +57,7 @@ export default function Dashboard({ user }: DashboardProps) {
         setUserBranch({
           id: branchDoc.id,
           name: branchData.name,
-          managerEmail: branchData.managerEmail
+          managerId: branchData.managerId
         });
         setIsManager(true);
         
@@ -145,6 +152,16 @@ export default function Dashboard({ user }: DashboardProps) {
               직원 관리
             </button>
             <button
+              onClick={() => handleTabChange('manager-accounts')}
+              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'manager-accounts'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              매니저 계정 관리
+            </button>
+            <button
               onClick={() => handleTabChange('schedule')}
               className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'schedule'
@@ -206,6 +223,13 @@ export default function Dashboard({ user }: DashboardProps) {
                     <p className="text-green-600 text-sm">직원 정보를 관리합니다</p>
                   </button>
                   <button 
+                    onClick={() => setActiveTab('manager-accounts')}
+                    className="bg-indigo-50 p-4 rounded-lg hover:bg-indigo-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                  >
+                    <h4 className="font-medium text-indigo-900">매니저 계정 관리</h4>
+                    <p className="text-indigo-600 text-sm">지점별 매니저 계정을 관리합니다</p>
+                  </button>
+                  <button 
                     onClick={() => setActiveTab('schedule')}
                     className="bg-purple-50 p-4 rounded-lg hover:bg-purple-100 transition-colors duration-200 cursor-pointer text-left w-full"
                   >
@@ -236,6 +260,14 @@ export default function Dashboard({ user }: DashboardProps) {
             <div className="bg-white overflow-hidden shadow rounded-lg">
               <div className="p-4 sm:p-6">
                 <EmployeeManagement userBranch={userBranch} isManager={isManager} />
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'manager-accounts' && (
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-4 sm:p-6">
+                <ManagerAccountManagement userBranch={userBranch} isManager={isManager} />
               </div>
             </div>
           )}

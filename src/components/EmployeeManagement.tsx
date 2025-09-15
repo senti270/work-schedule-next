@@ -9,10 +9,8 @@ import { db, storage } from '@/lib/firebase';
 interface Employee {
   id: string;
   name: string;
-  email?: string;
+  userId?: string; // 이메일 대신 사용자 ID
   phone?: string;
-  branchId?: string;
-  branchName?: string;
   residentNumber?: string;
   hireDate?: Date;
   resignationDate?: Date;
@@ -49,9 +47,9 @@ interface EmployeeBranch {
   branchId: string;
   branchName: string;
   role: 'main' | 'additional'; // 메인/부가 지점
-  startDate: Date;
-  endDate?: Date;
-  isActive: boolean;
+  startDate: Date; // 해당 지점 근무 시작일
+  endDate?: Date; // 해당 지점 근무 종료일 (선택사항)
+  isActive: boolean; // 현재 활성 상태
   createdAt: Date;
   updatedAt: Date;
 }
@@ -83,7 +81,7 @@ interface EmployeeManagementProps {
   userBranch?: {
     id: string;
     name: string;
-    managerEmail?: string;
+    managerId?: string;
   } | null;
   isManager?: boolean;
 }
@@ -108,9 +106,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
+    userId: '', // 이메일 대신 사용자 ID
     phone: '',
-    branchId: '',
     residentNumber: '',
     hireDate: '',
     type: '사업소득자',
@@ -127,6 +124,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     probationPeriod: 3,
     isOnProbation: false
   });
+  const [employeeBranches, setEmployeeBranches] = useState<EmployeeBranch[]>([]);
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
 
   useEffect(() => {
     console.log('EmployeeManagement 컴포넌트가 마운트되었습니다.');
@@ -151,36 +150,51 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const loadEmployees = async () => {
     console.log('직원 목록을 불러오는 중...');
     try {
-      let querySnapshot;
+      // 모든 직원 로드
+      const employeesSnapshot = await getDocs(collection(db, 'employees'));
       
-      // 매니저 권한이 있으면 해당 지점 직원만 로드
-      if (isManager && userBranch) {
-        console.log('매니저 권한으로 지점 필터링:', userBranch.id);
-        const q = query(collection(db, 'employees'), where('branchId', '==', userBranch.id));
-        querySnapshot = await getDocs(q);
-      } else {
-        querySnapshot = await getDocs(collection(db, 'employees'));
-      }
+      // 직원-지점 관계 로드
+      const employeeBranchesSnapshot = await getDocs(collection(db, 'employeeBranches'));
       
-      console.log('Firestore에서 받은 직원 데이터:', querySnapshot.docs);
-      
-      // 지점 목록도 함께 로드
+      // 지점 목록 로드
       const branchesSnapshot = await getDocs(collection(db, 'branches'));
       const branchesMap = new Map();
       branchesSnapshot.docs.forEach(doc => {
         branchesMap.set(doc.id, doc.data().name);
       });
       
-      const employeesData = querySnapshot.docs.map(doc => {
+      // 직원-지점 관계를 Map으로 변환
+      const employeeBranchesMap = new Map<string, EmployeeBranch[]>();
+      employeeBranchesSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const employeeBranch: EmployeeBranch = {
+          id: doc.id,
+          employeeId: data.employeeId,
+          branchId: data.branchId,
+          branchName: data.branchName,
+          role: data.role || 'main',
+          startDate: data.startDate?.toDate ? data.startDate.toDate() : new Date(),
+          endDate: data.endDate?.toDate ? data.endDate.toDate() : undefined,
+          isActive: data.isActive !== false,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
+        };
+        
+        if (!employeeBranchesMap.has(employeeBranch.employeeId)) {
+          employeeBranchesMap.set(employeeBranch.employeeId, []);
+        }
+        employeeBranchesMap.get(employeeBranch.employeeId)!.push(employeeBranch);
+      });
+      
+      let employeesData = employeesSnapshot.docs.map(doc => {
         const data = doc.data();
         const resignationDate = data.resignationDate?.toDate ? data.resignationDate.toDate() : undefined;
+        
         const employee = {
           id: doc.id,
           name: data.name || '',
-          email: data.email || '',
+          userId: data.userId || data.email || '', // 하위 호환성을 위해 email도 확인
           phone: data.phone || '',
-          branchId: data.branchId || '',
-          branchName: data.branchName || branchesMap.get(data.branchId) || '', // 지점명 매핑
           residentNumber: data.residentNumber || '',
           hireDate: data.hireDate?.toDate ? data.hireDate.toDate() : new Date(),
           resignationDate: resignationDate,
@@ -191,12 +205,31 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           bankCode: data.bankCode || '',
           accountNumber: data.accountNumber || '',
           accountHolder: data.accountHolder || '',
+          // 정직원 주간 근무시간
+          weeklyWorkHours: data.weeklyWorkHours || 40,
+          // 수습기간 관리
+          probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : undefined,
+          probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : undefined,
+          probationPeriod: data.probationPeriod || 3,
+          isOnProbation: data.isOnProbation || false,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
         };
         console.log('처리된 직원:', employee);
         return employee;
       }) as Employee[];
+      
+      // 매니저 권한이 있으면 해당 지점 직원만 필터링
+      if (isManager && userBranch) {
+        console.log('매니저 권한으로 지점 필터링:', userBranch.id);
+        employeesData = employeesData.filter(employee => {
+          const employeeBranchList = employeeBranchesMap.get(employee.id) || [];
+          return employeeBranchList.some(eb => 
+            eb.branchId === userBranch.id && eb.isActive
+          );
+        });
+      }
+      
       console.log('처리된 직원 데이터:', employeesData);
       setEmployees(employeesData);
     } catch (error) {
@@ -407,6 +440,52 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     });
   };
 
+  // 직원-지점 관계 생성
+  const createEmployeeBranches = async (employeeId: string, branchIds: string[]) => {
+    try {
+      for (let i = 0; i < branchIds.length; i++) {
+        const branchId = branchIds[i];
+        const branch = branches.find(b => b.id === branchId);
+        if (!branch) continue;
+
+        const employeeBranchData = {
+          employeeId: employeeId,
+          branchId: branchId,
+          branchName: branch.name,
+          role: i === 0 ? 'main' : 'additional', // 첫 번째 지점을 메인으로 설정
+          startDate: new Date(),
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+
+        await addDoc(collection(db, 'employeeBranches'), employeeBranchData);
+      }
+    } catch (error) {
+      console.error('직원-지점 관계 생성 중 오류:', error);
+      throw error;
+    }
+  };
+
+  // 직원-지점 관계 업데이트
+  const updateEmployeeBranches = async (employeeId: string, branchIds: string[]) => {
+    try {
+      // 기존 관계 삭제
+      const existingRelations = await getDocs(
+        query(collection(db, 'employeeBranches'), where('employeeId', '==', employeeId))
+      );
+      
+      for (const docSnapshot of existingRelations.docs) {
+        await deleteDoc(doc(db, 'employeeBranches', docSnapshot.id));
+      }
+
+      // 새로운 관계 생성
+      await createEmployeeBranches(employeeId, branchIds);
+    } catch (error) {
+      console.error('직원-지점 관계 업데이트 중 오류:', error);
+      throw error;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -417,8 +496,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       alert('이름을 입력해주세요.');
       return;
     }
-    if (!formData.branchId) {
-      alert('지점을 선택해주세요.');
+    if (selectedBranches.length === 0) {
+      alert('최소 하나의 지점을 선택해주세요.');
       return;
     }
 
@@ -434,59 +513,46 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         const employeeRef = doc(db, 'employees', editingEmployee.id);
         console.log('문서 참조:', employeeRef);
         
-        // 선택된 지점의 이름 찾기
-        const selectedBranch = branches.find(branch => branch.id === formData.branchId);
-        const branchName = selectedBranch ? selectedBranch.name : '';
-        
         const updateData = {
           ...formData,
-          branchName: branchName, // 지점명도 함께 업데이트
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
-          // 급여관리용 은행 정보
-          bankName: formData.bankName,
-          bankCode: formData.bankCode,
-          accountNumber: formData.accountNumber,
-          accountHolder: formData.accountHolder,
+          probationStartDate: formData.probationStartDate ? new Date(formData.probationStartDate) : undefined,
+          probationEndDate: formData.probationEndDate ? new Date(formData.probationEndDate) : undefined,
           updatedAt: new Date()
         };
         
         console.log('업데이트할 데이터:', updateData);
         
         await updateDoc(employeeRef, updateData);
+        
+        // 직원-지점 관계 업데이트
+        await updateEmployeeBranches(editingEmployee.id, selectedBranches);
+        
         console.log('직원 정보가 수정되었습니다.');
       } else {
         // 추가
         console.log('새 직원 추가 시도');
         console.log('formData:', formData);
         
-        // 매니저 권한이 있으면 해당 지점으로 자동 설정
-        let branchId = formData.branchId;
-        let branchName = '';
-        
-        if (isManager && userBranch) {
-          branchId = userBranch.id;
-          branchName = userBranch.name;
-          console.log('매니저 권한으로 지점 자동 설정:', branchName);
-        } else {
-          // 선택된 지점의 이름 찾기
-          const selectedBranch = branches.find(branch => branch.id === formData.branchId);
-          branchName = selectedBranch ? selectedBranch.name : '';
-        }
-        
         const employeeData = {
           name: formData.name,
-          email: formData.email || '',
+          userId: formData.userId || '',
           phone: formData.phone || '',
-          branchId: branchId || '',
-          branchName: branchName, // 지점명도 함께 저장
           residentNumber: formData.residentNumber || '',
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
-          type: formData.type || '정규직',
+          type: formData.type || '사업소득자',
           // 급여관리용 은행 정보
           bankName: formData.bankName || '',
           bankCode: formData.bankCode || '',
           accountNumber: formData.accountNumber || '',
           accountHolder: formData.accountHolder || '',
+          // 정직원 주간 근무시간
+          weeklyWorkHours: formData.weeklyWorkHours || 40,
+          // 수습기간 관리
+          probationStartDate: formData.probationStartDate ? new Date(formData.probationStartDate) : undefined,
+          probationEndDate: formData.probationEndDate ? new Date(formData.probationEndDate) : undefined,
+          probationPeriod: formData.probationPeriod || 3,
+          isOnProbation: formData.isOnProbation || false,
           createdAt: new Date(),
           updatedAt: new Date()
         };
@@ -495,14 +561,16 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         
         const docRef = await addDoc(collection(db, 'employees'), employeeData);
         console.log('새 직원이 추가되었습니다. ID:', docRef.id);
+        
+        // 직원-지점 관계 생성
+        await createEmployeeBranches(docRef.id, selectedBranches);
       }
 
       // 폼 초기화
       setFormData({
         name: '',
-        email: '',
+        userId: '',
         phone: '',
-        branchId: '',
         residentNumber: '',
         hireDate: '',
         type: '사업소득자',
@@ -519,6 +587,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         probationPeriod: 3,
         isOnProbation: false
       });
+      setSelectedBranches([]);
       setShowForm(false);
       setEditingEmployee(null);
       
@@ -531,7 +600,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
   };
 
-  const handleEdit = (employee: Employee) => {
+  const handleEdit = async (employee: Employee) => {
     console.log('=== 직원 수정 시작 ===');
     console.log('직원 데이터:', employee);
     console.log('직원 ID:', employee.id);
@@ -544,14 +613,28 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       return;
     }
     
+    // 직원의 지점 정보 로드
+    try {
+      const employeeBranchesSnapshot = await getDocs(
+        query(collection(db, 'employeeBranches'), where('employeeId', '==', employee.id))
+      );
+      
+      const employeeBranchIds = employeeBranchesSnapshot.docs.map(doc => doc.data().branchId);
+      setSelectedBranches(employeeBranchIds);
+      
+      console.log('직원의 지점 ID들:', employeeBranchIds);
+    } catch (error) {
+      console.error('직원 지점 정보 로드 중 오류:', error);
+      setSelectedBranches([]);
+    }
+    
     // 상태를 한 번에 업데이트
     console.log('상태 업데이트 시작...');
     setEditingEmployee(employee);
     setFormData({
       name: employee.name || '',
-      email: employee.email || '',
+      userId: employee.userId || '',
       phone: employee.phone || '',
-      branchId: employee.branchId || '',
       residentNumber: employee.residentNumber || '',
       hireDate: employee.hireDate ? employee.hireDate.toISOString().split('T')[0] : '',
       type: employee.type || '사업소득자',
@@ -950,7 +1033,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </button>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  이메일 / 전화번호
+                  아이디 / 전화번호
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   지점 / 고용형태
@@ -984,7 +1067,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     <div className="space-y-1">
-                      <div>{employee.email || '-'}</div>
+                      <div>{employee.userId || '-'}</div>
                       <div className="text-xs text-gray-400">{employee.phone || '-'}</div>
                     </div>
                   </td>
@@ -1079,14 +1162,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
-                                이메일
+                                아이디
                               </label>
                               <input
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                type="text"
+                                value={formData.userId}
+                                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="이메일 주소"
+                                placeholder="사용자 아이디"
                               />
                             </div>
                             
@@ -1410,14 +1493,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          이메일
+                          아이디
                         </label>
                         <input
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          type="text"
+                          value={formData.userId}
+                          onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="이메일 주소"
+                          placeholder="사용자 아이디"
                         />
                       </div>
                       
@@ -1620,14 +1703,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      이메일
+                      아이디
                     </label>
                     <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      type="text"
+                      value={formData.userId}
+                      onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="이메일 주소"
+                      placeholder="사용자 아이디"
                     />
                   </div>
                   
