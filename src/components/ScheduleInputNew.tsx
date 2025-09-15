@@ -408,14 +408,23 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 스케줄 입력 파싱 함수
   const parseScheduleInput = (input: string) => {
-    // 입력 형식: "10-22(2)" -> 시작시간: 10, 종료시간: 22, 휴식시간: 2
-    const match = input.match(/^(\d{1,2})-(\d{1,2})(?:\((\d+(?:\.\d+)?)\))?$/);
+    // 입력 형식: "10-22(2)" 또는 "18.5-23" -> 시작시간: 10 또는 18.5, 종료시간: 22 또는 23, 휴식시간: 2
+    const match = input.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(?:\((\d+(?:\.\d+)?)\))?$/);
     if (!match) return null;
     
-    const [, startHour, endHour, breakTime = '0'] = match;
+    const [, startTimeStr, endTimeStr, breakTime = '0'] = match;
+    
+    // 소수점 시간을 시:분 형태로 변환
+    const parseTime = (timeStr: string) => {
+      const time = parseFloat(timeStr);
+      const hours = Math.floor(time);
+      const minutes = Math.round((time - hours) * 60);
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    };
+    
     return {
-      startTime: `${startHour.padStart(2, '0')}:00`,
-      endTime: `${endHour.padStart(2, '0')}:00`,
+      startTime: parseTime(startTimeStr),
+      endTime: parseTime(endTimeStr),
       breakTime: breakTime
     };
   };
@@ -960,10 +969,10 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="text-sm font-medium text-blue-800 mb-2">입력 형식 안내</h4>
         <p className="text-sm text-blue-700">
-          휴게시간 있는 경우: 시작시간-종료시간(휴식시간) &nbsp;&nbsp; ex) 10-22(2)
+          휴게시간 있는 경우: 시작시간-종료시간(휴식시간) &nbsp;&nbsp; ex) 10-22(2), 18.5-23(1)
         </p>
         <p className="text-sm text-blue-700">
-          휴게시간 없는 경우: 시작시간-종료시간 &nbsp;&nbsp; ex) 18-23
+          휴게시간 없는 경우: 시작시간-종료시간 &nbsp;&nbsp; ex) 18-23, 18.5-23
         </p>
         
         <h4 className="text-sm font-medium text-blue-800 mb-2 mt-3">입력 방법 안내</h4>
