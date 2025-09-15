@@ -25,6 +25,7 @@ interface Employee {
   status?: 'active' | 'inactive';
   resignationDate?: Date;
   branchNames?: string[]; // 소속 지점명들
+  weeklyWorkHours?: number; // 주간 근무시간
 }
 
 interface EmployeeBranch {
@@ -254,7 +255,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           name: data.name || '',
           status: resignationDate ? 'inactive' : 'active',
           resignationDate: resignationDate,
-          branchNames: branchNames
+          branchNames: branchNames,
+          weeklyWorkHours: data.weeklyWorkHours || 40
         };
       }) as Employee[];
       
@@ -646,7 +648,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       return {
         employeeName: employee.name,
         dailyHours,
-        totalHours
+        totalHours,
+        weeklyWorkHours: employee.weeklyWorkHours
       };
     }).filter(emp => emp.totalHours > 0); // 총 근무시간이 0보다 큰 직원만 필터링
     
@@ -838,7 +841,10 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="text-sm font-medium text-blue-800 mb-2">입력 형식 안내</h4>
         <p className="text-sm text-blue-700">
-          입력 예: 10-22(2) &quot;시작시간-종료시간(휴식시간)&quot; 형식으로 입력하세요.
+          휴게시간 있는 경우: 시작시간-종료시간(휴식시간) &nbsp;&nbsp; ex) 10-22(2)
+        </p>
+        <p className="text-sm text-blue-700">
+          휴게시간 없는 경우: 시작시간-종료시간 &nbsp;&nbsp; ex) 18-23
         </p>
         <p className="text-sm text-blue-700 mt-1">
           &bull; Enter: 저장 &bull; Tab: 다음 입력칸 이동 &bull; 드래그: 스케줄 이동 &bull; Ctrl+드래그: 스케줄 복사 &bull; 더블클릭: 스케줄 삭제
@@ -1019,6 +1025,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                     <tr key={index}>
                       <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
                         {summary.employeeName}
+                        {summary.weeklyWorkHours && (
+                          <span className="text-xs text-gray-500 ml-1">
+                            ({summary.weeklyWorkHours})
+                          </span>
+                        )}
                       </td>
                       {summary.dailyHours.map((hours, dayIndex) => (
                         <td key={dayIndex} className="px-2 py-3 text-center text-sm text-gray-900">
