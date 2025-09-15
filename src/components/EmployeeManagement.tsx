@@ -29,6 +29,8 @@ interface Employee {
   probationEndDate?: Date; // 수습 종료일
   probationPeriod?: number; // 수습기간 (개월)
   isOnProbation?: boolean; // 현재 수습 중인지 여부
+  // 지점 정보 (표시용)
+  branchNames?: string[]; // 소속 지점명들
   createdAt: Date;
   updatedAt: Date;
 }
@@ -190,6 +192,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         const data = doc.data();
         const resignationDate = data.resignationDate?.toDate ? data.resignationDate.toDate() : undefined;
         
+        // 직원의 지점명들 가져오기
+        const employeeBranchList = employeeBranchesMap.get(doc.id) || [];
+        const branchNames = employeeBranchList
+          .filter(eb => eb.isActive)
+          .map(eb => eb.branchName);
+        
         const employee = {
           id: doc.id,
           name: data.name || '',
@@ -212,6 +220,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : undefined,
           probationPeriod: data.probationPeriod || 3,
           isOnProbation: data.isOnProbation || false,
+          // 지점 정보 (표시용)
+          branchNames: branchNames,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
         };
@@ -376,9 +386,21 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   };
 
   // 재직증명서 PDF 생성
-  const generateEmploymentCertificate = (employee: Employee) => {
-    // 직원의 지점 정보 찾기
-    const employeeBranch = branches.find(branch => branch.id === employee.branchId);
+  const generateEmploymentCertificate = async (employee: Employee) => {
+    // 직원의 지점 정보 찾기 (EmployeeBranch 관계를 통해)
+    let employeeBranch = null;
+    try {
+      const employeeBranchesSnapshot = await getDocs(
+        query(collection(db, 'employeeBranches'), where('employeeId', '==', employee.id))
+      );
+      
+      if (!employeeBranchesSnapshot.empty) {
+        const firstBranch = employeeBranchesSnapshot.docs[0].data();
+        employeeBranch = branches.find(branch => branch.id === firstBranch.branchId);
+      }
+    } catch (error) {
+      console.error('직원 지점 정보 조회 중 오류:', error);
+    }
     
     // HTML 템플릿 생성
     const htmlContent = `
@@ -396,7 +418,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           <p style="margin: 8px 0;"><strong>주민등록번호:</strong> ${employee.residentNumber || '-'}</p>
           <p style="margin: 8px 0;"><strong>입사일:</strong> ${employee.hireDate ? employee.hireDate.toLocaleDateString() : '-'}</p>
           <p style="margin: 8px 0;"><strong>퇴사일:</strong> ${employee.resignationDate ? employee.resignationDate.toLocaleDateString() : '재직중'}</p>
-          <p style="margin: 8px 0;"><strong>지점:</strong> ${employee.branchName || '-'}</p>
+          <p style="margin: 8px 0;"><strong>지점:</strong> ${employeeBranch?.name || '-'}</p>
           <p style="margin: 8px 0;"><strong>직급:</strong> ${employee.type || '-'}</p>
         </div>
         
@@ -708,9 +730,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const resetForm = () => {
     setFormData({
       name: '',
-      email: '',
+      userId: '',
       phone: '',
-      branchId: isManager && userBranch ? userBranch.id : '',
       residentNumber: '',
       hireDate: '',
       type: '사업소득자',
@@ -943,7 +964,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
   // 선택된 지점의 직원만 필터링하고 정렬
   const filteredEmployees = (selectedBranchId 
-    ? employees.filter(emp => emp.branchId === selectedBranchId)
+    ? employees.filter(emp => {
+        const selectedBranch = branches.find(b => b.id === selectedBranchId);
+        return selectedBranch && emp.branchNames?.includes(selectedBranch.name);
+      })
     : employees
   ).sort((a, b) => {
     if (sortOrder === 'asc') {
@@ -1073,7 +1097,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     <div className="space-y-1">
-                      <div className="font-medium">{employee.branchName || '-'}</div>
+                      <div className="font-medium">{employee.branchNames?.join(', ') || '-'}</div>
                       <div className="text-xs text-gray-400">{employee.type || '-'}</div>
                     </div>
                   </td>
@@ -1188,22 +1212,28 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
-                                지점
+                                지점 (복수 선택 가능) *
                               </label>
-                              <select
-                                value={formData.branchId}
-                                onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                                required
-                                disabled={isManager}
-                              >
-                                <option value="">지점 선택 *</option>
+                              <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
                                 {branches.map(branch => (
-                                  <option key={branch.id} value={branch.id}>
-                                    {branch.name}
-                                  </option>
+                                  <label key={branch.id} className="flex items-center mb-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedBranches.includes(branch.id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedBranches([...selectedBranches, branch.id]);
+                                        } else {
+                                          setSelectedBranches(selectedBranches.filter(id => id !== branch.id));
+                                        }
+                                      }}
+                                      className="mr-2"
+                                      disabled={isManager}
+                                    />
+                                    <span className="text-sm">{branch.name}</span>
+                                  </label>
                                 ))}
-                              </select>
+                              </div>
                               {isManager && (
                                 <p className="text-sm text-gray-500 mt-1">
                                   매니저 권한으로 {userBranch?.name} 지점에 자동 설정됩니다.
@@ -1519,22 +1549,28 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          지점
+                          지점 (복수 선택 가능) *
                         </label>
-                        <select
-                          value={formData.branchId}
-                          onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                          required
-                          disabled={isManager}
-                        >
-                          <option value="">지점 선택 *</option>
+                        <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
                           {branches.map(branch => (
-                            <option key={branch.id} value={branch.id}>
-                              {branch.name}
-                            </option>
+                            <label key={branch.id} className="flex items-center mb-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedBranches.includes(branch.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedBranches([...selectedBranches, branch.id]);
+                                  } else {
+                                    setSelectedBranches(selectedBranches.filter(id => id !== branch.id));
+                                  }
+                                }}
+                                className="mr-2"
+                                disabled={isManager}
+                              />
+                              <span className="text-sm">{branch.name}</span>
+                            </label>
                           ))}
-                        </select>
+                        </div>
                         {isManager && (
                           <p className="text-sm text-gray-500 mt-1">
                             매니저 권한으로 {userBranch?.name} 지점에 자동 설정됩니다.
@@ -1729,22 +1765,28 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      지점
+                      지점 (복수 선택 가능) *
                     </label>
-                    <select
-                      value={formData.branchId}
-                      onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                      required
-                      disabled={isManager}
-                    >
-                      <option value="">지점 선택 *</option>
+                    <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
                       {branches.map(branch => (
-                        <option key={branch.id} value={branch.id}>
-                          {branch.name}
-                        </option>
+                        <label key={branch.id} className="flex items-center mb-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedBranches.includes(branch.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedBranches([...selectedBranches, branch.id]);
+                              } else {
+                                setSelectedBranches(selectedBranches.filter(id => id !== branch.id));
+                              }
+                            }}
+                            className="mr-2"
+                            disabled={isManager}
+                          />
+                          <span className="text-sm">{branch.name}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                     {isManager && (
                       <p className="text-sm text-gray-500 mt-1">
                         매니저 권한으로 {userBranch?.name} 지점에 자동 설정됩니다.

@@ -88,12 +88,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   }, [currentWeekStart, selectedBranchId]);
 
-  // 지점이 변경될 때 직원 목록 다시 로드
-  useEffect(() => {
-    if (selectedBranchId) {
-      loadEmployees();
-    }
-  }, [selectedBranchId, loadEmployees]);
 
   // 전역 마우스 이벤트 리스너 추가
   useEffect(() => {
@@ -218,6 +212,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       console.error('직원 목록을 불러올 수 없습니다:', error);
     }
   }, [selectedBranchId]);
+
+  // 지점이 변경될 때 직원 목록 다시 로드
+  useEffect(() => {
+    if (selectedBranchId) {
+      loadEmployees();
+    }
+  }, [selectedBranchId, loadEmployees]);
 
   const loadBranches = async () => {
     try {
