@@ -155,6 +155,29 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         return;
       }
 
+      // 공유 URL 생성
+      const weekString = currentWeekStart.toISOString().split('T')[0];
+      const shareUrl = `${window.location.origin}/public/schedule/${selectedBranchId || 'all'}/${weekString}`;
+
+      // Web Share API 지원 확인
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `${branch.name} 주간 스케줄`,
+            text: `${branch.name} 주간 스케줄을 확인해보세요!`,
+            url: shareUrl
+          });
+          return; // Web Share API 성공 시 여기서 종료
+        } catch (error) {
+          // 사용자가 공유를 취소한 경우는 에러로 처리하지 않음
+          if (error instanceof Error && error.name !== 'AbortError') {
+            console.log('Web Share API 실패, 클립보드 복사로 대체');
+          } else {
+            return; // 사용자가 취소한 경우
+          }
+        }
+      }
+
       // 현재 주간 스케줄 데이터 생성
       const scheduleData = employees.map(employee => {
         const dailySchedules = weekDates.map(date => {
@@ -172,11 +195,22 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const shareText = `📅 ${branch.name} 주간 스케줄 (${weekDates[0].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} ~ ${weekDates[6].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })})\n\n` +
         scheduleData.map(emp => 
           `${emp.employeeName}: ${emp.schedules.join(' | ')}`
-        ).join('\n');
+        ).join('\n') + `\n\n🔗 공유 링크: ${shareUrl}`;
 
-      // 클립보드에 복사
-      await navigator.clipboard.writeText(shareText);
-      alert('스케줄이 클립보드에 복사되었습니다!');
+      // Web Share API를 지원하지 않거나 실패한 경우 클립보드 복사
+      try {
+        await navigator.clipboard.writeText(shareText);
+        alert('스케줄이 클립보드에 복사되었습니다!');
+      } catch (error) {
+        // 클립보드 복사 실패 시 대체 방법
+        const textArea = document.createElement('textarea');
+        textArea.value = shareText;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('스케줄이 클립보드에 복사되었습니다!');
+      }
       
     } catch (error) {
       console.error('공유 중 오류:', error);
