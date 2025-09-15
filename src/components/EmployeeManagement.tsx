@@ -1049,28 +1049,41 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       </div>
 
       {/* 지점 선택 */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          지점 선택
-        </label>
-        <select
-          value={selectedBranchId}
-          onChange={(e) => setSelectedBranchId(e.target.value)}
-          disabled={isManager}
-          className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-        >
-          <option value="">전체 지점</option>
-          {branches.map(branch => (
-            <option key={branch.id} value={branch.id}>
-              {branch.name}
-            </option>
-          ))}
-        </select>
-        {isManager && (
-          <p className="text-sm text-gray-500 mt-1">
-            매니저 권한으로 {userBranch?.name} 지점만 관리 가능합니다.
-          </p>
-        )}
+      <div className="bg-white p-4 rounded-lg shadow border mb-6">
+        <div className="space-y-3">
+          <label className="text-sm font-medium text-gray-700">지점 선택:</label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedBranchId('')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedBranchId === ''
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              전체 지점
+            </button>
+            {branches.map((branch) => (
+              <button
+                key={branch.id}
+                onClick={() => setSelectedBranchId(branch.id)}
+                disabled={isManager}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedBranchId === branch.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                } ${isManager ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {branch.name}
+              </button>
+            ))}
+          </div>
+          {isManager && (
+            <p className="text-sm text-gray-500">
+              매니저 권한으로 {userBranch?.name} 지점만 관리 가능합니다.
+            </p>
+          )}
+        </div>
       </div>
 
 
