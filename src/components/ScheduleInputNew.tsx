@@ -1014,21 +1014,40 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {weeklySummary.length > 0 ? (
-                weeklySummary.map((summary, index) => (
-                  <tr key={index}>
-                    <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
-                      {summary.employeeName}
-                    </td>
-                    {summary.dailyHours.map((hours, dayIndex) => (
-                      <td key={dayIndex} className="px-2 py-3 text-center text-sm text-gray-900">
-                        {hours > 0 ? hours.toFixed(1) : '-'}
+                <>
+                  {weeklySummary.map((summary, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
+                        {summary.employeeName}
                       </td>
-                    ))}
-                    <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
-                      {summary.totalHours.toFixed(1)}
+                      {summary.dailyHours.map((hours, dayIndex) => (
+                        <td key={dayIndex} className="px-2 py-3 text-center text-sm text-gray-900">
+                          {hours > 0 ? hours.toFixed(1) : '-'}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
+                        {summary.totalHours.toFixed(1)}
+                      </td>
+                    </tr>
+                  ))}
+                  {/* 합계 행 */}
+                  <tr className="bg-gray-50 border-t-2 border-gray-300">
+                    <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">
+                      합계
+                    </td>
+                    {Array.from({ length: 7 }, (_, dayIndex) => {
+                      const dayTotal = weeklySummary.reduce((sum, summary) => sum + summary.dailyHours[dayIndex], 0);
+                      return (
+                        <td key={dayIndex} className="px-2 py-3 text-center text-sm font-bold text-gray-900">
+                          {dayTotal > 0 ? dayTotal.toFixed(1) : '-'}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">
+                      {weeklySummary.reduce((sum, summary) => sum + summary.totalHours, 0).toFixed(1)}
                     </td>
                   </tr>
-                ))
+                </>
               ) : (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-500">

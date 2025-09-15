@@ -357,24 +357,33 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
 
       {/* 지점 선택 */}
       <div className="bg-white p-4 rounded-lg shadow border">
-        <div className="flex items-center space-x-4">
+        <div className="space-y-3">
           <label className="text-sm font-medium text-gray-700">지점 선택:</label>
-          <select
-            value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            disabled={branches.length === 0}
-          >
-            {branches.length === 0 ? (
-              <option value="">지점을 불러오는 중...</option>
-            ) : (
-              branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))
-            )}
-          </select>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedBranchId('')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedBranchId === ''
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              전체 지점
+            </button>
+            {branches.map((branch) => (
+              <button
+                key={branch.id}
+                onClick={() => setSelectedBranchId(branch.id)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedBranchId === branch.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {branch.name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
