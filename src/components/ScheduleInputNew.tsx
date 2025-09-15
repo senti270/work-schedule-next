@@ -61,7 +61,15 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [payrollLocks, setPayrollLocks] = useState<PayrollLock[]>([]);
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(new Date());
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+    // 현재 날짜가 속한 주의 월요일을 기준으로 설정
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=일요일, 1=월요일, ..., 6=토요일
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // 일요일이면 -6, 아니면 1-dayOfWeek
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+    return monday;
+  });
   const [loading, setLoading] = useState(true);
   
   // 새로운 입력 형식 상태
@@ -151,7 +159,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const scheduleData = employees.map(employee => {
         const dailySchedules = weekDates.map(date => {
           const schedule = getScheduleForDate(employee.id, date);
-          return schedule ? `${schedule.startTime.split(':')[0]}-${schedule.endTime.split(':')[0]}(${schedule.breakTime})` : '-';
+          return schedule ? `${timeToDecimal(schedule.startTime)}-${timeToDecimal(schedule.endTime)}(${schedule.breakTime})` : '-';
         });
         
         return {
@@ -367,13 +375,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   // 1주 기간의 날짜들 생성
   const getWeekDates = () => {
     const dates = [];
-    const startDate = new Date(currentWeekStart);
-    
-    // 현재 주의 월요일로 설정 (원본을 변경하지 않도록 복사본 사용)
-    const dayOfWeek = startDate.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const mondayDate = new Date(startDate);
-    mondayDate.setDate(startDate.getDate() + mondayOffset);
+    // currentWeekStart는 이미 월요일이므로 그대로 사용
+    const mondayDate = new Date(currentWeekStart);
     
     // 1주 (7일) 생성
     for (let i = 0; i < 7; i++) {
@@ -392,6 +395,25 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       schedule.employeeId === employeeId &&
       schedule.date.toISOString().split('T')[0] === dateString
     );
+  };
+
+  // 시간을 소수점 형태로 변환하는 함수 (18:30 -> 18.5)
+  const timeToDecimal = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    if (minutes === 0) {
+      return hours.toString();
+    } else {
+      const decimalMinutes = minutes / 60;
+      if (decimalMinutes === 0.5) {
+        return `${hours}.5`;
+      } else if (decimalMinutes === 0.25) {
+        return `${hours}.25`;
+      } else if (decimalMinutes === 0.75) {
+        return `${hours}.75`;
+      } else {
+        return (hours + decimalMinutes).toString();
+      }
+    }
   };
 
   // 시간 계산 함수
@@ -494,7 +516,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     // 기존 스케줄이 있으면 입력 필드에 표시
     const existingSchedule = getScheduleForDate(employeeId, date);
     if (existingSchedule) {
-      const inputValue = `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime})`;
+      const inputValue = `${timeToDecimal(existingSchedule.startTime)}-${timeToDecimal(existingSchedule.endTime)}(${existingSchedule.breakTime})`;
       setScheduleInputs(prev => ({
         ...prev,
         [`${employeeId}-${dateString}`]: inputValue
@@ -523,7 +545,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
     const confirmDelete = window.confirm(
       `${existingSchedule.employeeName}의 ${date.toLocaleDateString('ko-KR')} 스케줄을 삭제하시겠습니까?\n` +
-      `스케줄: ${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime})`
+      `스케줄: ${timeToDecimal(existingSchedule.startTime)}-${timeToDecimal(existingSchedule.endTime)}(${existingSchedule.breakTime})`
     );
 
     if (confirmDelete) {
@@ -754,7 +776,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           dayOfWeek,
           weekIndex,
           targetDate: targetDate.toDateString(),
-          schedule: `${prevSchedule.startTime}-${prevSchedule.endTime}(${prevSchedule.breakTime})`
+          schedule: `${timeToDecimal(prevSchedule.startTime)}-${timeToDecimal(prevSchedule.endTime)}(${prevSchedule.breakTime})`
         });
         
         await addDoc(collection(db, 'schedules'), {
@@ -1074,13 +1096,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                             onMouseOver={(e) => handleDragOver(e, employee.id, date)}
                             onMouseUp={handleMouseUp}
                             title={existingSchedule ? 
-                              `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime}) - 더블클릭: 삭제` : 
+                              `${timeToDecimal(existingSchedule.startTime)}-${timeToDecimal(existingSchedule.endTime)}(${existingSchedule.breakTime}) - 더블클릭: 삭제` : 
                               '클릭하여 입력'
                             }
                           >
                             <div className="truncate">
                               {existingSchedule 
-                                ? `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime})`
+                                ? `${timeToDecimal(existingSchedule.startTime)}-${timeToDecimal(existingSchedule.endTime)}(${existingSchedule.breakTime})`
                                 : '클릭하여 입력'
                               }
                             </div>
