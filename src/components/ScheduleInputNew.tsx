@@ -369,15 +369,16 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     const dates = [];
     const startDate = new Date(currentWeekStart);
     
-    // 현재 주의 월요일로 설정
+    // 현재 주의 월요일로 설정 (원본을 변경하지 않도록 복사본 사용)
     const dayOfWeek = startDate.getDay();
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    startDate.setDate(startDate.getDate() + mondayOffset);
+    const mondayDate = new Date(startDate);
+    mondayDate.setDate(startDate.getDate() + mondayOffset);
     
     // 1주 (7일) 생성
     for (let i = 0; i < 7; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
+      const date = new Date(mondayDate);
+      date.setDate(mondayDate.getDate() + i);
       dates.push(date);
     }
     
@@ -738,6 +739,14 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         // dayOfWeek를 배열 인덱스로 변환: 월요일(1)->0, 화요일(2)->1, ..., 일요일(0)->6
         const weekIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
         const targetDate = new Date(weekDates[weekIndex]);
+        
+        console.log('복사 중:', {
+          prevDate: prevDate.toDateString(),
+          dayOfWeek,
+          weekIndex,
+          targetDate: targetDate.toDateString(),
+          schedule: `${prevSchedule.startTime}-${prevSchedule.endTime}(${prevSchedule.breakTime})`
+        });
         
         await addDoc(collection(db, 'schedules'), {
           employeeId: employeeId,
