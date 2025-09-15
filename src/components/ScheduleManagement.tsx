@@ -121,31 +121,6 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
     }
   };
 
-  // 년월 옵션 생성 (현재 달부터 다음 달까지)
-  const generateMonthOptions = () => {
-    const options: Array<{value: string, label: string}> = [];
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-    
-    // 현재 달
-    options.push({
-      value: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`,
-      label: `${currentYear}년 ${currentMonth + 1}월`
-    });
-    
-    // 다음 달
-    const nextMonth = currentMonth + 1;
-    const nextYear = nextMonth >= 12 ? currentYear + 1 : currentYear;
-    const adjustedNextMonth = nextMonth >= 12 ? 0 : nextMonth;
-    
-    options.push({
-      value: `${nextYear}-${String(adjustedNextMonth + 1).padStart(2, '0')}`,
-      label: `${nextYear}년 ${adjustedNextMonth + 1}월`
-    });
-    
-    return options;
-  };
 
   // 달력 그리드 생성
   const generateCalendarGrid = () => {
@@ -319,11 +294,6 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
     setShowForm(true);
   };
 
-  // 월 변경 핸들러
-  const handleMonthChange = (monthValue: string) => {
-    const [year, month] = monthValue.split('-').map(Number);
-    setSelectedMonth(new Date(year, month - 1, 1));
-  };
 
   // 다음 달로 이동
   const goToNextMonth = () => {
@@ -436,22 +406,7 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
         <>
           {/* 년월 선택 및 네비게이션 */}
           <div className="bg-white p-4 rounded-lg shadow border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <label className="text-sm font-medium text-gray-700">년월 선택:</label>
-                <select
-                  value={`${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`}
-                  onChange={(e) => handleMonthChange(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {generateMonthOptions().map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
+            <div className="flex items-center justify-center">
               <div className="flex items-center space-x-2">
                 <button
                   onClick={goToPreviousMonth}
@@ -459,7 +414,7 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
                 >
                   ← 이전달
                 </button>
-                <span className="text-lg font-medium">
+                <span className="text-lg font-medium px-4">
                   {selectedMonth.getFullYear()}년 {selectedMonth.getMonth() + 1}월
                 </span>
                 <button
