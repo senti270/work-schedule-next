@@ -61,6 +61,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [editingCell, setEditingCell] = useState<{employeeId: string, date: string} | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{employeeId: string, date: Date} | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
   
   // 드래그 상태
   const [dragState, setDragState] = useState<{
@@ -115,6 +116,46 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       document.body.style.cursor = 'default';
     };
   }, [dragState.isDragging, dragState.isCopyMode]);
+
+  // 공유 기능
+  const handleShare = async () => {
+    try {
+      const weekDates = getWeekDates();
+      const branch = branches.find(b => b.id === selectedBranchId);
+      
+      if (!branch) {
+        alert('지점 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 현재 주간 스케줄 데이터 생성
+      const scheduleData = employees.map(employee => {
+        const dailySchedules = weekDates.map(date => {
+          const schedule = getScheduleForDate(employee.id, date);
+          return schedule ? `${schedule.startTime.split(':')[0]}-${schedule.endTime.split(':')[0]}(${schedule.breakTime})` : '-';
+        });
+        
+        return {
+          employeeName: employee.name,
+          schedules: dailySchedules
+        };
+      });
+
+      // 공유할 텍스트 생성
+      const shareText = `📅 ${branch.name} 주간 스케줄 (${weekDates[0].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} ~ ${weekDates[6].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })})\n\n` +
+        scheduleData.map(emp => 
+          `${emp.employeeName}: ${emp.schedules.join(' | ')}`
+        ).join('\n');
+
+      // 클립보드에 복사
+      await navigator.clipboard.writeText(shareText);
+      alert('스케줄이 클립보드에 복사되었습니다!');
+      
+    } catch (error) {
+      console.error('공유 중 오류:', error);
+      alert('공유 중 오류가 발생했습니다.');
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -611,11 +652,20 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         <h3 className="text-lg leading-6 font-medium text-gray-900">
           스케줄 입력 (새 형식)
         </h3>
-        {isLocked && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">
-            ⚠️ 급여 작업 완료로 인해 수정이 제한됩니다
-          </div>
-        )}
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleShare}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center space-x-2"
+          >
+            <span>📤</span>
+            <span>공유</span>
+          </button>
+          {isLocked && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">
+              ⚠️ 급여 작업 완료로 인해 수정이 제한됩니다
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 주간 네비게이션 */}
