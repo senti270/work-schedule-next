@@ -85,6 +85,25 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   }, [currentWeekStart, selectedBranchId]);
 
+  // 전역 마우스 이벤트 리스너 추가
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (dragState.isDragging) {
+        setDragState({
+          isDragging: false,
+          sourceCell: null,
+          targetCell: null,
+          isCopyMode: false
+        });
+      }
+    };
+
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [dragState.isDragging]);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -376,37 +395,29 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const calculateWeeklySummary = () => {
     const weekDates = getWeekDates();
     const summary = employees.map(employee => {
-      let totalHours = 0;
-      let workDays = 0;
-      
-      weekDates.forEach(date => {
+      const dailyHours = weekDates.map(date => {
         const schedule = getScheduleForDate(employee.id, date);
-        if (schedule) {
-          totalHours += schedule.totalHours;
-          workDays += 1;
-        }
+        return schedule ? schedule.totalHours : 0;
       });
+      
+      const totalHours = dailyHours.reduce((sum, hours) => sum + hours, 0);
       
       return {
         employeeName: employee.name,
-        totalHours,
-        workDays,
-        averageHours: workDays > 0 ? totalHours / workDays : 0
+        dailyHours,
+        totalHours
       };
     });
     
     return summary;
   };
 
-  // 드래그 시작
-  const handleDragStart = (e: React.DragEvent, employeeId: string, date: Date) => {
+  // 드래그 시작 (마우스 다운)
+  const handleMouseDown = (e: React.MouseEvent, employeeId: string, date: Date) => {
     if (isLocked) return;
     
     const existingSchedule = getScheduleForDate(employeeId, date);
-    if (!existingSchedule) {
-      e.preventDefault();
-      return; // 스케줄이 없으면 드래그 불가
-    }
+    if (!existingSchedule) return; // 스케줄이 없으면 드래그 불가
     
     const isCopyMode = e.ctrlKey;
     
@@ -417,19 +428,12 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       isCopyMode
     });
     
-    // 드래그 데이터 설정
-    e.dataTransfer.setData('text/plain', JSON.stringify({
-      employeeId,
-      date: date.toISOString(),
-      isCopyMode
-    }));
-    e.dataTransfer.effectAllowed = isCopyMode ? 'copy' : 'move';
+    e.preventDefault();
   };
 
-  // 드래그 오버
-  const handleDragOver = (e: React.DragEvent, employeeId: string, date: Date) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = dragState.isCopyMode ? 'copy' : 'move';
+  // 드래그 중 (마우스 오버)
+  const handleMouseEnter = (e: React.MouseEvent, employeeId: string, date: Date) => {
+    if (!dragState.isDragging) return;
     
     setDragState(prev => ({
       ...prev,
@@ -437,22 +441,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }));
   };
 
-  // 드래그 리브
-  const handleDragLeave = (e: React.DragEvent) => {
-    // 자식 요소로 이동하는 경우는 무시
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    
-    setDragState(prev => ({
-      ...prev,
-      targetCell: null
-    }));
-  };
-
-  // 드롭
-  const handleDrop = async (e: React.DragEvent, employeeId: string, date: Date) => {
-    e.preventDefault();
-    
-    if (!dragState.isDragging || !dragState.sourceCell) {
+  // 드래그 종료 (마우스 업)
+  const handleMouseUp = async (e: React.MouseEvent) => {
+    if (!dragState.isDragging || !dragState.sourceCell || !dragState.targetCell) {
       setDragState({
         isDragging: false,
         sourceCell: null,
@@ -462,11 +453,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       return;
     }
 
-    const { sourceCell, isCopyMode } = dragState;
+    const { sourceCell, targetCell, isCopyMode } = dragState;
     
     // 같은 셀이면 무시
-    if (sourceCell.employeeId === employeeId && 
-        sourceCell.date.toDateString() === date.toDateString()) {
+    if (sourceCell.employeeId === targetCell.employeeId && 
+        sourceCell.date.toDateString() === targetCell.date.toDateString()) {
       setDragState({
         isDragging: false,
         sourceCell: null,
@@ -479,13 +470,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     const sourceSchedule = getScheduleForDate(sourceCell.employeeId, sourceCell.date);
     if (!sourceSchedule) return;
 
-    const employee = employees.find(emp => emp.id === employeeId);
+    const employee = employees.find(emp => emp.id === targetCell.employeeId);
     const branch = branches.find(branch => branch.id === selectedBranchId);
     
     if (employee && branch) {
       try {
         // 대상 셀에 스케줄 추가/수정
-        const existingTargetSchedule = getScheduleForDate(employeeId, date);
+        const existingTargetSchedule = getScheduleForDate(targetCell.employeeId, targetCell.date);
         
         if (existingTargetSchedule) {
           // 수정
@@ -499,11 +490,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         } else {
           // 추가
           await addDoc(collection(db, 'schedules'), {
-            employeeId: employeeId,
+            employeeId: targetCell.employeeId,
             employeeName: employee.name,
             branchId: selectedBranchId,
             branchName: branch.name,
-            date: date,
+            date: targetCell.date,
             startTime: sourceSchedule.startTime,
             endTime: sourceSchedule.endTime,
             breakTime: sourceSchedule.breakTime,
@@ -525,16 +516,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       }
     }
 
-    setDragState({
-      isDragging: false,
-      sourceCell: null,
-      targetCell: null,
-      isCopyMode: false
-    });
-  };
-
-  // 드래그 종료
-  const handleDragEnd = () => {
     setDragState({
       isDragging: false,
       sourceCell: null,
@@ -673,12 +654,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                                 ? 'bg-yellow-200 border-2 border-yellow-400' : ''
                             }`}
                             onClick={() => handleCellEdit(employee.id, date)}
-                            draggable={existingSchedule && !isLocked}
-                            onDragStart={(e) => handleDragStart(e, employee.id, date)}
-                            onDragOver={(e) => handleDragOver(e, employee.id, date)}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, employee.id, date)}
-                            onDragEnd={handleDragEnd}
+                            onMouseDown={(e) => handleMouseDown(e, employee.id, date)}
+                            onMouseEnter={(e) => handleMouseEnter(e, employee.id, date)}
+                            onMouseUp={handleMouseUp}
                             title={existingSchedule ? 
                               `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime}) - 드래그하여 이동, Ctrl+드래그하여 복사` : 
                               '클릭하여 입력'
@@ -704,7 +682,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">
-            주간 집계 ({weekDates[0].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} ~ {weekDates[6].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })})
+            사람별 주간 집계
           </h3>
         </div>
         
@@ -712,34 +690,48 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  직원명
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  이름
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  근무일수
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  월
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  총 근무시간
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  화
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  평균 근무시간
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  수
+                </th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  목
+                </th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  금
+                </th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  토
+                </th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  일
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  총합
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {weeklySummary.map((summary, index) => (
                 <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
                     {summary.employeeName}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {summary.workDays}일
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {summary.totalHours.toFixed(1)}시간
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {summary.averageHours.toFixed(1)}시간
+                  {summary.dailyHours.map((hours, dayIndex) => (
+                    <td key={dayIndex} className="px-2 py-3 text-center text-sm text-gray-900">
+                      {hours > 0 ? hours.toFixed(1) : '-'}
+                    </td>
+                  ))}
+                  <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
+                    {summary.totalHours.toFixed(1)}
                   </td>
                 </tr>
               ))}
