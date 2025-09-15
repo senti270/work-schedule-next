@@ -53,24 +53,37 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [payrollLocks, setPayrollLocks] = useState<PayrollLock[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
   
   // 새로운 입력 형식 상태
   const [scheduleInputs, setScheduleInputs] = useState<{[key: string]: string}>({});
   const [editingCell, setEditingCell] = useState<{employeeId: string, date: string} | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  
+  // 드래그 상태
+  const [dragState, setDragState] = useState<{
+    isDragging: boolean;
+    sourceCell: {employeeId: string, date: Date} | null;
+    targetCell: {employeeId: string, date: Date} | null;
+    isCopyMode: boolean;
+  }>({
+    isDragging: false,
+    sourceCell: null,
+    targetCell: null,
+    isCopyMode: false
+  });
 
   useEffect(() => {
     loadData();
   }, []);
 
   useEffect(() => {
-    if (selectedMonth) {
+    if (currentWeekStart) {
       loadSchedules();
       checkPayrollLock();
     }
-  }, [selectedMonth, selectedBranchId]);
+  }, [currentWeekStart, selectedBranchId]);
 
   const loadData = async () => {
     setLoading(true);
@@ -161,35 +174,59 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   };
 
   const checkPayrollLock = () => {
-    const year = selectedMonth.getFullYear();
-    const month = selectedMonth.getMonth() + 1;
+    // 4주 기간 동안 급여 잠금 상태 확인
+    const weekDates = getWeekDates();
+    let hasLockedWeek = false;
     
-    const lock = payrollLocks.find(lock => 
-      lock.year === year && 
-      lock.month === month && 
-      lock.branchId === selectedBranchId &&
-      lock.isLocked
-    );
+    weekDates.forEach(date => {
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      
+      const lock = payrollLocks.find(lock => 
+        lock.year === year && 
+        lock.month === month && 
+        lock.branchId === selectedBranchId &&
+        lock.isLocked
+      );
+      
+      if (lock) {
+        hasLockedWeek = true;
+      }
+    });
     
-    setIsLocked(!!lock);
+    setIsLocked(hasLockedWeek);
   };
 
-  // 월 변경 핸들러
-  const handleMonthChange = (monthValue: string) => {
-    const [year, month] = monthValue.split('-').map(Number);
-    setSelectedMonth(new Date(year, month - 1, 1));
+  // 주간 네비게이션 핸들러
+  const goToPrevious4Weeks = () => {
+    const newWeekStart = new Date(currentWeekStart);
+    newWeekStart.setDate(newWeekStart.getDate() - 28); // 4주 전
+    setCurrentWeekStart(newWeekStart);
   };
 
-  // 해당 월의 날짜들 생성
-  const getMonthDates = () => {
-    const year = selectedMonth.getFullYear();
-    const month = selectedMonth.getMonth();
-    const lastDay = new Date(year, month + 1, 0);
-    
+  const goToNext4Weeks = () => {
+    const newWeekStart = new Date(currentWeekStart);
+    newWeekStart.setDate(newWeekStart.getDate() + 28); // 4주 후
+    setCurrentWeekStart(newWeekStart);
+  };
+
+  // 4주 기간의 날짜들 생성
+  const getWeekDates = () => {
     const dates = [];
-    for (let day = 1; day <= lastDay.getDate(); day++) {
-      dates.push(new Date(year, month, day));
+    const startDate = new Date(currentWeekStart);
+    
+    // 현재 주의 월요일로 설정
+    const dayOfWeek = startDate.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    startDate.setDate(startDate.getDate() + mondayOffset);
+    
+    // 4주 (28일) 생성
+    for (let i = 0; i < 28; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      dates.push(date);
     }
+    
     return dates;
   };
 
@@ -335,14 +372,14 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     });
   };
 
-  // 주간 집계 계산
-  const calculateWeeklySummary = () => {
-    const monthDates = getMonthDates();
+  // 4주 집계 계산
+  const calculate4WeekSummary = () => {
+    const weekDates = getWeekDates();
     const summary = employees.map(employee => {
       let totalHours = 0;
       let workDays = 0;
       
-      monthDates.forEach(date => {
+      weekDates.forEach(date => {
         const schedule = getScheduleForDate(employee.id, date);
         if (schedule) {
           totalHours += schedule.totalHours;
@@ -361,6 +398,120 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     return summary;
   };
 
+  // 드래그 시작
+  const handleDragStart = (e: React.MouseEvent, employeeId: string, date: Date) => {
+    if (isLocked) return;
+    
+    const existingSchedule = getScheduleForDate(employeeId, date);
+    if (!existingSchedule) return; // 스케줄이 없으면 드래그 불가
+    
+    const isCopyMode = e.ctrlKey;
+    
+    setDragState({
+      isDragging: true,
+      sourceCell: { employeeId, date },
+      targetCell: null,
+      isCopyMode
+    });
+    
+    e.preventDefault();
+  };
+
+  // 드래그 중
+  const handleDragOver = (e: React.MouseEvent, employeeId: string, date: Date) => {
+    if (!dragState.isDragging) return;
+    
+    setDragState(prev => ({
+      ...prev,
+      targetCell: { employeeId, date }
+    }));
+    
+    e.preventDefault();
+  };
+
+  // 드래그 종료
+  const handleDragEnd = async (e: React.MouseEvent) => {
+    if (!dragState.isDragging || !dragState.sourceCell || !dragState.targetCell) {
+      setDragState({
+        isDragging: false,
+        sourceCell: null,
+        targetCell: null,
+        isCopyMode: false
+      });
+      return;
+    }
+
+    const { sourceCell, targetCell, isCopyMode } = dragState;
+    
+    // 같은 셀이면 무시
+    if (sourceCell.employeeId === targetCell.employeeId && 
+        sourceCell.date.toDateString() === targetCell.date.toDateString()) {
+      setDragState({
+        isDragging: false,
+        sourceCell: null,
+        targetCell: null,
+        isCopyMode: false
+      });
+      return;
+    }
+
+    const sourceSchedule = getScheduleForDate(sourceCell.employeeId, sourceCell.date);
+    if (!sourceSchedule) return;
+
+    const employee = employees.find(emp => emp.id === targetCell.employeeId);
+    const branch = branches.find(branch => branch.id === selectedBranchId);
+    
+    if (employee && branch) {
+      try {
+        // 대상 셀에 스케줄 추가/수정
+        const existingTargetSchedule = getScheduleForDate(targetCell.employeeId, targetCell.date);
+        
+        if (existingTargetSchedule) {
+          // 수정
+          await updateDoc(doc(db, 'schedules', existingTargetSchedule.id), {
+            startTime: sourceSchedule.startTime,
+            endTime: sourceSchedule.endTime,
+            breakTime: sourceSchedule.breakTime,
+            totalHours: sourceSchedule.totalHours,
+            updatedAt: new Date()
+          });
+        } else {
+          // 추가
+          await addDoc(collection(db, 'schedules'), {
+            employeeId: targetCell.employeeId,
+            employeeName: employee.name,
+            branchId: selectedBranchId,
+            branchName: branch.name,
+            date: targetCell.date,
+            startTime: sourceSchedule.startTime,
+            endTime: sourceSchedule.endTime,
+            breakTime: sourceSchedule.breakTime,
+            totalHours: sourceSchedule.totalHours,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        }
+
+        // 복사 모드가 아니면 원본 삭제
+        if (!isCopyMode) {
+          await deleteDoc(doc(db, 'schedules', sourceSchedule.id));
+        }
+
+        await loadSchedules();
+      } catch (error) {
+        console.error('드래그 작업 오류:', error);
+        alert('드래그 작업 중 오류가 발생했습니다.');
+      }
+    }
+
+    setDragState({
+      isDragging: false,
+      sourceCell: null,
+      targetCell: null,
+      isCopyMode: false
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -369,8 +520,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     );
   }
 
-  const monthDates = getMonthDates();
-  const weeklySummary = calculateWeeklySummary();
+  const weekDates = getWeekDates();
+  const weeklySummary = calculate4WeekSummary();
 
   return (
     <div className="space-y-6">
@@ -386,16 +537,26 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         )}
       </div>
 
-      {/* 월 선택 */}
+      {/* 주간 네비게이션 */}
       <div className="bg-white p-4 rounded-lg shadow border">
-        <div className="flex items-center space-x-4">
-          <label className="text-sm font-medium text-gray-700">월 선택:</label>
-          <input
-            type="month"
-            value={`${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`}
-            onChange={(e) => handleMonthChange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={goToPrevious4Weeks}
+              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+            >
+              ← 이전 4주
+            </button>
+            <span className="text-lg font-medium">
+              {weekDates[0].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} ~ {weekDates[27].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}
+            </span>
+            <button
+              onClick={goToNext4Weeks}
+              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+            >
+              다음 4주 →
+            </button>
+          </div>
         </div>
       </div>
 
@@ -408,6 +569,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         <p className="text-sm text-blue-700 mt-1">
           &bull; 시작시간: 10 (10시) &bull; 종료시간: 22 (22시) &bull; 휴식시간: 2 (2시간)
         </p>
+        <p className="text-sm text-blue-700 mt-1">
+          &bull; 드래그: 시간 이동 &bull; Ctrl+드래그: 시간 복사
+        </p>
       </div>
 
       {/* 스케줄 입력 테이블 */}
@@ -419,7 +583,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   지점직원
                 </th>
-                {monthDates.map((date, index) => (
+                {weekDates.map((date, index) => (
                   <th key={index} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {date.getDate()}({['일', '월', '화', '수', '목', '금', '토'][date.getDay()]})
                   </th>
@@ -432,7 +596,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">
                     {employee.name}
                   </td>
-                  {monthDates.map((date, index) => {
+                  {weekDates.map((date, index) => {
                     const dateString = date.toISOString().split('T')[0];
                     const inputKey = `${employee.id}-${dateString}`;
                     const isEditing = editingCell?.employeeId === employee.id && editingCell?.date === dateString;
@@ -472,8 +636,19 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                           <div
                             className={`px-2 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 ${
                               existingSchedule ? 'bg-blue-100 text-blue-800' : 'bg-gray-50 text-gray-500'
-                            } ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+                            } ${isLocked ? 'cursor-not-allowed opacity-50' : ''} ${
+                              dragState.isDragging && dragState.targetCell?.employeeId === employee.id && 
+                              dragState.targetCell?.date.toDateString() === date.toDateString() 
+                                ? 'bg-yellow-200 border-2 border-yellow-400' : ''
+                            }`}
                             onClick={() => handleCellEdit(employee.id, date)}
+                            onMouseDown={(e) => handleDragStart(e, employee.id, date)}
+                            onMouseEnter={(e) => handleDragOver(e, employee.id, date)}
+                            onMouseUp={handleDragEnd}
+                            title={existingSchedule ? 
+                              `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime}) - 드래그하여 이동, Ctrl+드래그하여 복사` : 
+                              '클릭하여 입력'
+                            }
                           >
                             {existingSchedule 
                               ? `${existingSchedule.startTime.split(':')[0]}-${existingSchedule.endTime.split(':')[0]}(${existingSchedule.breakTime})`
@@ -495,7 +670,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">
-            {selectedMonth.getFullYear()}년 {selectedMonth.getMonth() + 1}월 주간 집계
+            4주 집계 ({weekDates[0].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} ~ {weekDates[27].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })})
           </h3>
         </div>
         
