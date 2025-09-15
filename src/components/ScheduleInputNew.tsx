@@ -574,7 +574,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         dailyHours,
         totalHours
       };
-    });
+    }).filter(emp => emp.totalHours > 0); // 총 근무시간이 0보다 큰 직원만 필터링
     
     return summary;
   };
@@ -942,21 +942,29 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {weeklySummary.map((summary, index) => (
-                <tr key={index}>
-                  <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
-                    {summary.employeeName}
-                  </td>
-                  {summary.dailyHours.map((hours, dayIndex) => (
-                    <td key={dayIndex} className="px-2 py-3 text-center text-sm text-gray-900">
-                      {hours > 0 ? hours.toFixed(1) : '-'}
+              {weeklySummary.length > 0 ? (
+                weeklySummary.map((summary, index) => (
+                  <tr key={index}>
+                    <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
+                      {summary.employeeName}
                     </td>
-                  ))}
-                  <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
-                    {summary.totalHours.toFixed(1)}
+                    {summary.dailyHours.map((hours, dayIndex) => (
+                      <td key={dayIndex} className="px-2 py-3 text-center text-sm text-gray-900">
+                        {hours > 0 ? hours.toFixed(1) : '-'}
+                      </td>
+                    ))}
+                    <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
+                      {summary.totalHours.toFixed(1)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-500">
+                    이번 주에 등록된 스케줄이 없습니다.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
