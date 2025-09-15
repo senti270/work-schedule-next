@@ -62,6 +62,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [isLocked, setIsLocked] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{employeeId: string, date: Date} | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [clickTimeout, setClickTimeout] = useState<NodeJS.Timeout | null>(null);
   
   // 드래그 상태
   const [dragState, setDragState] = useState<{
@@ -116,6 +117,15 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       document.body.style.cursor = 'default';
     };
   }, [dragState.isDragging, dragState.isCopyMode]);
+
+  // 컴포넌트 언마운트 시 타임아웃 정리
+  useEffect(() => {
+    return () => {
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+      }
+    };
+  }, [clickTimeout]);
 
   // 공유 기능
   const handleShare = async () => {
@@ -366,6 +376,29 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     };
   };
 
+  // 셀 클릭 핸들러 (더블클릭과 구분)
+  const handleCellClick = (employeeId: string, date: Date) => {
+    if (isLocked) {
+      alert('급여 작업이 완료된 월은 수정할 수 없습니다.');
+      return;
+    }
+
+    // 기존 타임아웃이 있으면 클리어
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+      setClickTimeout(null);
+      return; // 더블클릭으로 처리
+    }
+
+    // 더블클릭을 기다리는 타임아웃 설정
+    const timeout = setTimeout(() => {
+      handleCellEdit(employeeId, date);
+      setClickTimeout(null);
+    }, 300); // 300ms 대기
+
+    setClickTimeout(timeout);
+  };
+
   // 셀 편집 시작
   const handleCellEdit = (employeeId: string, date: Date) => {
     if (isLocked) {
@@ -387,11 +420,17 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   };
 
-  // 스케줄 삭제
+  // 스케줄 삭제 (더블클릭)
   const handleScheduleDelete = async (employeeId: string, date: Date) => {
     if (isLocked) {
       alert('급여 작업이 완료된 월은 수정할 수 없습니다.');
       return;
+    }
+
+    // 클릭 타임아웃 클리어
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+      setClickTimeout(null);
     }
 
     const existingSchedule = getScheduleForDate(employeeId, date);
@@ -745,7 +784,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                   지점직원
                 </th>
                 {weekDates.map((date, index) => (
-                  <th key={index} className="w-20 px-1 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th key={index} className="w-24 px-1 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {date.getDate()}({['일', '월', '화', '수', '목', '금', '토'][date.getDay()]})
                   </th>
                 ))}
@@ -764,7 +803,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                     const existingSchedule = getScheduleForDate(employee.id, date);
                     
                     return (
-                      <td key={index} className="w-20 px-1 py-2 text-center">
+                      <td key={index} className="w-24 px-1 py-2 text-center">
                         {isEditing ? (
                           <div className="space-y-1">
                             <input
@@ -775,7 +814,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                                 [inputKey]: e.target.value
                               }))}
                               onKeyDown={(e) => handleKeyDown(e, employee.id, date)}
-                              className="w-full max-w-16 px-1 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-full max-w-24 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                               placeholder="10-22(2)"
                               autoFocus
                             />
@@ -803,7 +842,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                               dragState.targetCell?.date.toDateString() === date.toDateString() 
                                 ? 'bg-yellow-200 border-2 border-yellow-400' : ''
                             }`}
-                            onClick={() => handleCellEdit(employee.id, date)}
+                            onClick={() => handleCellClick(employee.id, date)}
                             onDoubleClick={() => handleScheduleDelete(employee.id, date)}
                             onMouseDown={(e) => handleMouseDown(e, employee.id, date)}
                             onMouseEnter={() => handleMouseEnter(employee.id, date)}
