@@ -541,7 +541,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     });
   };
 
-  // Tab 키 이벤트 핸들러
+  // 키보드 이벤트 핸들러
   const handleKeyDown = (e: React.KeyboardEvent, employeeId: string, date: Date) => {
     if (e.key === 'Tab') {
       e.preventDefault();
@@ -554,6 +554,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       setTimeout(() => {
         handleCellEdit(nextCell.employeeId, nextCell.date);
       }, 100);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      // 현재 셀 저장
+      handleCellSave(employeeId, date);
     }
   };
 
@@ -766,7 +771,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           입력 예: 10-22(2) &quot;시작시간-종료시간(휴식시간)&quot; 형식으로 입력하세요.
         </p>
         <p className="text-sm text-blue-700 mt-1">
-          &bull; Tab: 다음 입력칸 이동 &bull; 드래그: 스케줄 이동 &bull; Ctrl+드래그: 스케줄 복사 &bull; 더블클릭: 스케줄 삭제
+          &bull; Enter: 저장 &bull; Tab: 다음 입력칸 이동 &bull; 드래그: 스케줄 이동 &bull; Ctrl+드래그: 스케줄 복사 &bull; 더블클릭: 스케줄 삭제
         </p>
       </div>
 
