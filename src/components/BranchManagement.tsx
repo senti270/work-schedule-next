@@ -9,8 +9,6 @@ interface Branch {
   name: string;
   address?: string;
   phone?: string;
-  manager?: string;
-  managerEmail?: string;
   ceoName?: string; // 대표자명
   businessNumber?: string; // 사업자등록번호
   companyName?: string; // 회사명
@@ -27,8 +25,6 @@ export default function BranchManagement() {
     name: '',
     address: '',
     phone: '',
-    manager: '',
-    managerEmail: '',
     ceoName: '',
     businessNumber: '',
     companyName: ''
@@ -51,8 +47,6 @@ export default function BranchManagement() {
           name: data.name || '',
           address: data.address || '',
           phone: data.phone || '',
-          manager: data.manager || '',
-          managerEmail: data.managerEmail || '',
           ceoName: data.ceoName || '',
           businessNumber: data.businessNumber || '',
           companyName: data.companyName || '',
@@ -130,8 +124,6 @@ export default function BranchManagement() {
           name: formData.name,
           address: formData.address || '',
           phone: formData.phone || '',
-          manager: formData.manager || '',
-          managerEmail: formData.managerEmail || '',
           ceoName: formData.ceoName || '',
           businessNumber: formData.businessNumber || '',
           companyName: formData.companyName || '',
@@ -150,8 +142,6 @@ export default function BranchManagement() {
         name: '',
         address: '',
         phone: '',
-        manager: '',
-        managerEmail: '',
         ceoName: '',
         businessNumber: '',
         companyName: ''
@@ -183,8 +173,6 @@ export default function BranchManagement() {
       name: branch.name || '',
       address: branch.address || '',
       phone: branch.phone || '',
-      manager: branch.manager || '',
-      managerEmail: branch.managerEmail || '',
       ceoName: branch.ceoName || '',
       businessNumber: branch.businessNumber || '',
       companyName: branch.companyName || ''
@@ -230,8 +218,6 @@ export default function BranchManagement() {
       name: '',
       address: '',
       phone: '',
-      manager: '',
-      managerEmail: '',
       ceoName: '',
       businessNumber: '',
       companyName: ''
@@ -300,31 +286,6 @@ export default function BranchManagement() {
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  매니저
-                </label>
-                <input
-                  type="text"
-                  value={formData.manager}
-                  onChange={(e) => setFormData({ ...formData, manager: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="매니저 이름"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  매니저 이메일
-                </label>
-                <input
-                  type="email"
-                  value={formData.managerEmail}
-                  onChange={(e) => setFormData({ ...formData, managerEmail: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="매니저 이메일"
-                />
-              </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -406,12 +367,6 @@ export default function BranchManagement() {
                   전화번호
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  매니저
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  매니저 이메일
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   작업
                 </th>
               </tr>
@@ -427,12 +382,6 @@ export default function BranchManagement() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {branch.phone || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {branch.manager || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {branch.managerEmail || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button

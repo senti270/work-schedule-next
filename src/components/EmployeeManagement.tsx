@@ -1097,7 +1097,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </button>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  아이디 / 전화번호
+                  전화번호 / 아이디
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   지점 / 고용형태
@@ -1131,8 +1131,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     <div className="space-y-1">
-                      <div>{employee.userId || '-'}</div>
-                      <div className="text-xs text-gray-400">{employee.phone || '-'}</div>
+                      <div>{employee.phone || '-'}</div>
+                      <div className="text-xs text-gray-400">{employee.userId || '-'}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
