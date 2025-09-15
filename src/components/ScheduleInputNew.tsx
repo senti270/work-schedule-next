@@ -22,10 +22,17 @@ interface Schedule {
 interface Employee {
   id: string;
   name: string;
-  branchId: string;
-  branchName: string;
   status?: 'active' | 'inactive';
   resignationDate?: Date;
+  branchNames?: string[]; // 소속 지점명들
+}
+
+interface EmployeeBranch {
+  id: string;
+  employeeId: string;
+  branchId: string;
+  branchName: string;
+  isActive: boolean;
 }
 
 interface Branch {
@@ -186,16 +193,68 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   const loadEmployees = useCallback(async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'employees'));
-      const employeesData = querySnapshot.docs.map(doc => {
+      // 모든 직원 로드
+      const employeesSnapshot = await getDocs(collection(db, 'employees'));
+      
+      // 직원-지점 관계 로드
+      const employeeBranchesSnapshot = await getDocs(collection(db, 'employeeBranches'));
+      
+      // 지점 목록 로드
+      const branchesSnapshot = await getDocs(collection(db, 'branches'));
+      const branchesMap = new Map();
+      branchesSnapshot.docs.forEach(doc => {
+        branchesMap.set(doc.id, doc.data().name);
+      });
+      
+      // 직원-지점 관계를 Map으로 변환
+      const employeeBranchesMap = new Map<string, EmployeeBranch[]>();
+      employeeBranchesSnapshot.docs.forEach(doc => {
         const data = doc.data();
-        return {
+        const employeeBranch: EmployeeBranch = {
           id: doc.id,
-          name: data.name,
+          employeeId: data.employeeId,
           branchId: data.branchId,
           branchName: data.branchName,
-          status: data.resignationDate ? 'inactive' : 'active',
-          resignationDate: data.resignationDate?.toDate ? data.resignationDate.toDate() : undefined
+          isActive: data.isActive !== false
+        };
+        
+        if (!employeeBranchesMap.has(employeeBranch.employeeId)) {
+          employeeBranchesMap.set(employeeBranch.employeeId, []);
+        }
+        employeeBranchesMap.get(employeeBranch.employeeId)!.push(employeeBranch);
+      });
+      
+      const employeesData = employeesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        const resignationDate = data.resignationDate?.toDate ? data.resignationDate.toDate() : undefined;
+        
+        // 직원의 지점명들 가져오기
+        const employeeBranchList = employeeBranchesMap.get(doc.id) || [];
+        let branchNames: string[] = [];
+        
+        if (employeeBranchList.length > 0) {
+          // 새로운 EmployeeBranch 관계가 있는 경우
+          branchNames = employeeBranchList
+            .filter(eb => eb.isActive)
+            .map(eb => eb.branchName);
+        } else {
+          // 기존 데이터 호환성 (branchId, branchName 사용)
+          if (data.branchId) {
+            const branchName = branchesMap.get(data.branchId);
+            if (branchName) {
+              branchNames = [branchName];
+            }
+          } else if (data.branchName) {
+            branchNames = [data.branchName];
+          }
+        }
+        
+        return {
+          id: doc.id,
+          name: data.name || '',
+          status: resignationDate ? 'inactive' : 'active',
+          resignationDate: resignationDate,
+          branchNames: branchNames
         };
       }) as Employee[];
       
@@ -204,14 +263,17 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       // 지점별 필터링
       const filteredEmployees = selectedBranchId 
-        ? activeEmployees.filter(emp => emp.branchId === selectedBranchId)
+        ? activeEmployees.filter(emp => {
+            const selectedBranch = branches.find(b => b.id === selectedBranchId);
+            return selectedBranch && emp.branchNames?.includes(selectedBranch.name);
+          })
         : activeEmployees;
-        
+      
       setEmployees(filteredEmployees);
     } catch (error) {
       console.error('직원 목록을 불러올 수 없습니다:', error);
     }
-  }, [selectedBranchId]);
+  }, [selectedBranchId, branches]);
 
   // 지점이 변경될 때 직원 목록 다시 로드
   useEffect(() => {
