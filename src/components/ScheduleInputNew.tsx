@@ -71,6 +71,13 @@ interface TutorialState {
   currentStep: number;
   steps: TutorialStep[];
   showOverlay: boolean;
+  // 미니 테이블 데이터
+  miniTableData: {
+    employees: Array<{id: string; name: string}>;
+    schedules: Array<{id: string; employeeId: string; date: string; startTime: string; endTime: string; breakTime: string}>;
+    inputs: {[key: string]: string};
+    editingCell: {employeeId: string, date: string} | null;
+  };
 }
 
 export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewProps) {
@@ -118,13 +125,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       {
         id: 'welcome',
         title: '스케줄 입력 튜토리얼에 오신 것을 환영합니다!',
-        description: '이 튜토리얼을 통해 스케줄 입력의 다양한 기능들을 익혀보세요.',
+        description: '아래 미니 테이블에서 실제로 기능들을 체험해보세요.',
         completed: false
       },
       {
         id: 'basic_input',
         title: '기본 입력 방법',
-        description: '셀을 클릭하여 스케줄을 입력해보세요. 예: 10-22(2)',
+        description: '아래 테이블의 빈 셀을 클릭하여 "10-22(2)"를 입력해보세요.',
         action: 'type',
         expectedValue: '10-22(2)',
         completed: false
@@ -132,7 +139,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       {
         id: 'tab_navigation',
         title: 'Tab 키로 이동하기',
-        description: 'Tab 키를 눌러 다음 입력 칸으로 이동해보세요.',
+        description: '입력 중인 셀에서 Tab 키를 눌러 다음 칸으로 이동해보세요.',
         action: 'keyboard',
         expectedValue: 'Tab',
         completed: false
@@ -140,7 +147,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       {
         id: 'enter_save',
         title: 'Enter 키로 저장하기',
-        description: 'Enter 키를 눌러 입력한 스케줄을 저장해보세요.',
+        description: '입력 중인 셀에서 Enter 키를 눌러 저장해보세요.',
         action: 'keyboard',
         expectedValue: 'Enter',
         completed: false
@@ -148,39 +155,44 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       {
         id: 'drag_move',
         title: '드래그로 스케줄 이동하기',
-        description: '스케줄이 있는 셀을 드래그하여 다른 셀로 이동해보세요.',
+        description: '아래 테이블에서 "09-18(1)" 스케줄을 드래그하여 다른 셀로 이동해보세요.',
         action: 'drag',
         completed: false
       },
       {
         id: 'ctrl_drag_copy',
         title: 'Ctrl+드래그로 스케줄 복사하기',
-        description: 'Ctrl 키를 누른 상태에서 드래그하여 스케줄을 복사해보세요.',
+        description: 'Ctrl 키를 누른 상태에서 스케줄을 드래그하여 복사해보세요.',
         action: 'drag',
         completed: false
       },
       {
         id: 'double_click_delete',
         title: '더블클릭으로 스케줄 삭제하기',
-        description: '스케줄이 있는 셀을 더블클릭하여 삭제해보세요.',
-        action: 'click',
-        completed: false
-      },
-      {
-        id: 'copy_previous_week',
-        title: '이전 주 데이터 복사하기',
-        description: '직원 이름 옆의 복사 아이콘을 클릭하여 이전 주 데이터를 복사해보세요.',
+        description: '아래 테이블의 "14-22(2)" 스케줄을 더블클릭하여 삭제해보세요.',
         action: 'click',
         completed: false
       },
       {
         id: 'complete',
         title: '튜토리얼 완료!',
-        description: '모든 기능을 익히셨습니다. 이제 스케줄 입력을 자유롭게 사용하세요!',
+        description: '모든 기능을 익히셨습니다. 이제 실제 스케줄 입력을 자유롭게 사용하세요!',
         completed: false
       }
     ],
-    showOverlay: false
+    showOverlay: false,
+    miniTableData: {
+      employees: [
+        { id: 'tutorial-emp1', name: '김직원' },
+        { id: 'tutorial-emp2', name: '이직원' }
+      ],
+      schedules: [
+        { id: 'tutorial-schedule1', employeeId: 'tutorial-emp1', date: '2024-01-01', startTime: '09:00', endTime: '18:00', breakTime: '1' },
+        { id: 'tutorial-schedule2', employeeId: 'tutorial-emp1', date: '2024-01-02', startTime: '14:00', endTime: '22:00', breakTime: '2' }
+      ],
+      inputs: {},
+      editingCell: null
+    }
   });
 
   useEffect(() => {
@@ -275,6 +287,103 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }));
   };
 
+  // 미니 테이블용 함수들
+  const getMiniScheduleForDate = (employeeId: string, date: string) => {
+    return tutorial.miniTableData.schedules.find(schedule => 
+      schedule.employeeId === employeeId && schedule.date === date
+    );
+  };
+
+  const handleMiniCellClick = (employeeId: string, date: string) => {
+    if (!tutorial.isActive) return;
+    
+    setTutorial(prev => ({
+      ...prev,
+      miniTableData: {
+        ...prev.miniTableData,
+        editingCell: { employeeId, date }
+      }
+    }));
+  };
+
+  const handleMiniCellSave = (employeeId: string, date: string) => {
+    const inputKey = `${employeeId}-${date}`;
+    const inputValue = tutorial.miniTableData.inputs[inputKey] || '';
+    
+    if (inputValue.trim()) {
+      // 스케줄 추가/수정
+      const parsed = parseScheduleInput(inputValue);
+      if (parsed) {
+        setTutorial(prev => {
+          const newSchedules = [...prev.miniTableData.schedules];
+          const existingIndex = newSchedules.findIndex(s => s.employeeId === employeeId && s.date === date);
+          
+          const newSchedule = {
+            id: `tutorial-schedule-${Date.now()}`,
+            employeeId,
+            date,
+            startTime: parsed.startTime,
+            endTime: parsed.endTime,
+            breakTime: parsed.breakTime
+          };
+          
+          if (existingIndex >= 0) {
+            newSchedules[existingIndex] = newSchedule;
+          } else {
+            newSchedules.push(newSchedule);
+          }
+          
+          return {
+            ...prev,
+            miniTableData: {
+              ...prev.miniTableData,
+              schedules: newSchedules,
+              editingCell: null,
+              inputs: { ...prev.miniTableData.inputs, [inputKey]: '' }
+            }
+          };
+        });
+        
+        // 튜토리얼 체크
+        checkTutorialAction('type', inputValue);
+      }
+    }
+    
+    setTutorial(prev => ({
+      ...prev,
+      miniTableData: {
+        ...prev.miniTableData,
+        editingCell: null
+      }
+    }));
+  };
+
+  const handleMiniKeyDown = (e: React.KeyboardEvent, employeeId: string, date: string) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      handleMiniCellSave(employeeId, date);
+      checkTutorialAction('keyboard', 'Tab');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleMiniCellSave(employeeId, date);
+      checkTutorialAction('keyboard', 'Enter');
+    }
+  };
+
+  const handleMiniDoubleClick = (employeeId: string, date: string) => {
+    setTutorial(prev => ({
+      ...prev,
+      miniTableData: {
+        ...prev.miniTableData,
+        schedules: prev.miniTableData.schedules.filter(s => 
+          !(s.employeeId === employeeId && s.date === date)
+        )
+      }
+    }));
+    
+    checkTutorialAction('double_click');
+  };
+
   const checkTutorialAction = (action: string, data?: string | { isCopyMode: boolean }) => {
     if (!tutorial.isActive) return;
     
@@ -311,11 +420,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         break;
       case 'double_click_delete':
         if (action === 'double_click') {
-          shouldComplete = true;
-        }
-        break;
-      case 'copy_previous_week':
-        if (action === 'copy_previous_week') {
           shouldComplete = true;
         }
         break;
@@ -1605,7 +1709,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       {/* 튜토리얼 모달 */}
       {tutorial.isActive && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1624,6 +1728,88 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
               <p className="text-gray-600 mb-6">
                 {tutorial.steps[tutorial.currentStep]?.description}
               </p>
+              
+              {/* 미니 스케줄 테이블 */}
+              <div className="mb-6 bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">체험용 스케줄 테이블</h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white rounded border">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-500 border-r">직원</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-500 border-r">월</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-500 border-r">화</th>
+                        <th className="px-3 py-2 text-xs font-medium text-gray-500">수</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tutorial.miniTableData.employees.map((employee) => (
+                        <tr key={employee.id}>
+                          <td className="px-3 py-2 text-xs font-medium text-gray-900 border-r border-b">
+                            {employee.name}
+                          </td>
+                          {['2024-01-01', '2024-01-02', '2024-01-03'].map((date) => {
+                            const existingSchedule = getMiniScheduleForDate(employee.id, date);
+                            const isEditing = tutorial.miniTableData.editingCell?.employeeId === employee.id && 
+                                            tutorial.miniTableData.editingCell?.date === date;
+                            const inputKey = `${employee.id}-${date}`;
+                            
+                            return (
+                              <td 
+                                key={date}
+                                className="px-2 py-1 text-xs border-r border-b min-w-[80px] h-8"
+                              >
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={tutorial.miniTableData.inputs[inputKey] || ''}
+                                    onChange={(e) => setTutorial(prev => ({
+                                      ...prev,
+                                      miniTableData: {
+                                        ...prev.miniTableData,
+                                        inputs: {
+                                          ...prev.miniTableData.inputs,
+                                          [inputKey]: e.target.value
+                                        }
+                                      }
+                                    }))}
+                                    onKeyDown={(e) => handleMiniKeyDown(e, employee.id, date)}
+                                    onBlur={() => handleMiniCellSave(employee.id, date)}
+                                    className="w-full text-xs px-1 py-0.5 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    placeholder="10-22(2)"
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <div
+                                    className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-blue-50 rounded"
+                                    onClick={() => handleMiniCellClick(employee.id, date)}
+                                    onDoubleClick={() => handleMiniDoubleClick(employee.id, date)}
+                                    title={existingSchedule ? 
+                                      `${existingSchedule.startTime}-${existingSchedule.endTime}(${existingSchedule.breakTime}) - 더블클릭: 삭제` : 
+                                      '클릭하여 입력'
+                                    }
+                                  >
+                                    {existingSchedule ? (
+                                      <span className="text-xs text-gray-700">
+                                        {existingSchedule.startTime}-{existingSchedule.endTime}({existingSchedule.breakTime})
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-gray-400">클릭</span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 text-xs text-gray-500">
+                  💡 팁: 셀을 클릭하여 입력하고, Tab/Enter로 저장하세요. 스케줄이 있는 셀을 더블클릭하면 삭제됩니다.
+                </div>
+              </div>
               
               {/* 진행률 표시 */}
               <div className="mb-6">
