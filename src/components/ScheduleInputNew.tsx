@@ -527,25 +527,39 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 스케줄 입력 파싱 함수
   const parseScheduleInput = (input: string) => {
+    console.log('=== 스케줄 파싱 시작 ===');
+    console.log('입력값:', input);
+    
     // 입력 형식: "10-22(2)" 또는 "18.5-23" -> 시작시간: 10 또는 18.5, 종료시간: 22 또는 23, 휴식시간: 2
     const match = input.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(?:\((\d+(?:\.\d+)?)\))?$/);
-    if (!match) return null;
+    if (!match) {
+      console.log('파싱 실패: 정규식 매치 안됨');
+      return null;
+    }
     
     const [, startTimeStr, endTimeStr, breakTime = '0'] = match;
+    console.log('파싱된 값:', { startTimeStr, endTimeStr, breakTime });
     
     // 소수점 시간을 시:분 형태로 변환
     const parseTime = (timeStr: string) => {
       const time = parseFloat(timeStr);
       const hours = Math.floor(time);
       const minutes = Math.round((time - hours) * 60);
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      const result = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      console.log(`시간 변환: ${timeStr} -> ${time} -> ${hours}시 ${minutes}분 -> ${result}`);
+      return result;
     };
     
-    return {
+    const result = {
       startTime: parseTime(startTimeStr),
       endTime: parseTime(endTimeStr),
       breakTime: breakTime
     };
+    
+    console.log('최종 파싱 결과:', result);
+    console.log('=== 스케줄 파싱 완료 ===');
+    
+    return result;
   };
 
   // 다음 셀 찾기 함수
@@ -776,14 +790,22 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 1주 집계 계산
   const calculateWeeklySummary = () => {
+    console.log('=== 주간 집계 계산 시작 ===');
     const weekDates = getWeekDates();
+    console.log('주간 날짜들:', weekDates.map(d => d.toDateString()));
+    
     const summary = employees.map(employee => {
-      const dailyHours = weekDates.map(date => {
+      console.log(`\n--- ${employee.name} 집계 계산 ---`);
+      const dailyHours = weekDates.map((date, index) => {
         const schedule = getScheduleForDate(employee.id, date);
-        return schedule ? schedule.totalHours : 0;
+        const hours = schedule ? schedule.totalHours : 0;
+        console.log(`${['월','화','수','목','금','토','일'][index]}요일 (${date.toDateString()}): ${hours}시간`, 
+          schedule ? `(${schedule.startTime}-${schedule.endTime}, 휴게${schedule.breakTime})` : '(스케줄 없음)');
+        return hours;
       });
       
       const totalHours = dailyHours.reduce((sum, hours) => sum + hours, 0);
+      console.log(`${employee.name} 총 근무시간: ${totalHours}시간`);
       
       return {
         employeeName: employee.name,
@@ -793,6 +815,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       };
     }).filter(emp => emp.totalHours > 0); // 총 근무시간이 0보다 큰 직원만 필터링
     
+    console.log('=== 주간 집계 계산 완료 ===');
     return summary;
   };
 
