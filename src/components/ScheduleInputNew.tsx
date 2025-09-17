@@ -146,6 +146,80 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     };
   }, [clickTimeout]);
 
+  // 시간 보정 함수
+  const checkAndFixTotalHours = async () => {
+    try {
+      console.log('=== 시간 보정 시작 ===');
+      
+      // 현재 로드된 스케줄에서 문제 있는 데이터 확인
+      const problems = schedules.filter(s => {
+        const timeToMinutes = (timeStr: string) => {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return hours * 60 + minutes;
+        };
+        
+        const startMinutes = timeToMinutes(s.startTime);
+        const endMinutes = timeToMinutes(s.endTime);
+        const breakMinutes = (parseFloat(s.breakTime) || 0) * 60;
+        const correctHours = (endMinutes - startMinutes - breakMinutes) / 60;
+        
+        return Math.abs(s.totalHours - correctHours) > 0.01;
+      });
+      
+      console.log('보정 필요한 스케줄:', problems.map(s => {
+        const timeToMinutes = (timeStr: string) => {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return hours * 60 + minutes;
+        };
+        const startMinutes = timeToMinutes(s.startTime);
+        const endMinutes = timeToMinutes(s.endTime);
+        const breakMinutes = (parseFloat(s.breakTime) || 0) * 60;
+        const correctHours = (endMinutes - startMinutes - breakMinutes) / 60;
+        
+        return {
+          employee: s.employeeName,
+          date: s.date.toDateString(),
+          schedule: `${s.startTime}-${s.endTime}(${s.breakTime})`,
+          현재값: s.totalHours,
+          정확한값: parseFloat(correctHours.toFixed(1))
+        };
+      }));
+      
+      if (problems.length === 0) {
+        alert('보정이 필요한 스케줄이 없습니다.');
+        return;
+      }
+      
+      const confirmMessage = `${problems.length}개의 스케줄에서 시간 계산 오류가 발견되었습니다.\n\n보정하시겠습니까?`;
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+      
+      // 데이터베이스 업데이트
+      let updatedCount = 0;
+      for (const schedule of problems) {
+        const correctHours = calculateTotalHours(schedule.startTime, schedule.endTime, schedule.breakTime);
+        
+        await updateDoc(doc(db, 'schedules', schedule.id), {
+          totalHours: correctHours,
+          updatedAt: new Date()
+        });
+        
+        console.log(`보정 완료: ${schedule.employeeName} ${schedule.date.toDateString()} ${schedule.totalHours} -> ${correctHours}`);
+        updatedCount++;
+      }
+      
+      // 스케줄 다시 로드
+      await loadSchedules();
+      
+      alert(`시간 보정이 완료되었습니다.\n${updatedCount}개 스케줄이 업데이트되었습니다.`);
+      console.log('=== 시간 보정 완료 ===');
+      
+    } catch (error) {
+      console.error('시간 보정 중 오류:', error);
+      alert('시간 보정 중 오류가 발생했습니다.');
+    }
+  };
 
   // 공유 기능
   const handleShare = async () => {
@@ -1166,6 +1240,15 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           스케줄 입력 (새 형식)
         </h3>
         <div className="flex items-center space-x-3">
+          <button
+            onClick={checkAndFixTotalHours}
+            className="flex items-center space-x-2 px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 font-medium text-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>시간 보정</span>
+          </button>
           <button
             onClick={handleShare}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
