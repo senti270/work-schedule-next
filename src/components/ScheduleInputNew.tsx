@@ -510,6 +510,18 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     const totalMinutes = endMinutes - startMinutes - breakMinutes;
     const totalHours = totalMinutes / 60; // 분을 시간으로 변환
     
+    // 디버깅용 로그
+    console.log('시간 계산:', {
+      startTime,
+      endTime,
+      breakTime,
+      startMinutes,
+      endMinutes,
+      breakMinutes,
+      totalMinutes,
+      totalHours
+    });
+    
     return Math.max(0, totalHours);
   };
 
@@ -821,6 +833,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const previousWeekStart = new Date(currentWeekStart);
       previousWeekStart.setDate(previousWeekStart.getDate() - 7);
       
+      console.log('복사 디버깅:', {
+        currentWeekStart: currentWeekStart.toDateString(),
+        previousWeekStart: previousWeekStart.toDateString(),
+        employeeId,
+        selectedBranchId
+      });
+      
       // 이전 주의 스케줄 데이터 가져오기 (해당 지점만)
       const previousWeekSchedules = schedules.filter(schedule => {
         const scheduleDate = schedule.date;
@@ -828,10 +847,20 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         const weekEnd = new Date(previousWeekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
         
-        return schedule.employeeId === employeeId && 
+        const isMatch = schedule.employeeId === employeeId && 
                schedule.branchId === selectedBranchId && // 해당 지점만
                scheduleDate >= weekStart && 
                scheduleDate <= weekEnd;
+               
+        if (isMatch) {
+          console.log('이전 주 스케줄 발견:', {
+            date: scheduleDate.toDateString(),
+            dayOfWeek: scheduleDate.getDay(),
+            schedule: `${schedule.startTime}-${schedule.endTime}(${schedule.breakTime})`
+          });
+        }
+        
+        return isMatch;
       });
 
       if (previousWeekSchedules.length === 0) {
