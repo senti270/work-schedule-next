@@ -894,24 +894,30 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       // 이전 주의 스케줄 데이터 가져오기 (해당 지점만)
       const previousWeekSchedules = schedules.filter(schedule => {
-        const scheduleDate = schedule.date;
+        const scheduleDate = new Date(schedule.date);
         const weekStart = new Date(previousWeekStart);
         const weekEnd = new Date(previousWeekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
+        
+        // 날짜만 비교하기 위해 시간 부분 제거
+        const scheduleDateOnly = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), scheduleDate.getDate());
+        const weekStartOnly = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
+        const weekEndOnly = new Date(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate());
+        
+        const isInRange = scheduleDateOnly >= weekStartOnly && scheduleDateOnly <= weekEndOnly;
         
         console.log('날짜 범위 확인:', {
           scheduleDate: scheduleDate.toDateString(),
           weekStart: weekStart.toDateString(),
           weekEnd: weekEnd.toDateString(),
-          isInRange: scheduleDate >= weekStart && scheduleDate <= weekEnd,
+          isInRange: isInRange,
           employeeMatch: schedule.employeeId === employeeId,
           branchMatch: schedule.branchId === selectedBranchId
         });
         
         const isMatch = schedule.employeeId === employeeId && 
                schedule.branchId === selectedBranchId && // 해당 지점만
-               scheduleDate >= weekStart && 
-               scheduleDate <= weekEnd;
+               isInRange;
                
         if (isMatch) {
           console.log('이전 주 스케줄 발견:', {
