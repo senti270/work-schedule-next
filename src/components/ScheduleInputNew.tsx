@@ -1210,7 +1210,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     return summary;
   };
 
-  // 이전 주 데이터가 있는지 확인하는 함수
+  // 이전 주 데이터가 있는지 확인하는 함수 (해당 지점만)
   const hasPreviousWeekData = (employeeId: string) => {
     const previousWeekStart = new Date(currentWeekStart);
     previousWeekStart.setDate(previousWeekStart.getDate() - 7);
@@ -1222,6 +1222,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       weekEnd.setDate(weekEnd.getDate() + 6);
       
       return schedule.employeeId === employeeId && 
+             schedule.branchId === selectedBranchId && // 해당 지점만 확인
              scheduleDate >= weekStart && 
              scheduleDate <= weekEnd;
     });
@@ -1246,7 +1247,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const previousWeekStart = new Date(currentWeekStart);
       previousWeekStart.setDate(previousWeekStart.getDate() - 7);
       
-      // 이전 주의 스케줄 데이터 가져오기
+      // 이전 주의 스케줄 데이터 가져오기 (해당 지점만)
       const previousWeekSchedules = schedules.filter(schedule => {
         const scheduleDate = schedule.date;
         const weekStart = new Date(previousWeekStart);
@@ -1254,6 +1255,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         weekEnd.setDate(weekEnd.getDate() + 6);
         
         return schedule.employeeId === employeeId && 
+               schedule.branchId === selectedBranchId && // 해당 지점만
                scheduleDate >= weekStart && 
                scheduleDate <= weekEnd;
       });
@@ -1263,7 +1265,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         return;
       }
 
-      // 현재 주의 기존 스케줄 삭제
+      // 현재 주의 기존 스케줄 삭제 (해당 지점만)
       const currentWeekSchedules = schedules.filter(schedule => {
         const scheduleDate = schedule.date;
         const weekStart = new Date(currentWeekStart);
@@ -1271,6 +1273,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         weekEnd.setDate(weekEnd.getDate() + 6);
         
         return schedule.employeeId === employeeId && 
+               schedule.branchId === selectedBranchId && // 해당 지점만
                scheduleDate >= weekStart && 
                scheduleDate <= weekEnd;
       });
