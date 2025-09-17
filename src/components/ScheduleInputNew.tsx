@@ -840,6 +840,25 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         selectedBranchId
       });
       
+      // 해당 직원의 이전 주 모든 스케줄 확인 (지점 무관)
+      const allPreviousWeekSchedules = schedules.filter(schedule => {
+        const scheduleDate = schedule.date;
+        const weekStart = new Date(previousWeekStart);
+        const weekEnd = new Date(previousWeekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        
+        return schedule.employeeId === employeeId && 
+               scheduleDate >= weekStart && 
+               scheduleDate <= weekEnd;
+      });
+      
+      console.log('이전 주 전체 스케줄 (지점 무관):', allPreviousWeekSchedules.map(s => ({
+        date: s.date.toDateString(),
+        dayOfWeek: s.date.getDay(),
+        branchId: s.branchId,
+        schedule: `${s.startTime}-${s.endTime}(${s.breakTime})`
+      })));
+      
       // 이전 주의 스케줄 데이터 가져오기 (해당 지점만)
       const previousWeekSchedules = schedules.filter(schedule => {
         const scheduleDate = schedule.date;
