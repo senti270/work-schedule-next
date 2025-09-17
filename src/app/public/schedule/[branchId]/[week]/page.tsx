@@ -337,6 +337,192 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
           </div>
         </div>
 
+        {/* 사람별 주간 집계 */}
+        {weeklySummaries.length > 0 && (
+          <div className="mt-6 bg-white shadow rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">사람별 주간 집계</h3>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      이름
+                    </th>
+                    {DAYS_OF_WEEK.map((day) => (
+                      <th key={day.key} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {day.label}
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      총계
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {weeklySummaries.map((summary, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
+                        {summary.employeeName}
+                      </td>
+                      {DAYS_OF_WEEK.map((day, dayIndex) => {
+                        const hours = summary.dailyHours[day.key] || 0;
+                        return (
+                          <td key={dayIndex} className="px-2 py-3 text-center text-sm text-gray-900">
+                            {hours > 0 ? hours.toFixed(1) : '-'}
+                          </td>
+                        );
+                      })}
+                      <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
+                        {summary.totalHours.toFixed(1)}
+                      </td>
+                    </tr>
+                  ))}
+                  {/* 합계 행 */}
+                  <tr className="bg-gray-50 border-t-2 border-gray-300">
+                    <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">
+                      합계
+                    </td>
+                    {DAYS_OF_WEEK.map((day, dayIndex) => {
+                      const dayTotal = weeklySummaries.reduce((sum, summary) => sum + (summary.dailyHours[day.key] || 0), 0);
+                      return (
+                        <td key={dayIndex} className="px-2 py-3 text-center text-sm font-bold text-gray-900">
+                          {dayTotal > 0 ? dayTotal.toFixed(1) : '-'}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-center text-sm font-bold text-gray-900">
+                      {weeklySummaries.reduce((sum, summary) => sum + summary.totalHours, 0).toFixed(1)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* 시간대별 근무 인원 현황 */}
+        {weeklySummaries.length > 0 && (
+          <div className="mt-6 bg-white shadow rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">시간대별 근무 인원 현황</h3>
+              <p className="text-sm text-gray-600 mt-1">특정 시간대에 몇 명이 근무하는지 확인할 수 있습니다</p>
+            </div>
+            <div className="p-6">
+              {(() => {
+                const timeSlots = [];
+                
+                // 9시부터 23시까지 1시간 단위로 시간대 생성
+                for (let hour = 9; hour <= 23; hour++) {
+                  timeSlots.push(hour);
+                }
+                
+                // 각 시간대별로 근무 인원 계산
+                const hourlyData = timeSlots.map(hour => {
+                  const dayData = weekDates.map(date => {
+                    const workingEmployees = schedules.filter(schedule => {
+                      const scheduleDate = schedule.date;
+                      const isSameDate = scheduleDate.toDateString() === date.toDateString();
+                      
+                      if (!isSameDate) return false;
+                      
+                      // 시작시간과 종료시간을 숫자로 변환
+                      const startHour = parseFloat(schedule.startTime.split(':')[0]) + 
+                                      (parseFloat(schedule.startTime.split(':')[1]) / 60);
+                      const endHour = parseFloat(schedule.endTime.split(':')[0]) + 
+                                    (parseFloat(schedule.endTime.split(':')[1]) / 60);
+                      
+                      // 해당 시간대에 근무하는지 확인
+                      return startHour <= hour && endHour > hour;
+                    });
+                    
+                    return workingEmployees.length;
+                  });
+                  
+                  return { hour, dayData };
+                });
+                
+                return (
+                  <div className="space-y-4">
+                    {/* 요일 헤더 */}
+                    <div className="flex">
+                      <div className="w-16 text-sm font-medium text-gray-700 text-center">시간</div>
+                      {weekDates.map((date, index) => (
+                        <div key={index} className="flex-1 text-center">
+                          <div className="text-sm font-medium text-gray-700">
+                            {date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {['월', '화', '수', '목', '금', '토', '일'][index]}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* 시간대별 히트맵 */}
+                    <div className="space-y-1">
+                      {hourlyData.map(({ hour, dayData }) => (
+                        <div key={hour} className="flex items-center">
+                          <div className="w-16 text-sm font-medium text-gray-700 text-center">
+                            {hour}:00
+                          </div>
+                          {dayData.map((count, dayIndex) => {
+                            const bgColor = count === 0 ? 'bg-gray-100' :
+                                          count === 1 ? 'bg-green-200' :
+                                          count === 2 ? 'bg-green-400' :
+                                          count === 3 ? 'bg-yellow-400' :
+                                          count >= 4 ? 'bg-red-400' : 'bg-gray-200';
+                            
+                            return (
+                              <div 
+                                key={dayIndex} 
+                                className={`flex-1 h-8 border border-gray-200 flex items-center justify-center text-xs font-medium transition-all duration-200 ${bgColor}`}
+                                title={`${weekDates[dayIndex].toLocaleDateString('ko-KR')} ${hour}:00 - ${count}명 근무`}
+                              >
+                                {count > 0 && (
+                                  <span className={`${count >= 4 ? 'text-white' : 'text-gray-800'}`}>
+                                    {count}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* 범례 */}
+                    <div className="mt-6 flex justify-center space-x-6 text-sm">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 bg-gray-100 border border-gray-200 rounded"></div>
+                        <span className="text-gray-600">0명</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 bg-green-200 rounded"></div>
+                        <span className="text-gray-600">1명</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 bg-green-400 rounded"></div>
+                        <span className="text-gray-600">2명</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 bg-yellow-400 rounded"></div>
+                        <span className="text-gray-600">3명</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 bg-red-400 rounded"></div>
+                        <span className="text-gray-600">4명 이상</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
         {/* 푸터 */}
         <div className="mt-6 text-center text-sm text-gray-500">
           <p>이 페이지는 읽기 전용입니다. 스케줄 수정은 관리자에게 문의하세요.</p>
