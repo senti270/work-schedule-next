@@ -56,36 +56,6 @@ interface ScheduleInputNewProps {
   selectedBranchId?: string;
 }
 
-interface TutorialStep {
-  id: string;
-  title: string;
-  description: string;
-  targetSelector?: string;
-  action?: 'click' | 'type' | 'drag' | 'keyboard';
-  expectedValue?: string;
-  completed: boolean;
-}
-
-interface TutorialState {
-  isActive: boolean;
-  currentStep: number;
-  steps: TutorialStep[];
-  showOverlay: boolean;
-  // 미니 테이블 데이터
-  miniTableData: {
-    employees: Array<{id: string; name: string}>;
-    schedules: Array<{id: string; employeeId: string; date: string; startTime: string; endTime: string; breakTime: string}>;
-    inputs: {[key: string]: string};
-    editingCell: {employeeId: string, date: string} | null;
-    // 드래그 상태
-    dragState: {
-      isDragging: boolean;
-      sourceCell: {employeeId: string, date: string} | null;
-      targetCell: {employeeId: string, date: string} | null;
-      isCopyMode: boolean;
-    };
-  };
-}
 
 export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -124,89 +94,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     isCopyMode: false
   });
 
-  // 튜토리얼 상태
-  const [tutorial, setTutorial] = useState<TutorialState>({
-    isActive: false,
-    currentStep: 0,
-    steps: [
-      {
-        id: 'welcome',
-        title: '스케줄 입력 튜토리얼에 오신 것을 환영합니다!',
-        description: '아래 미니 테이블에서 실제로 기능들을 체험해보세요.',
-        completed: false
-      },
-      {
-        id: 'basic_input',
-        title: '기본 입력 방법',
-        description: '아래 테이블의 빈 셀을 클릭하여 "10-22(2)"를 입력해보세요.',
-        action: 'type',
-        expectedValue: '10-22(2)',
-        completed: false
-      },
-      {
-        id: 'tab_navigation',
-        title: 'Tab 키로 이동하기',
-        description: '입력 중인 셀에서 Tab 키를 눌러 다음 칸으로 이동해보세요.',
-        action: 'keyboard',
-        expectedValue: 'Tab',
-        completed: false
-      },
-      {
-        id: 'enter_save',
-        title: 'Enter 키로 저장하기',
-        description: '입력 중인 셀에서 Enter 키를 눌러 저장해보세요.',
-        action: 'keyboard',
-        expectedValue: 'Enter',
-        completed: false
-      },
-      {
-        id: 'drag_move',
-        title: '드래그로 스케줄 이동하기',
-        description: '아래 테이블에서 "09-18(1)" 스케줄을 드래그하여 다른 셀로 이동해보세요.',
-        action: 'drag',
-        completed: false
-      },
-      {
-        id: 'ctrl_drag_copy',
-        title: 'Ctrl+드래그로 스케줄 복사하기',
-        description: 'Ctrl 키를 누른 상태에서 스케줄을 드래그하여 복사해보세요.',
-        action: 'drag',
-        completed: false
-      },
-      {
-        id: 'double_click_delete',
-        title: '더블클릭으로 스케줄 삭제하기',
-        description: '아래 테이블의 "14-22(2)" 스케줄을 더블클릭하여 삭제해보세요.',
-        action: 'click',
-        completed: false
-      },
-      {
-        id: 'complete',
-        title: '튜토리얼 완료!',
-        description: '모든 기능을 익히셨습니다. 이제 실제 스케줄 입력을 자유롭게 사용하세요!',
-        completed: false
-      }
-    ],
-    showOverlay: false,
-    miniTableData: {
-      employees: [
-        { id: 'tutorial-emp1', name: '김직원' },
-        { id: 'tutorial-emp2', name: '이직원' }
-      ],
-      schedules: [
-        { id: 'tutorial-schedule1', employeeId: 'tutorial-emp1', date: '2024-01-01', startTime: '09:00', endTime: '18:00', breakTime: '1' },
-        { id: 'tutorial-schedule2', employeeId: 'tutorial-emp1', date: '2024-01-02', startTime: '14:00', endTime: '22:00', breakTime: '2' }
-      ],
-      inputs: {},
-      editingCell: null,
-      dragState: {
-        isDragging: false,
-        sourceCell: null,
-        targetCell: null,
-        isCopyMode: false
-      }
-    }
-  });
 
   useEffect(() => {
     loadData();
@@ -259,317 +146,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     };
   }, [clickTimeout]);
 
-  // 튜토리얼 관련 함수들
-  const startTutorial = () => {
-    setTutorial(prev => ({
-      ...prev,
-      isActive: true,
-      currentStep: 0,
-      showOverlay: true
-    }));
-  };
-
-  const nextTutorialStep = () => {
-    setTutorial(prev => {
-      const newSteps = [...prev.steps];
-      newSteps[prev.currentStep].completed = true;
-      
-      if (prev.currentStep < prev.steps.length - 1) {
-        return {
-          ...prev,
-          currentStep: prev.currentStep + 1,
-          steps: newSteps
-        };
-      } else {
-        // 튜토리얼 완료
-        return {
-          ...prev,
-          isActive: false,
-          showOverlay: false,
-          steps: newSteps
-        };
-      }
-    });
-  };
-
-  const skipTutorial = () => {
-    setTutorial(prev => ({
-      ...prev,
-      isActive: false,
-      showOverlay: false
-    }));
-  };
-
-  // 미니 테이블용 함수들
-  const getMiniScheduleForDate = (employeeId: string, date: string) => {
-    return tutorial.miniTableData.schedules.find(schedule => 
-      schedule.employeeId === employeeId && schedule.date === date
-    );
-  };
-
-  const handleMiniCellClick = (employeeId: string, date: string) => {
-    if (!tutorial.isActive) return;
-    
-    setTutorial(prev => ({
-      ...prev,
-      miniTableData: {
-        ...prev.miniTableData,
-        editingCell: { employeeId, date }
-      }
-    }));
-  };
-
-  const handleMiniCellSave = (employeeId: string, date: string) => {
-    const inputKey = `${employeeId}-${date}`;
-    const inputValue = tutorial.miniTableData.inputs[inputKey] || '';
-    
-    if (inputValue.trim()) {
-      // 스케줄 추가/수정
-      const parsed = parseScheduleInput(inputValue);
-      if (parsed) {
-        setTutorial(prev => {
-          const newSchedules = [...prev.miniTableData.schedules];
-          const existingIndex = newSchedules.findIndex(s => s.employeeId === employeeId && s.date === date);
-          
-          const newSchedule = {
-            id: `tutorial-schedule-${Date.now()}`,
-            employeeId,
-            date,
-            startTime: parsed.startTime,
-            endTime: parsed.endTime,
-            breakTime: parsed.breakTime
-          };
-          
-          if (existingIndex >= 0) {
-            newSchedules[existingIndex] = newSchedule;
-          } else {
-            newSchedules.push(newSchedule);
-          }
-          
-          return {
-            ...prev,
-            miniTableData: {
-              ...prev.miniTableData,
-              schedules: newSchedules,
-              editingCell: null,
-              inputs: { ...prev.miniTableData.inputs, [inputKey]: '' }
-            }
-          };
-        });
-        
-        // 튜토리얼 체크
-        checkTutorialAction('type', inputValue);
-      }
-    }
-    
-    setTutorial(prev => ({
-      ...prev,
-      miniTableData: {
-        ...prev.miniTableData,
-        editingCell: null
-      }
-    }));
-  };
-
-  const handleMiniKeyDown = (e: React.KeyboardEvent, employeeId: string, date: string) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      handleMiniCellSave(employeeId, date);
-      checkTutorialAction('keyboard', 'Tab');
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      handleMiniCellSave(employeeId, date);
-      checkTutorialAction('keyboard', 'Enter');
-    }
-  };
-
-  const handleMiniDoubleClick = (employeeId: string, date: string) => {
-    setTutorial(prev => ({
-      ...prev,
-      miniTableData: {
-        ...prev.miniTableData,
-        schedules: prev.miniTableData.schedules.filter(s => 
-          !(s.employeeId === employeeId && s.date === date)
-        )
-      }
-    }));
-    
-    checkTutorialAction('double_click');
-  };
-
-  // 미니 테이블 드래그 함수들
-  const handleMiniMouseDown = (e: React.MouseEvent, employeeId: string, date: string) => {
-    const existingSchedule = getMiniScheduleForDate(employeeId, date);
-    if (!existingSchedule) return; // 스케줄이 없으면 드래그 불가
-    
-    const isCopyMode = e.ctrlKey;
-    
-    setTutorial(prev => ({
-      ...prev,
-      miniTableData: {
-        ...prev.miniTableData,
-        dragState: {
-          isDragging: true,
-          sourceCell: { employeeId, date },
-          targetCell: null,
-          isCopyMode
-        }
-      }
-    }));
-  };
-
-  const handleMiniDragOver = (e: React.MouseEvent, employeeId: string, date: string) => {
-    if (!tutorial.miniTableData.dragState.isDragging) return;
-    
-    setTutorial(prev => ({
-      ...prev,
-      miniTableData: {
-        ...prev.miniTableData,
-        dragState: {
-          ...prev.miniTableData.dragState,
-          targetCell: { employeeId, date }
-        }
-      }
-    }));
-  };
-
-  const handleMiniMouseUp = () => {
-    const { dragState } = tutorial.miniTableData;
-    
-    if (!dragState.isDragging || !dragState.sourceCell || !dragState.targetCell) {
-      setTutorial(prev => ({
-        ...prev,
-        miniTableData: {
-          ...prev.miniTableData,
-          dragState: {
-            isDragging: false,
-            sourceCell: null,
-            targetCell: null,
-            isCopyMode: false
-          }
-        }
-      }));
-      return;
-    }
-
-    const { sourceCell, targetCell, isCopyMode } = dragState;
-    
-    // 같은 셀이면 무시
-    if (sourceCell.employeeId === targetCell.employeeId && sourceCell.date === targetCell.date) {
-      setTutorial(prev => ({
-        ...prev,
-        miniTableData: {
-          ...prev.miniTableData,
-          dragState: {
-            isDragging: false,
-            sourceCell: null,
-            targetCell: null,
-            isCopyMode: false
-          }
-        }
-      }));
-      return;
-    }
-
-    const sourceSchedule = getMiniScheduleForDate(sourceCell.employeeId, sourceCell.date);
-    if (!sourceSchedule) return;
-
-    setTutorial(prev => {
-      let newSchedules = [...prev.miniTableData.schedules];
-      
-      // 대상 셀에 스케줄 추가/수정
-      const existingTargetIndex = newSchedules.findIndex(s => 
-        s.employeeId === targetCell.employeeId && s.date === targetCell.date
-      );
-      
-      const newSchedule = {
-        id: `tutorial-schedule-${Date.now()}`,
-        employeeId: targetCell.employeeId,
-        date: targetCell.date,
-        startTime: sourceSchedule.startTime,
-        endTime: sourceSchedule.endTime,
-        breakTime: sourceSchedule.breakTime
-      };
-      
-      if (existingTargetIndex >= 0) {
-        newSchedules[existingTargetIndex] = newSchedule;
-      } else {
-        newSchedules.push(newSchedule);
-      }
-      
-      // 복사 모드가 아니면 원본 삭제
-      if (!isCopyMode) {
-        newSchedules = newSchedules.filter(s => 
-          !(s.employeeId === sourceCell.employeeId && s.date === sourceCell.date && s.id === sourceSchedule.id)
-        );
-      }
-      
-      return {
-        ...prev,
-        miniTableData: {
-          ...prev.miniTableData,
-          schedules: newSchedules,
-          dragState: {
-            isDragging: false,
-            sourceCell: null,
-            targetCell: null,
-            isCopyMode: false
-          }
-        }
-      };
-    });
-    
-    // 튜토리얼 체크
-    checkTutorialAction('drag', { isCopyMode });
-  };
-
-  const checkTutorialAction = (action: string, data?: string | { isCopyMode: boolean }) => {
-    if (!tutorial.isActive) return;
-    
-    const currentStep = tutorial.steps[tutorial.currentStep];
-    if (!currentStep) return;
-
-    let shouldComplete = false;
-
-    switch (currentStep.id) {
-      case 'basic_input':
-        if (action === 'type' && typeof data === 'string' && data.includes('10-22(2)')) {
-          shouldComplete = true;
-        }
-        break;
-      case 'tab_navigation':
-        if (action === 'keyboard' && data === 'Tab') {
-          shouldComplete = true;
-        }
-        break;
-      case 'enter_save':
-        if (action === 'keyboard' && data === 'Enter') {
-          shouldComplete = true;
-        }
-        break;
-      case 'drag_move':
-        if (action === 'drag' && data && typeof data === 'object' && !data.isCopyMode) {
-          shouldComplete = true;
-        }
-        break;
-      case 'ctrl_drag_copy':
-        if (action === 'drag' && data && typeof data === 'object' && data.isCopyMode) {
-          shouldComplete = true;
-        }
-        break;
-      case 'double_click_delete':
-        if (action === 'double_click') {
-          shouldComplete = true;
-        }
-        break;
-    }
-
-    if (shouldComplete) {
-      setTimeout(() => {
-        nextTutorialStep();
-      }, 1000);
-    }
-  };
 
   // 공유 기능
   const handleShare = async () => {
@@ -917,15 +493,23 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     return { hasOverlap: false };
   };
 
-  // 시간 계산 함수
+  // 시간 계산 함수 (정확한 시간 계산)
   const calculateTotalHours = (startTime: string, endTime: string, breakTime: string) => {
     if (!startTime || !endTime) return 0;
     
-    const startHour = parseInt(startTime.split(':')[0]);
-    const endHour = parseInt(endTime.split(':')[0]);
-    const breakHours = parseFloat(breakTime) || 0;
+    // 시간을 분 단위로 변환
+    const timeToMinutes = (timeStr: string) => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
     
-    const totalHours = endHour - startHour - breakHours;
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+    const breakMinutes = (parseFloat(breakTime) || 0) * 60; // 휴게시간은 시간 단위로 입력되므로 분으로 변환
+    
+    const totalMinutes = endMinutes - startMinutes - breakMinutes;
+    const totalHours = totalMinutes / 60; // 분을 시간으로 변환
+    
     return Math.max(0, totalHours);
   };
 
@@ -1047,9 +631,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     try {
       await deleteDoc(doc(db, 'schedules', existingSchedule.id));
       await loadSchedules();
-      
-      // 튜토리얼 체크
-      checkTutorialAction('double_click');
     } catch (error) {
       console.error('스케줄 삭제 오류:', error);
       alert('스케줄 삭제 중 오류가 발생했습니다.');
@@ -1127,9 +708,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
               });
             }
             await loadSchedules();
-            
-            // 튜토리얼 체크
-            checkTutorialAction('type', inputValue);
           } catch (error) {
             console.error('스케줄 저장 오류:', error);
             alert('스케줄 저장 중 오류가 발생했습니다.');
@@ -1166,8 +744,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     if (e.key === 'Tab') {
       e.preventDefault();
       
-      // 튜토리얼 체크
-      checkTutorialAction('keyboard', 'Tab');
       
       // 현재 셀 저장
       handleCellSave(employeeId, date);
@@ -1180,8 +756,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     } else if (e.key === 'Enter') {
       e.preventDefault();
       
-      // 튜토리얼 체크
-      checkTutorialAction('keyboard', 'Enter');
       
       // 현재 셀 저장
       handleCellSave(employeeId, date);
@@ -1322,9 +896,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       // 스케줄 다시 로드
       await loadSchedules();
       
-      // 튜토리얼 체크
-      checkTutorialAction('copy_previous_week');
-      
     } catch (error) {
       console.error('이전 주 데이터 복사 중 오류:', error);
       alert('데이터 복사 중 오류가 발생했습니다.');
@@ -1464,9 +1035,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         }
 
         await loadSchedules();
-        
-        // 튜토리얼 체크
-        checkTutorialAction('drag', { isCopyMode });
       } catch (error) {
         console.error('드래그 작업 오류:', error);
         alert('드래그 작업 중 오류가 발생했습니다.');
@@ -1500,15 +1068,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           스케줄 입력 (새 형식)
         </h3>
         <div className="flex items-center space-x-3">
-          <button
-            onClick={startTutorial}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-            <span>튜토리얼</span>
-          </button>
           <button
             onClick={handleShare}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
@@ -1560,12 +1119,35 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         </p>
         
         <h4 className="text-sm font-medium text-blue-800 mb-2 mt-3">입력 방법 안내</h4>
-        <p className="text-sm text-blue-700">
-          &bull; Enter: 저장 &bull; Tab: 다음 입력칸 이동 &bull; 드래그: 스케줄 이동 &bull; Ctrl+드래그: 스케줄 복사 &bull; 더블클릭: 스케줄 삭제
-        </p>
-        <p className="text-sm text-blue-700">
-          &bull; 이름 옆 아이콘 클릭시 이전 주 데이터 복사
-        </p>
+        <div className="flex flex-wrap gap-2 text-sm text-blue-700">
+          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+            <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">Enter</kbd>
+            <span className="ml-1">저장</span>
+          </span>
+          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+            <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">Tab</kbd>
+            <span className="ml-1">다음 입력칸 이동</span>
+          </span>
+          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+            <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">드래그</span>
+            <span className="ml-1">스케줄 이동</span>
+          </span>
+          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+            <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+드래그</span>
+            <span className="ml-1">스케줄 복사</span>
+          </span>
+          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+            <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">더블클릭</span>
+            <span className="ml-1">스케줄 삭제</span>
+          </span>
+          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+              <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+            </svg>
+            <span>이전 주 데이터 복사</span>
+          </span>
+        </div>
       </div>
 
       {/* 스케줄 입력 테이블 */}
@@ -1927,184 +1509,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         </div>
       )}
 
-      {/* 튜토리얼 모달 */}
-      {tutorial.isActive && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {tutorial.steps[tutorial.currentStep]?.title}
-                </h3>
-                <button
-                  onClick={skipTutorial}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <p className="text-gray-600 mb-6">
-                {tutorial.steps[tutorial.currentStep]?.description}
-              </p>
-              
-              {/* 미니 스케줄 테이블 */}
-              <div className="mb-6 bg-gray-50 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">체험용 스케줄 테이블</h4>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full bg-white rounded border">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-3 py-2 text-xs font-medium text-gray-500 border-r">직원</th>
-                        <th className="px-3 py-2 text-xs font-medium text-gray-500 border-r">월</th>
-                        <th className="px-3 py-2 text-xs font-medium text-gray-500 border-r">화</th>
-                        <th className="px-3 py-2 text-xs font-medium text-gray-500">수</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tutorial.miniTableData.employees.map((employee) => (
-                        <tr key={employee.id}>
-                          <td className="px-3 py-2 text-xs font-medium text-gray-900 border-r border-b">
-                            {employee.name}
-                          </td>
-                          {['2024-01-01', '2024-01-02', '2024-01-03'].map((date) => {
-                            const existingSchedule = getMiniScheduleForDate(employee.id, date);
-                            const isEditing = tutorial.miniTableData.editingCell?.employeeId === employee.id && 
-                                            tutorial.miniTableData.editingCell?.date === date;
-                            const inputKey = `${employee.id}-${date}`;
-                            
-                            return (
-                              <td 
-                                key={date}
-                                className="px-2 py-1 text-xs border-r border-b min-w-[80px] h-8"
-                              >
-                                {isEditing ? (
-                                  <input
-                                    type="text"
-                                    value={tutorial.miniTableData.inputs[inputKey] || ''}
-                                    onChange={(e) => setTutorial(prev => ({
-                                      ...prev,
-                                      miniTableData: {
-                                        ...prev.miniTableData,
-                                        inputs: {
-                                          ...prev.miniTableData.inputs,
-                                          [inputKey]: e.target.value
-                                        }
-                                      }
-                                    }))}
-                                    onKeyDown={(e) => handleMiniKeyDown(e, employee.id, date)}
-                                    onBlur={() => handleMiniCellSave(employee.id, date)}
-                                    className="w-full text-xs px-1 py-0.5 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    placeholder="10-22(2)"
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <div
-                                    className={`w-full h-full flex items-center justify-center cursor-pointer hover:bg-blue-50 rounded ${
-                                      tutorial.miniTableData.dragState.isDragging && 
-                                      tutorial.miniTableData.dragState.sourceCell?.employeeId === employee.id && 
-                                      tutorial.miniTableData.dragState.sourceCell?.date === date 
-                                        ? 'bg-blue-200 border-2 border-blue-400' : ''
-                                    } ${
-                                      tutorial.miniTableData.dragState.isDragging && 
-                                      tutorial.miniTableData.dragState.targetCell?.employeeId === employee.id && 
-                                      tutorial.miniTableData.dragState.targetCell?.date === date 
-                                        ? 'bg-yellow-200 border-2 border-yellow-400' : ''
-                                    }`}
-                                    onClick={() => handleMiniCellClick(employee.id, date)}
-                                    onDoubleClick={() => handleMiniDoubleClick(employee.id, date)}
-                                    onMouseDown={(e) => handleMiniMouseDown(e, employee.id, date)}
-                                    onMouseOver={(e) => handleMiniDragOver(e, employee.id, date)}
-                                    onMouseUp={handleMiniMouseUp}
-                                    title={existingSchedule ? 
-                                      `${existingSchedule.startTime}-${existingSchedule.endTime}(${existingSchedule.breakTime}) - 더블클릭: 삭제, 드래그: 이동` : 
-                                      '클릭하여 입력'
-                                    }
-                                  >
-                                    {existingSchedule ? (
-                                      <span className="text-xs text-gray-700">
-                                        {existingSchedule.startTime}-{existingSchedule.endTime}({existingSchedule.breakTime})
-                                      </span>
-                                    ) : (
-                                      <span className="text-xs text-gray-400">클릭</span>
-                                    )}
-                                  </div>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="mt-3 text-xs text-gray-500">
-                  💡 팁: 셀을 클릭하여 입력하고, Tab/Enter로 저장하세요. 스케줄이 있는 셀을 더블클릭하면 삭제되고, 드래그하면 이동됩니다. Ctrl+드래그로 복사도 가능합니다.
-                </div>
-              </div>
-              
-              {/* 진행률 표시 */}
-              <div className="mb-6">
-                <div className="flex justify-between text-sm text-gray-500 mb-2">
-                  <span>진행률</span>
-                  <span>{tutorial.currentStep + 1} / {tutorial.steps.length}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${((tutorial.currentStep + 1) / tutorial.steps.length) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              {/* 단계별 체크리스트 */}
-              <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">학습 단계</h4>
-                <div className="space-y-1">
-                  {tutorial.steps.map((step, index) => (
-                    <div key={step.id} className="flex items-center space-x-2 text-sm">
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                        index < tutorial.currentStep ? 'bg-green-500' : 
-                        index === tutorial.currentStep ? 'bg-blue-500' : 'bg-gray-300'
-                      }`}>
-                        {index < tutorial.currentStep ? (
-                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        ) : index === tutorial.currentStep ? (
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        ) : null}
-                      </div>
-                      <span className={`${
-                        index <= tutorial.currentStep ? 'text-gray-900' : 'text-gray-400'
-                      }`}>
-                        {step.title}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={skipTutorial}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  건너뛰기
-                </button>
-                <button
-                  onClick={nextTutorialStep}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  {tutorial.currentStep === tutorial.steps.length - 1 ? '완료' : '다음'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
