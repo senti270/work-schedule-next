@@ -863,6 +863,16 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         selectedBranchId
       });
       
+      // 해당 직원의 모든 스케줄 확인 (날짜 무관)
+      const allEmployeeSchedules = schedules.filter(schedule => schedule.employeeId === employeeId);
+      console.log('해당 직원의 모든 스케줄:', allEmployeeSchedules.map(s => ({
+        date: s.date.toDateString(),
+        dayOfWeek: s.date.getDay(),
+        branchId: s.branchId,
+        branchName: s.branchName,
+        schedule: `${s.startTime}-${s.endTime}(${s.breakTime})`
+      })));
+      
       // 해당 직원의 이전 주 모든 스케줄 확인 (지점 무관)
       const allPreviousWeekSchedules = schedules.filter(schedule => {
         const scheduleDate = schedule.date;
@@ -882,7 +892,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         schedule: `${s.startTime}-${s.endTime}(${s.breakTime})`
       })));
       
-      // 이전 주의 스케줄 데이터 가져오기 (해당 지점만)
+      // 이전 주의 스케줄 데이터 가져오기 (모든 지점 포함)
       const previousWeekSchedules = schedules.filter(schedule => {
         const scheduleDate = schedule.date;
         const weekStart = new Date(previousWeekStart);
@@ -890,7 +900,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         weekEnd.setDate(weekEnd.getDate() + 6);
         
         const isMatch = schedule.employeeId === employeeId && 
-               schedule.branchId === selectedBranchId && // 해당 지점만
+               // schedule.branchId === selectedBranchId && // 지점 필터링 제거 (모든 지점 포함)
                scheduleDate >= weekStart && 
                scheduleDate <= weekEnd;
                
@@ -898,6 +908,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           console.log('이전 주 스케줄 발견:', {
             date: scheduleDate.toDateString(),
             dayOfWeek: scheduleDate.getDay(),
+            branchId: schedule.branchId,
+            branchName: schedule.branchName,
             schedule: `${schedule.startTime}-${schedule.endTime}(${schedule.breakTime})`
           });
         }
