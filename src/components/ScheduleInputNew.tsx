@@ -77,6 +77,13 @@ interface TutorialState {
     schedules: Array<{id: string; employeeId: string; date: string; startTime: string; endTime: string; breakTime: string}>;
     inputs: {[key: string]: string};
     editingCell: {employeeId: string, date: string} | null;
+    // 드래그 상태
+    dragState: {
+      isDragging: boolean;
+      sourceCell: {employeeId: string, date: string} | null;
+      targetCell: {employeeId: string, date: string} | null;
+      isCopyMode: boolean;
+    };
   };
 }
 
@@ -191,7 +198,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         { id: 'tutorial-schedule2', employeeId: 'tutorial-emp1', date: '2024-01-02', startTime: '14:00', endTime: '22:00', breakTime: '2' }
       ],
       inputs: {},
-      editingCell: null
+      editingCell: null,
+      dragState: {
+        isDragging: false,
+        sourceCell: null,
+        targetCell: null,
+        isCopyMode: false
+      }
     }
   });
 
@@ -382,6 +395,132 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }));
     
     checkTutorialAction('double_click');
+  };
+
+  // 미니 테이블 드래그 함수들
+  const handleMiniMouseDown = (e: React.MouseEvent, employeeId: string, date: string) => {
+    const existingSchedule = getMiniScheduleForDate(employeeId, date);
+    if (!existingSchedule) return; // 스케줄이 없으면 드래그 불가
+    
+    const isCopyMode = e.ctrlKey;
+    
+    setTutorial(prev => ({
+      ...prev,
+      miniTableData: {
+        ...prev.miniTableData,
+        dragState: {
+          isDragging: true,
+          sourceCell: { employeeId, date },
+          targetCell: null,
+          isCopyMode
+        }
+      }
+    }));
+  };
+
+  const handleMiniDragOver = (e: React.MouseEvent, employeeId: string, date: string) => {
+    if (!tutorial.miniTableData.dragState.isDragging) return;
+    
+    setTutorial(prev => ({
+      ...prev,
+      miniTableData: {
+        ...prev.miniTableData,
+        dragState: {
+          ...prev.miniTableData.dragState,
+          targetCell: { employeeId, date }
+        }
+      }
+    }));
+  };
+
+  const handleMiniMouseUp = () => {
+    const { dragState } = tutorial.miniTableData;
+    
+    if (!dragState.isDragging || !dragState.sourceCell || !dragState.targetCell) {
+      setTutorial(prev => ({
+        ...prev,
+        miniTableData: {
+          ...prev.miniTableData,
+          dragState: {
+            isDragging: false,
+            sourceCell: null,
+            targetCell: null,
+            isCopyMode: false
+          }
+        }
+      }));
+      return;
+    }
+
+    const { sourceCell, targetCell, isCopyMode } = dragState;
+    
+    // 같은 셀이면 무시
+    if (sourceCell.employeeId === targetCell.employeeId && sourceCell.date === targetCell.date) {
+      setTutorial(prev => ({
+        ...prev,
+        miniTableData: {
+          ...prev.miniTableData,
+          dragState: {
+            isDragging: false,
+            sourceCell: null,
+            targetCell: null,
+            isCopyMode: false
+          }
+        }
+      }));
+      return;
+    }
+
+    const sourceSchedule = getMiniScheduleForDate(sourceCell.employeeId, sourceCell.date);
+    if (!sourceSchedule) return;
+
+    setTutorial(prev => {
+      let newSchedules = [...prev.miniTableData.schedules];
+      
+      // 대상 셀에 스케줄 추가/수정
+      const existingTargetIndex = newSchedules.findIndex(s => 
+        s.employeeId === targetCell.employeeId && s.date === targetCell.date
+      );
+      
+      const newSchedule = {
+        id: `tutorial-schedule-${Date.now()}`,
+        employeeId: targetCell.employeeId,
+        date: targetCell.date,
+        startTime: sourceSchedule.startTime,
+        endTime: sourceSchedule.endTime,
+        breakTime: sourceSchedule.breakTime
+      };
+      
+      if (existingTargetIndex >= 0) {
+        newSchedules[existingTargetIndex] = newSchedule;
+      } else {
+        newSchedules.push(newSchedule);
+      }
+      
+      // 복사 모드가 아니면 원본 삭제
+      if (!isCopyMode) {
+        newSchedules = newSchedules.filter(s => 
+          !(s.employeeId === sourceCell.employeeId && s.date === sourceCell.date && s.id === sourceSchedule.id)
+        );
+      }
+      
+      return {
+        ...prev,
+        miniTableData: {
+          ...prev.miniTableData,
+          schedules: newSchedules,
+          dragState: {
+            isDragging: false,
+            sourceCell: null,
+            targetCell: null,
+            isCopyMode: false
+          }
+        }
+      };
+    });
+    
+    // 튜토리얼 체크
+    checkTutorialAction('drag', { isCopyMode });
   };
 
   const checkTutorialAction = (action: string, data?: string | { isCopyMode: boolean }) => {
@@ -1781,11 +1920,24 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                                   />
                                 ) : (
                                   <div
-                                    className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-blue-50 rounded"
+                                    className={`w-full h-full flex items-center justify-center cursor-pointer hover:bg-blue-50 rounded ${
+                                      tutorial.miniTableData.dragState.isDragging && 
+                                      tutorial.miniTableData.dragState.sourceCell?.employeeId === employee.id && 
+                                      tutorial.miniTableData.dragState.sourceCell?.date === date 
+                                        ? 'bg-blue-200 border-2 border-blue-400' : ''
+                                    } ${
+                                      tutorial.miniTableData.dragState.isDragging && 
+                                      tutorial.miniTableData.dragState.targetCell?.employeeId === employee.id && 
+                                      tutorial.miniTableData.dragState.targetCell?.date === date 
+                                        ? 'bg-yellow-200 border-2 border-yellow-400' : ''
+                                    }`}
                                     onClick={() => handleMiniCellClick(employee.id, date)}
                                     onDoubleClick={() => handleMiniDoubleClick(employee.id, date)}
+                                    onMouseDown={(e) => handleMiniMouseDown(e, employee.id, date)}
+                                    onMouseOver={(e) => handleMiniDragOver(e, employee.id, date)}
+                                    onMouseUp={handleMiniMouseUp}
                                     title={existingSchedule ? 
-                                      `${existingSchedule.startTime}-${existingSchedule.endTime}(${existingSchedule.breakTime}) - 더블클릭: 삭제` : 
+                                      `${existingSchedule.startTime}-${existingSchedule.endTime}(${existingSchedule.breakTime}) - 더블클릭: 삭제, 드래그: 이동` : 
                                       '클릭하여 입력'
                                     }
                                   >
@@ -1807,7 +1959,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                   </table>
                 </div>
                 <div className="mt-3 text-xs text-gray-500">
-                  💡 팁: 셀을 클릭하여 입력하고, Tab/Enter로 저장하세요. 스케줄이 있는 셀을 더블클릭하면 삭제됩니다.
+                  💡 팁: 셀을 클릭하여 입력하고, Tab/Enter로 저장하세요. 스케줄이 있는 셀을 더블클릭하면 삭제되고, 드래그하면 이동됩니다. Ctrl+드래그로 복사도 가능합니다.
                 </div>
               </div>
               
