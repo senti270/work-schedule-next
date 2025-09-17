@@ -849,12 +849,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     return dates;
   };
 
-  // 해당 날짜의 스케줄 가져오기
+  // 해당 날짜의 스케줄 가져오기 (지점별 필터링 포함)
   const getScheduleForDate = (employeeId: string, date: Date) => {
     const dateString = date.toISOString().split('T')[0];
     return schedules.find(schedule => 
       schedule.employeeId === employeeId &&
-      schedule.date.toISOString().split('T')[0] === dateString
+      schedule.date.toISOString().split('T')[0] === dateString &&
+      schedule.branchId === selectedBranchId // 지점별 필터링 추가
     );
   };
 
@@ -875,6 +876,45 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         return (hours + decimalMinutes).toString();
       }
     }
+  };
+
+  // 시간 겹침 검증 함수
+  const checkTimeOverlap = (employeeId: string, date: Date, startTime: string, endTime: string, excludeScheduleId?: string) => {
+    const dateString = date.toISOString().split('T')[0];
+    
+    // 해당 직원의 같은 날짜 모든 스케줄 확인 (모든 지점 포함)
+    const employeeSchedules = schedules.filter(schedule => 
+      schedule.employeeId === employeeId &&
+      schedule.date.toISOString().split('T')[0] === dateString &&
+      (excludeScheduleId ? schedule.id !== excludeScheduleId : true)
+    );
+
+    // 시간을 분 단위로 변환 (정확한 비교를 위해)
+    const timeToMinutes = (timeStr: string) => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const newStart = timeToMinutes(startTime);
+    const newEnd = timeToMinutes(endTime);
+
+    for (const schedule of employeeSchedules) {
+      const existingStart = timeToMinutes(schedule.startTime);
+      const existingEnd = timeToMinutes(schedule.endTime);
+      
+      // 시간 겹침 확인
+      if ((newStart < existingEnd && newEnd > existingStart)) {
+        const branchName = branches.find(b => b.id === schedule.branchId)?.name || '알 수 없는 지점';
+        return {
+          hasOverlap: true,
+          conflictSchedule: schedule,
+          branchName,
+          message: `${timeToDecimal(schedule.startTime)}-${timeToDecimal(schedule.endTime)} (${branchName})와 시간이 겹칩니다.`
+        };
+      }
+    }
+
+    return { hasOverlap: false };
   };
 
   // 시간 계산 함수
@@ -1043,6 +1083,22 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         if (employee && branch) {
           const totalHours = calculateTotalHours(parsed.startTime, parsed.endTime, parsed.breakTime);
           const existingSchedule = getScheduleForDate(employeeId, date);
+          
+          // 시간 겹침 검증
+          const overlapCheck = checkTimeOverlap(
+            employeeId, 
+            date, 
+            parsed.startTime, 
+            parsed.endTime, 
+            existingSchedule?.id // 기존 스케줄은 제외
+          );
+          
+          if (overlapCheck.hasOverlap) {
+            const confirmMessage = `⚠️ 시간 겹침 경고\n\n${employee.name}님의 ${overlapCheck.message}\n\n그래도 저장하시겠습니까?`;
+            if (!confirm(confirmMessage)) {
+              return; // 사용자가 취소한 경우
+            }
+          }
           
           try {
             if (existingSchedule) {
@@ -1347,6 +1403,29 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     
     if (employee && branch) {
       try {
+        // 시간 겹침 검증 (드래그 대상 직원)
+        const overlapCheck = checkTimeOverlap(
+          targetCell.employeeId,
+          targetCell.date,
+          sourceSchedule.startTime,
+          sourceSchedule.endTime
+        );
+        
+        if (overlapCheck.hasOverlap) {
+          const targetEmployee = employees.find(emp => emp.id === targetCell.employeeId);
+          const confirmMessage = `⚠️ 시간 겹침 경고\n\n${targetEmployee?.name}님의 ${overlapCheck.message}\n\n그래도 이동/복사하시겠습니까?`;
+          if (!confirm(confirmMessage)) {
+            // 드래그 상태 초기화
+            setDragState({
+              isDragging: false,
+              sourceCell: null,
+              targetCell: null,
+              isCopyMode: false
+            });
+            return;
+          }
+        }
+        
         // 대상 셀에 스케줄 추가/수정
         const existingTargetSchedule = getScheduleForDate(targetCell.employeeId, targetCell.date);
         
