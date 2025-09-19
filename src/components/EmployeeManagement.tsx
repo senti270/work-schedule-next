@@ -1099,7 +1099,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       
       const sortedContracts = contractsData.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
       console.log('정렬된 계약서 목록:', sortedContracts);
+      console.log('setContracts 호출 전 현재 contracts 길이:', contracts.length);
       setContracts(sortedContracts);
+      console.log('setContracts 호출 완료');
     } catch (error) {
       console.error('근로계약서 로드 중 오류:', error);
     }
@@ -3029,11 +3031,16 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                 </p>
                 
                 {/* 기존 계약서 파일 표시 */}
-                {contracts.length > 0 ? (
+                {(() => {
+                  console.log('문서관리 모달 렌더링 - contracts 길이:', contracts.length);
+                  console.log('contracts 배열:', contracts);
+                  return contracts.length > 0;
+                })() ? (
                   <div className="mb-4 p-3 bg-white border border-gray-200 rounded-md">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-700">
-                        📄 최신 계약서: {contracts[0].contractFileName}
+                        📄 최신 계약서: {contracts[0]?.contractFileName || '파일명 없음'} 
+                        (기준일: {contracts[0]?.startDate?.toLocaleDateString('ko-KR') || '날짜 없음'})
                       </span>
                       <div className="flex space-x-2">
                         <button
