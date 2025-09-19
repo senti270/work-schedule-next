@@ -30,6 +30,7 @@ interface Comment {
   adminConfirmRequest?: boolean; // 관리자 확인 요청
   isImportant?: boolean; // 중요
   isPinned?: boolean; // 상단고정
+  isCompleted?: boolean; // 완료 처리
   createdAt: Date;
   updatedAt: Date;
 }
@@ -178,6 +179,7 @@ export default function Dashboard({ user }: DashboardProps) {
         adminConfirmRequest: doc.data().adminConfirmRequest || false,
         isImportant: doc.data().isImportant || false,
         isPinned: doc.data().isPinned || false,
+        isCompleted: doc.data().isCompleted || false,
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date()
       })) as Comment[];
@@ -300,6 +302,19 @@ export default function Dashboard({ user }: DashboardProps) {
     } catch (error) {
       console.error('코멘트 수정 중 오류:', error);
       alert('코멘트 수정 중 오류가 발생했습니다.');
+    }
+  };
+
+  const toggleCompleteComment = async (commentId: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'comments', commentId), {
+        isCompleted: !currentStatus,
+        updatedAt: new Date()
+      });
+      await loadComments();
+    } catch (error) {
+      console.error('코멘트 완료 처리 중 오류:', error);
+      alert('코멘트 완료 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -569,7 +584,7 @@ export default function Dashboard({ user }: DashboardProps) {
                   <div className="divide-y divide-gray-200">
                     {comments.length > 0 ? (
                       (showAllComments ? comments : comments.slice(0, 10)).map((comment) => (
-                        <div key={comment.id} className={`p-6 ${comment.isPinned ? 'bg-yellow-50 border-l-4 border-yellow-400' : ''}`}>
+                        <div key={comment.id} className={`p-6 ${comment.isPinned ? 'bg-yellow-50 border-l-4 border-yellow-400' : ''} ${comment.isCompleted ? 'opacity-60' : ''}`}>
                           {editingComment?.id === comment.id ? (
                             /* 수정 모드 */
                             <div className="space-y-4">
@@ -665,34 +680,50 @@ export default function Dashboard({ user }: DashboardProps) {
                                       📌 고정
                                     </span>
                                   )}
+                                  {comment.isCompleted && (
+                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                      ✅ 완료
+                                    </span>
+                                  )}
                                 </div>
-                                <p className="text-sm text-gray-800 whitespace-pre-wrap">{comment.content}</p>
+                                <p className={`text-sm whitespace-pre-wrap ${comment.isCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                                  {comment.content}
+                                </p>
                               </div>
                               
-                              {(comment.authorId === currentUserId || user.email === 'drawing555@naver.com') && (
-                                <div className="flex space-x-2 ml-4">
-                                  <button
-                                    onClick={() => setEditingComment({
-                                      id: comment.id,
-                                      content: comment.content,
-                                      options: {
-                                        adminConfirmRequest: comment.adminConfirmRequest || false,
-                                        isImportant: comment.isImportant || false,
-                                        isPinned: comment.isPinned || false
-                                      }
-                                    })}
-                                    className="text-blue-600 hover:text-blue-800 text-sm"
-                                  >
-                                    수정
-                                  </button>
-                                  <button
-                                    onClick={() => deleteComment(comment.id)}
-                                    className="text-red-600 hover:text-red-800 text-sm"
-                                  >
-                                    삭제
-                                  </button>
-                                </div>
-                              )}
+                              <div className="flex space-x-2 ml-4">
+                                <button
+                                  onClick={() => toggleCompleteComment(comment.id, comment.isCompleted || false)}
+                                  className={`text-sm ${comment.isCompleted ? 'text-gray-600 hover:text-gray-800' : 'text-green-600 hover:text-green-800'}`}
+                                >
+                                  {comment.isCompleted ? '완료취소' : '완료'}
+                                </button>
+                                
+                                {(comment.authorId === currentUserId || user.email === 'drawing555@naver.com') && (
+                                  <>
+                                    <button
+                                      onClick={() => setEditingComment({
+                                        id: comment.id,
+                                        content: comment.content,
+                                        options: {
+                                          adminConfirmRequest: comment.adminConfirmRequest || false,
+                                          isImportant: comment.isImportant || false,
+                                          isPinned: comment.isPinned || false
+                                        }
+                                      })}
+                                      className="text-blue-600 hover:text-blue-800 text-sm"
+                                    >
+                                      수정
+                                    </button>
+                                    <button
+                                      onClick={() => deleteComment(comment.id)}
+                                      className="text-red-600 hover:text-red-800 text-sm"
+                                    >
+                                      삭제
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>
