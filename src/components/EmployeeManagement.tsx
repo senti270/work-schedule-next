@@ -408,30 +408,67 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
   // 재직증명서 PDF 생성
   const generateEmploymentCertificate = async (employee: Employee) => {
-    // 직원의 지점 정보 찾기 (EmployeeBranch 관계를 통해)
-    let employeeBranch = null;
+    console.log('재직증명서 생성 시작:', employee);
+    
+    // 지점 정보 기본값 설정
     let branchInfo = {
-      companyName: '[회사명]',
-      ceoName: '[대표자명]',
-      businessNumber: '[사업자등록번호]',
-      name: '[지점명]'
+      companyName: '[회사명을 입력하세요]',
+      ceoName: '[대표자명을 입력하세요]',
+      businessNumber: '[사업자등록번호를 입력하세요]',
+      name: '[지점명을 입력하세요]'
     };
     
     try {
+      // 먼저 branches 데이터가 있는지 확인
+      console.log('현재 branches 데이터:', branches);
+      
+      // 직원-지점 관계 조회
       const employeeBranchesSnapshot = await getDocs(
         query(collection(db, 'employeeBranches'), where('employeeId', '==', employee.id))
       );
       
+      console.log('직원-지점 관계 데이터:', employeeBranchesSnapshot.docs.map(doc => doc.data()));
+      
       if (!employeeBranchesSnapshot.empty) {
         const firstBranch = employeeBranchesSnapshot.docs[0].data();
-        employeeBranch = branches.find(branch => branch.id === firstBranch.branchId);
+        console.log('첫 번째 지점 관계:', firstBranch);
+        
+        // branches 배열에서 해당 지점 찾기
+        const employeeBranch = branches.find(branch => branch.id === firstBranch.branchId);
+        console.log('찾은 지점 정보:', employeeBranch);
         
         if (employeeBranch) {
           branchInfo = {
-            companyName: employeeBranch.companyName || '[회사명]',
-            ceoName: employeeBranch.ceoName || '[대표자명]',
-            businessNumber: employeeBranch.businessNumber || '[사업자등록번호]',
-            name: employeeBranch.name || '[지점명]'
+            companyName: employeeBranch.companyName || '[회사명을 입력하세요]',
+            ceoName: employeeBranch.ceoName || '[대표자명을 입력하세요]',
+            businessNumber: employeeBranch.businessNumber || '[사업자등록번호를 입력하세요]',
+            name: employeeBranch.name || '[지점명을 입력하세요]'
+          };
+        } else {
+          // branches 배열에서 찾지 못한 경우 직접 DB에서 조회
+          console.log('branches 배열에서 찾지 못함, 직접 DB 조회');
+          const branchDoc = await getDocs(query(collection(db, 'branches'), where('__name__', '==', firstBranch.branchId)));
+          if (!branchDoc.empty) {
+            const branchData = branchDoc.docs[0].data();
+            console.log('직접 조회한 지점 데이터:', branchData);
+            branchInfo = {
+              companyName: branchData.companyName || '[회사명을 입력하세요]',
+              ceoName: branchData.ceoName || '[대표자명을 입력하세요]',
+              businessNumber: branchData.businessNumber || '[사업자등록번호를 입력하세요]',
+              name: branchData.name || '[지점명을 입력하세요]'
+            };
+          }
+        }
+      } else {
+        console.log('직원-지점 관계 데이터가 없음');
+        // employeeBranches가 없는 경우, 기본 지점 정보로 대체
+        if (branches.length > 0) {
+          const firstBranch = branches[0];
+          branchInfo = {
+            companyName: firstBranch.companyName || '[회사명을 입력하세요]',
+            ceoName: firstBranch.ceoName || '[대표자명을 입력하세요]',
+            businessNumber: firstBranch.businessNumber || '[사업자등록번호를 입력하세요]',
+            name: firstBranch.name || '[지점명을 입력하세요]'
           };
         }
       }
@@ -439,40 +476,44 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       console.error('직원 지점 정보 조회 중 오류:', error);
     }
     
+    console.log('최종 branchInfo:', branchInfo);
+    
     // HTML 템플릿 생성
     const htmlContent = `
-      <div style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; padding: 40px; max-width: 800px; margin: 0 auto;">
-        <h1 style="text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 40px;">재직증명서</h1>
+      <div style="font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; background: white; color: black;">
+        <h1 style="text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 40px; color: black;">재직증명서</h1>
         
-        <div style="margin-bottom: 30px;">
-          <p style="margin: 5px 0;"><strong>회사명:</strong> ${branchInfo.companyName}</p>
-          <p style="margin: 5px 0;"><strong>대표자:</strong> ${branchInfo.ceoName}</p>
-          <p style="margin: 5px 0;"><strong>사업자등록번호:</strong> ${branchInfo.businessNumber}</p>
+        <div style="margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; background: #f9f9f9;">
+          <p style="margin: 8px 0; font-size: 16px; color: black;"><strong>회사명:</strong> ${branchInfo.companyName}</p>
+          <p style="margin: 8px 0; font-size: 16px; color: black;"><strong>대표자:</strong> ${branchInfo.ceoName}</p>
+          <p style="margin: 8px 0; font-size: 16px; color: black;"><strong>사업자등록번호:</strong> ${branchInfo.businessNumber}</p>
         </div>
         
-        <div style="margin-bottom: 30px;">
-          <p style="margin: 8px 0;"><strong>성명:</strong> ${employee.name || '-'}</p>
-          <p style="margin: 8px 0;"><strong>주민등록번호:</strong> ${employee.residentNumber || '-'}</p>
-          <p style="margin: 8px 0;"><strong>입사일:</strong> ${employee.hireDate ? employee.hireDate.toLocaleDateString('ko-KR') : '-'}</p>
-          <p style="margin: 8px 0;"><strong>퇴사일:</strong> ${employee.resignationDate ? employee.resignationDate.toLocaleDateString('ko-KR') : '재직중'}</p>
-          <p style="margin: 8px 0;"><strong>지점:</strong> ${branchInfo.name}</p>
-          <p style="margin: 8px 0;"><strong>직급:</strong> ${employee.type || '-'}</p>
+        <div style="margin-bottom: 30px; padding: 20px; border: 1px solid #ddd;">
+          <p style="margin: 10px 0; font-size: 16px; color: black;"><strong>성명:</strong> ${employee.name || '직원명 없음'}</p>
+          <p style="margin: 10px 0; font-size: 16px; color: black;"><strong>주민등록번호:</strong> ${employee.residentNumber || '정보 없음'}</p>
+          <p style="margin: 10px 0; font-size: 16px; color: black;"><strong>입사일:</strong> ${employee.hireDate ? employee.hireDate.toLocaleDateString('ko-KR') : '정보 없음'}</p>
+          <p style="margin: 10px 0; font-size: 16px; color: black;"><strong>퇴사일:</strong> ${employee.resignationDate ? employee.resignationDate.toLocaleDateString('ko-KR') : '재직중'}</p>
+          <p style="margin: 10px 0; font-size: 16px; color: black;"><strong>지점:</strong> ${branchInfo.name}</p>
+          <p style="margin: 10px 0; font-size: 16px; color: black;"><strong>직급:</strong> ${employee.type || '정보 없음'}</p>
         </div>
         
-        <div style="margin-bottom: 30px;">
-          <p style="font-size: 14px; line-height: 1.6;">위의 사람이 위 회사에서 위와 같이 근무하고 있음을 증명합니다.</p>
+        <div style="margin: 40px 0; text-align: center;">
+          <p style="font-size: 18px; line-height: 1.6; color: black; font-weight: bold;">위의 사람이 위 회사에서 위와 같이 근무하고 있음을 증명합니다.</p>
         </div>
         
-        <div style="margin-bottom: 30px;">
-          <p style="margin: 5px 0;"><strong>발급일:</strong> ${new Date().toLocaleDateString('ko-KR')}</p>
+        <div style="margin-bottom: 30px; text-align: right;">
+          <p style="margin: 5px 0; font-size: 16px; color: black;"><strong>발급일:</strong> ${new Date().toLocaleDateString('ko-KR')}</p>
         </div>
         
-        <div style="margin-top: 50px;">
-          <p style="margin: 5px 0;"><strong>회사명:</strong> ${branchInfo.companyName}</p>
-          <p style="margin: 5px 0;"><strong>대표자:</strong> ${branchInfo.ceoName} (인)</p>
+        <div style="margin-top: 50px; text-align: right; padding: 20px; border: 1px solid #ddd; background: #f9f9f9;">
+          <p style="margin: 8px 0; font-size: 18px; color: black; font-weight: bold;">${branchInfo.companyName}</p>
+          <p style="margin: 8px 0; font-size: 16px; color: black;"><strong>대표자:</strong> ${branchInfo.ceoName} (인)</p>
         </div>
       </div>
     `;
+    
+    console.log('생성된 HTML 내용:', htmlContent);
     
     // 임시 div 생성
     const element = document.createElement('div');
