@@ -209,20 +209,39 @@ export default function Dashboard({ user }: DashboardProps) {
   const loadComments = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'comments'));
-      const commentsData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        content: doc.data().content,
-        authorId: doc.data().authorId || '',
-        authorName: doc.data().authorName || '알 수 없음',
-        adminConfirmRequest: doc.data().adminConfirmRequest || false,
-        isImportant: doc.data().isImportant || false,
-        isPinned: doc.data().isPinned || false,
-        isCompleted: doc.data().isCompleted || false,
-        branchTags: doc.data().branchTags || [], // 코멘트에 태그된 지점들
-        attachments: doc.data().attachments || [], // 첨부 파일들
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date()
-      })) as Comment[];
+      const commentsData = querySnapshot.docs.map(doc => {
+        const attachments = doc.data().attachments || [];
+        
+        // 첨부파일 데이터 디버깅
+        if (attachments.length > 0) {
+          console.log('=== 코멘트 첨부파일 로드 ===');
+          console.log('코멘트 ID:', doc.id);
+          attachments.forEach((att: any, index: number) => {
+            console.log(`첨부파일 ${index + 1}:`, {
+              fileName: att.fileName,
+              fileType: att.fileType,
+              isBase64: att.isBase64,
+              fileUrlLength: att.fileUrl?.length,
+              fileUrlStart: att.fileUrl?.substring(0, 50) + '...'
+            });
+          });
+        }
+        
+        return {
+          id: doc.id,
+          content: doc.data().content,
+          authorId: doc.data().authorId || '',
+          authorName: doc.data().authorName || '알 수 없음',
+          adminConfirmRequest: doc.data().adminConfirmRequest || false,
+          isImportant: doc.data().isImportant || false,
+          isPinned: doc.data().isPinned || false,
+          isCompleted: doc.data().isCompleted || false,
+          branchTags: doc.data().branchTags || [], // 코멘트에 태그된 지점들
+          attachments: attachments, // 첨부 파일들
+          createdAt: doc.data().createdAt?.toDate() || new Date(),
+          updatedAt: doc.data().updatedAt?.toDate() || new Date()
+        };
+      }) as Comment[];
       
       
       // 상단고정 코멘트를 먼저, 나머지는 최신순으로 정렬
@@ -998,7 +1017,12 @@ export default function Dashboard({ user }: DashboardProps) {
                                                 onClick={(e) => {
                                                   e.preventDefault();
                                                   e.stopPropagation();
-                                                  console.log('이미지 클릭:', attachment.fileName, attachment.fileUrl?.substring(0, 50) + '...');
+                                                  console.log('=== 이미지 클릭 디버깅 ===');
+                                                  console.log('파일명:', attachment.fileName);
+                                                  console.log('파일타입:', attachment.fileType);
+                                                  console.log('isBase64:', attachment.isBase64);
+                                                  console.log('fileUrl 시작 부분:', attachment.fileUrl?.substring(0, 100));
+                                                  console.log('fileUrl 전체 길이:', attachment.fileUrl?.length);
                                                   
                                                   // Base64 데이터 검증
                                                   if (attachment.isBase64 && attachment.fileUrl.startsWith('data:image/')) {
@@ -1059,14 +1083,22 @@ export default function Dashboard({ user }: DashboardProps) {
                                                   }
                                                 }}
                                                 onError={(e) => {
-                                                  console.error('이미지 로드 실패:', attachment.fileName, attachment.fileUrl?.substring(0, 50) + '...');
+                                                  console.error('=== 이미지 로드 실패 ===');
+                                                  console.error('파일명:', attachment.fileName);
+                                                  console.error('파일타입:', attachment.fileType);
+                                                  console.error('isBase64:', attachment.isBase64);
+                                                  console.error('fileUrl 시작 부분:', attachment.fileUrl?.substring(0, 100));
+                                                  console.error('에러 이벤트:', e);
+                                                  
                                                   const target = e.target as HTMLImageElement;
                                                   target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMCAyMEg0NFY0NEgyMFYyMFoiIHN0cm9rZT0iIzlDQTNBRiIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+CjxjaXJjbGUgY3g9IjI2IiBjeT0iMjgiIHI9IjMiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTIwIDM2TDI2IDMwTDMyIDM2TDM4IDMwTDQ0IDM2VjQ0SDIwVjM2WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K';
                                                   target.alt = '이미지 로드 실패';
                                                   target.title = `${attachment.fileName} - 이미지를 불러올 수 없습니다`;
                                                 }}
                                                 onLoad={() => {
-                                                  console.log('이미지 로드 성공:', attachment.fileName);
+                                                  console.log('=== 이미지 로드 성공 ===');
+                                                  console.log('파일명:', attachment.fileName);
+                                                  console.log('실제 이미지 크기:', (e.target as HTMLImageElement).naturalWidth, 'x', (e.target as HTMLImageElement).naturalHeight);
                                                 }}
                                               />
                                               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded transition-all duration-200 flex items-center justify-center">
