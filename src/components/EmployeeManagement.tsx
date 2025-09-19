@@ -439,7 +439,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         
         if (employeeBranch) {
           branchInfo = {
-            companyName: employeeBranch.companyName || '[회사명을 입력하세요]',
+            companyName: employeeBranch.companyName || employeeBranch.name || '[회사명을 입력하세요]', // 회사명이 없으면 지점명 사용
             ceoName: employeeBranch.ceoName || '[대표자명을 입력하세요]',
             businessNumber: employeeBranch.businessNumber || '[사업자등록번호를 입력하세요]',
             name: employeeBranch.name || '[지점명을 입력하세요]'
@@ -452,7 +452,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
             const branchData = branchDoc.docs[0].data();
             console.log('직접 조회한 지점 데이터:', branchData);
             branchInfo = {
-              companyName: branchData.companyName || '[회사명을 입력하세요]',
+              companyName: branchData.companyName || branchData.name || '[회사명을 입력하세요]', // 회사명이 없으면 지점명 사용
               ceoName: branchData.ceoName || '[대표자명을 입력하세요]',
               businessNumber: branchData.businessNumber || '[사업자등록번호를 입력하세요]',
               name: branchData.name || '[지점명을 입력하세요]'
@@ -465,7 +465,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         if (branches.length > 0) {
           const firstBranch = branches[0];
           branchInfo = {
-            companyName: firstBranch.companyName || '[회사명을 입력하세요]',
+            companyName: firstBranch.companyName || firstBranch.name || '[회사명을 입력하세요]', // 회사명이 없으면 지점명 사용
             ceoName: firstBranch.ceoName || '[대표자명을 입력하세요]',
             businessNumber: firstBranch.businessNumber || '[사업자등록번호를 입력하세요]',
             name: firstBranch.name || '[지점명을 입력하세요]'
