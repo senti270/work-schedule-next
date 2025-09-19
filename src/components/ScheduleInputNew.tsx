@@ -20,6 +20,17 @@ interface Schedule {
   updatedAt: Date;
 }
 
+interface WeeklyNote {
+  id: string;
+  branchId: string;
+  branchName: string;
+  weekStart: Date;
+  weekEnd: Date;
+  note: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface Employee {
   id: string;
   name: string;
@@ -64,6 +75,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [payrollLocks, setPayrollLocks] = useState<PayrollLock[]>([]);
+  const [weeklyNote, setWeeklyNote] = useState<string>('');
+  const [currentWeeklyNote, setCurrentWeeklyNote] = useState<WeeklyNote | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
     // 현재 날짜가 속한 주의 월요일을 기준으로 설정
     const today = new Date();
@@ -105,6 +118,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     if (currentWeekStart) {
       loadSchedules();
       checkPayrollLock();
+      loadWeeklyNote();
     }
   }, [currentWeekStart, selectedBranchId]);
 
@@ -268,10 +282,16 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       });
 
       // 공유할 텍스트 생성
-      const shareText = `📅 ${branch.name} 주간 스케줄 (${weekDates[0].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} ~ ${weekDates[6].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })})\n\n` +
-        scheduleData.map(emp => 
-          `${emp.employeeName}: ${emp.schedules.join(' | ')}`
-        ).join('\n') + `\n\n🔗 공유 링크: ${shareUrl}`;
+      let shareText = `📅 ${branch.name} 주간 스케줄 (${weekDates[0].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} ~ ${weekDates[6].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })})\n\n`;
+      
+      // 주간 비고가 있으면 추가
+      if (weeklyNote.trim()) {
+        shareText += `📝 주간 비고: ${weeklyNote.trim()}\n\n`;
+      }
+      
+      shareText += scheduleData.map(emp => 
+        `${emp.employeeName}: ${emp.schedules.join(' | ')}`
+      ).join('\n') + `\n\n🔗 공유 링크: ${shareUrl}`;
 
       // Web Share API를 지원하지 않거나 실패한 경우 클립보드 복사
       try {
@@ -301,7 +321,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         loadEmployees(),
         loadBranches(),
         loadSchedules(),
-        loadPayrollLocks()
+        loadPayrollLocks(),
+        loadWeeklyNote()
       ]);
     } catch (error) {
       console.error('데이터 로드 중 오류:', error);
@@ -461,6 +482,104 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       setPayrollLocks(locksData);
     } catch (error) {
       console.error('급여 잠금 상태를 불러올 수 없습니다:', error);
+    }
+  };
+
+  // 주간 비고 로드
+  const loadWeeklyNote = async () => {
+    if (!selectedBranchId) return;
+    
+    try {
+      const weekDates = getWeekDates();
+      const weekStart = weekDates[0];
+      const weekEnd = weekDates[6];
+      
+      const querySnapshot = await getDocs(collection(db, 'weeklyNotes'));
+      const existingNote = querySnapshot.docs.find(doc => {
+        const data = doc.data();
+        const noteWeekStart = data.weekStart?.toDate();
+        const noteWeekEnd = data.weekEnd?.toDate();
+        
+        return data.branchId === selectedBranchId &&
+               noteWeekStart?.toDateString() === weekStart.toDateString() &&
+               noteWeekEnd?.toDateString() === weekEnd.toDateString();
+      });
+      
+      if (existingNote) {
+        const noteData = {
+          id: existingNote.id,
+          ...existingNote.data(),
+          weekStart: existingNote.data().weekStart?.toDate() || new Date(),
+          weekEnd: existingNote.data().weekEnd?.toDate() || new Date(),
+          createdAt: existingNote.data().createdAt?.toDate() || new Date(),
+          updatedAt: existingNote.data().updatedAt?.toDate() || new Date()
+        } as WeeklyNote;
+        
+        setCurrentWeeklyNote(noteData);
+        setWeeklyNote(noteData.note || '');
+      } else {
+        setCurrentWeeklyNote(null);
+        setWeeklyNote('');
+      }
+    } catch (error) {
+      console.error('주간 비고를 불러올 수 없습니다:', error);
+    }
+  };
+
+  // 주간 비고 저장
+  const saveWeeklyNote = async () => {
+    if (!selectedBranchId) return;
+    
+    try {
+      const weekDates = getWeekDates();
+      const weekStart = weekDates[0];
+      const weekEnd = weekDates[6];
+      const branch = branches.find(b => b.id === selectedBranchId);
+      
+      if (!branch) return;
+      
+      if (currentWeeklyNote) {
+        // 기존 비고 수정
+        await updateDoc(doc(db, 'weeklyNotes', currentWeeklyNote.id), {
+          note: weeklyNote,
+          updatedAt: new Date()
+        });
+        
+        setCurrentWeeklyNote({
+          ...currentWeeklyNote,
+          note: weeklyNote,
+          updatedAt: new Date()
+        });
+      } else {
+        // 새 비고 생성
+        const docRef = await addDoc(collection(db, 'weeklyNotes'), {
+          branchId: selectedBranchId,
+          branchName: branch.name,
+          weekStart: weekStart,
+          weekEnd: weekEnd,
+          note: weeklyNote,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        
+        const newNote: WeeklyNote = {
+          id: docRef.id,
+          branchId: selectedBranchId,
+          branchName: branch.name,
+          weekStart: weekStart,
+          weekEnd: weekEnd,
+          note: weeklyNote,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        setCurrentWeeklyNote(newNote);
+      }
+      
+      alert('주간 비고가 저장되었습니다.');
+    } catch (error) {
+      console.error('주간 비고 저장 오류:', error);
+      alert('주간 비고 저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -1558,6 +1677,37 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* 주간 비고 */}
+      <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">주간 비고</h3>
+          <p className="text-sm text-gray-600 mt-1">이번 주 특별사항을 자유롭게 입력하세요</p>
+        </div>
+        <div className="p-6">
+          <div className="space-y-4">
+            <textarea
+              value={weeklyNote}
+              onChange={(e) => setWeeklyNote(e.target.value)}
+              placeholder="이번 주 특별사항, 공지사항, 변경사항 등을 입력하세요..."
+              className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+            <div className="flex justify-end">
+              <button
+                onClick={saveWeeklyNote}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                비고 저장
+              </button>
+            </div>
+            {currentWeeklyNote && (
+              <div className="text-sm text-gray-500">
+                마지막 수정: {currentWeeklyNote.updatedAt.toLocaleString('ko-KR')}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
