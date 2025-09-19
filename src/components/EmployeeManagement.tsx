@@ -117,6 +117,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     phone: '',
     residentNumber: '',
     hireDate: '',
+    resignationDate: '',
     type: '',
     // 급여관리용 은행 정보
     bankName: '',
@@ -628,6 +629,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         phone: '',
         residentNumber: '',
         hireDate: '',
+        resignationDate: '',
         type: '',
         // 급여관리용 은행 정보
         bankName: '',
@@ -722,7 +724,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       probationPeriod: employee.probationPeriod || 3,
       isOnProbation: employee.isOnProbation || false,
       // 메모
-      memo: employee.memo || ''
+      memo: employee.memo || '',
+      // 퇴사일
+      resignationDate: employee.resignationDate ? employee.resignationDate.toISOString().split('T')[0] : ''
     });
     setShowForm(true);
     
@@ -785,6 +789,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       phone: '',
       residentNumber: '',
       hireDate: '',
+      resignationDate: '',
       type: '',
       // 급여관리용 은행 정보
       bankName: '',
@@ -1335,7 +1340,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                 {/* 수정 폼 - 해당 직원 행 바로 아래에 표시 */}
                 {editingEmployee && editingEmployee.id === employee.id && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-4 bg-gray-50">
+                    <td colSpan={9} className="px-6 py-4 bg-gray-50">
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
                         <h3 className="text-lg font-semibold mb-4 text-gray-900">
                           {editingEmployee.name} 정보 수정
@@ -1401,7 +1406,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               지점 (복수 선택 가능) *
                             </label>
-                            <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
+                            <div className="border border-gray-300 rounded-md p-2">
                               {branches
                                 .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
                                 .map(branch => (
@@ -1446,13 +1451,27 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
+                                퇴사일
+                              </label>
+                              <input
+                                type="date"
+                                value={formData.resignationDate || ''}
+                                onChange={(e) => setFormData({ ...formData, resignationDate: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
                                 고용 형태
                               </label>
                               <select
                                 value={formData.type}
                                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
                               >
+                                <option value="">고용형태를 선택하세요</option>
                                 <option value="근로소득자">근로소득자</option>
                                 <option value="사업소득자">사업소득자</option>
                                 <option value="일용직">일용직</option>
@@ -1538,8 +1557,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 <input
                                   type="date"
                                   value={formData.probationEndDate}
-                                  readOnly
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+                                  onChange={(e) => setFormData({ ...formData, probationEndDate: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                               </div>
                               <div className="flex items-center">
@@ -1746,7 +1765,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           지점 (복수 선택 가능) *
                         </label>
-                        <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
+                        <div className="border border-gray-300 rounded-md p-2">
                           {branches.map(branch => (
                             <label key={branch.id} className="flex items-center mb-2">
                               <input
@@ -1973,7 +1992,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       지점 (복수 선택 가능) *
                     </label>
-                    <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
+                    <div className="border border-gray-300 rounded-md p-2">
                       {branches.map(branch => (
                         <label key={branch.id} className="flex items-center mb-2">
                           <input
@@ -2000,45 +2019,61 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     )}
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      주민등록번호
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.residentNumber}
-                      onChange={(e) => setFormData({ ...formData, residentNumber: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="주민등록번호"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      입사일
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.hireDate}
-                      onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      고용 형태
-                    </label>
-                    <select
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="근로소득자">근로소득자</option>
-                      <option value="사업소득자">사업소득자</option>
-                      <option value="일용직">일용직</option>
-                      <option value="외국인 사업소득자">외국인 사업소득자</option>
-                    </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        주민등록번호
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.residentNumber}
+                        onChange={(e) => setFormData({ ...formData, residentNumber: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="주민등록번호"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        입사일
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.hireDate}
+                        onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        퇴사일
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.resignationDate}
+                        onChange={(e) => setFormData({ ...formData, resignationDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        고용 형태
+                      </label>
+                      <select
+                        value={formData.type}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="">고용형태를 선택하세요</option>
+                        <option value="근로소득자">근로소득자</option>
+                        <option value="사업소득자">사업소득자</option>
+                        <option value="일용직">일용직</option>
+                        <option value="외국인 사업소득자">외국인 사업소득자</option>
+                      </select>
+                    </div>
                   </div>
                   
                   {/* 근로소득자 주간 근무시간 필드 */}
@@ -2119,8 +2154,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       <input
                         type="date"
                         value={formData.probationEndDate}
-                        readOnly
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+                        onChange={(e) => setFormData({ ...formData, probationEndDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div className="flex items-center">
