@@ -1302,7 +1302,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     const existingSchedule = getScheduleForDate(employeeId, date);
     if (!existingSchedule) return; // 스케줄이 없으면 드래그 불가
     
-    const isCopyMode = e.ctrlKey;
+    const isCopyMode = !e.ctrlKey; // 드래그=복사, Ctrl+드래그=이동
     
     setDragState({
       isDragging: true,
@@ -1523,11 +1523,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           </span>
           <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
             <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">드래그</span>
-            <span className="ml-1">스케줄 이동</span>
+            <span className="ml-1">스케줄 복사</span>
           </span>
           <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
             <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+드래그</span>
-            <span className="ml-1">스케줄 복사</span>
+            <span className="ml-1">스케줄 이동</span>
           </span>
           <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
             <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">더블클릭</span>
@@ -1652,9 +1652,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                               <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
                                 <div className="flex items-center space-x-1">
                                   <span>↕️</span>
-                                  <span>드래그: 이동</span>
+                                  <span>드래그: 복사</span>
                                   <span>|</span>
-                                  <span>Ctrl+드래그: 복사</span>
+                                  <span>Ctrl+드래그: 이동</span>
                                   <span>|</span>
                                   <span>🗑️ 더블클릭: 삭제</span>
                                 </div>
