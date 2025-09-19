@@ -1685,14 +1685,24 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                     // 지점 필터링 추가
                     if (schedule.branchId !== selectedBranchId) return false;
                     
-                    // 시작시간과 종료시간을 숫자로 변환
-                    const startHour = parseFloat(schedule.startTime.split(':')[0]) + 
-                                    (parseFloat(schedule.startTime.split(':')[1]) / 60);
-                    const endHour = parseFloat(schedule.endTime.split(':')[0]) + 
-                                  (parseFloat(schedule.endTime.split(':')[1]) / 60);
-                    
-                    // 해당 시간대에 근무하는지 확인
-                    return startHour <= hour && endHour > hour;
+                    // timeSlots가 있으면 각 시간대별로 확인, 없으면 기존 방식
+                    if (schedule.timeSlots && schedule.timeSlots.length > 0) {
+                      // 여러 시간대 중 하나라도 해당 시간에 포함되는지 확인
+                      return schedule.timeSlots.some(slot => {
+                        const startHour = parseFloat(slot.startTime.split(':')[0]) + 
+                                        (parseFloat(slot.startTime.split(':')[1]) / 60);
+                        const endHour = parseFloat(slot.endTime.split(':')[0]) + 
+                                      (parseFloat(slot.endTime.split(':')[1]) / 60);
+                        return startHour <= hour && endHour > hour;
+                      });
+                    } else {
+                      // 단일 시간대인 경우 (기존 로직)
+                      const startHour = parseFloat(schedule.startTime.split(':')[0]) + 
+                                      (parseFloat(schedule.startTime.split(':')[1]) / 60);
+                      const endHour = parseFloat(schedule.endTime.split(':')[0]) + 
+                                    (parseFloat(schedule.endTime.split(':')[1]) / 60);
+                      return startHour <= hour && endHour > hour;
+                    }
                   });
                   
                   return workingEmployees.length;
