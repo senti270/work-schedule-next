@@ -258,7 +258,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const scheduleData = employees.map(employee => {
         const dailySchedules = weekDates.map(date => {
           const schedule = getScheduleForDate(employee.id, date);
-          return schedule ? `${timeToDecimal(schedule.startTime)}-${timeToDecimal(schedule.endTime)}(${schedule.breakTime})` : '-';
+          return schedule ? formatScheduleForDisplay(schedule) : '-';
         });
         
         return {
@@ -546,6 +546,19 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   };
 
+  // 스케줄을 표시용 문자열로 변환하는 함수
+  const formatScheduleForDisplay = (schedule: Schedule) => {
+    // timeSlots가 있으면 여러 시간대로 표시
+    if (schedule.timeSlots && schedule.timeSlots.length > 0) {
+      return schedule.timeSlots.map(slot => 
+        `${timeToDecimal(slot.startTime)}-${timeToDecimal(slot.endTime)}${slot.breakTime > 0 ? `(${slot.breakTime})` : ''}`
+      ).join(', ');
+    } else {
+      // 단일 시간대로 표시
+      return `${timeToDecimal(schedule.startTime)}-${timeToDecimal(schedule.endTime)}(${schedule.breakTime})`;
+    }
+  };
+
   // 시간 겹침 검증 함수
   const checkTimeOverlap = (employeeId: string, date: Date, startTime: string, endTime: string, excludeScheduleId?: string) => {
     const dateString = date.toISOString().split('T')[0];
@@ -773,7 +786,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     // 기존 스케줄이 있으면 입력 필드에 표시
     const existingSchedule = getScheduleForDate(employeeId, date);
     if (existingSchedule) {
-      const inputValue = `${timeToDecimal(existingSchedule.startTime)}-${timeToDecimal(existingSchedule.endTime)}(${existingSchedule.breakTime})`;
+      const inputValue = formatScheduleForDisplay(existingSchedule);
       setScheduleInputs(prev => ({
         ...prev,
         [`${employeeId}-${dateString}`]: inputValue
@@ -1121,7 +1134,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           dayOfWeek,
           weekIndex,
           targetDate: targetDate.toDateString(),
-          schedule: `${timeToDecimal(prevSchedule.startTime)}-${timeToDecimal(prevSchedule.endTime)}(${prevSchedule.breakTime})`
+          schedule: formatScheduleForDisplay(prevSchedule)
         });
         
         await addDoc(collection(db, 'schedules'), {
@@ -1498,13 +1511,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                             onMouseOver={(e) => handleDragOver(e, employee.id, date)}
                             onMouseUp={handleMouseUp}
                             title={existingSchedule ? 
-                              `${timeToDecimal(existingSchedule.startTime)}-${timeToDecimal(existingSchedule.endTime)}(${existingSchedule.breakTime}) - 더블클릭: 삭제` : 
+                              `${formatScheduleForDisplay(existingSchedule)} - 더블클릭: 삭제` : 
                               '클릭하여 입력'
                             }
                           >
                             <div className="truncate">
                               {existingSchedule 
-                                ? `${timeToDecimal(existingSchedule.startTime)}-${timeToDecimal(existingSchedule.endTime)}(${existingSchedule.breakTime})`
+                                ? formatScheduleForDisplay(existingSchedule)
                                 : '클릭하여 입력'
                               }
                             </div>
