@@ -322,6 +322,13 @@ export default function Dashboard({ user }: DashboardProps) {
         isPinned: false,
         selectedBranches: []
       });
+      
+      // 파일 input 초기화
+      const fileInput = document.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+      
       await loadComments();
     } catch (error) {
       console.error('코멘트 추가 중 오류:', error);
@@ -419,6 +426,8 @@ export default function Dashboard({ user }: DashboardProps) {
             });
             
             const base64Data = await base64Promise;
+            console.log(`${file.name}: Base64 데이터 길이:`, base64Data.length);
+            console.log(`${file.name}: Base64 헤더:`, base64Data.substring(0, 50));
             
             uploadedFiles.push({
               fileName: file.name,
@@ -428,7 +437,12 @@ export default function Dashboard({ user }: DashboardProps) {
               isBase64: true
             });
             
-            console.log(`${file.name}: Base64 변환 완료`);
+            console.log(`${file.name}: Base64 변환 완료`, {
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+              base64Length: base64Data.length
+            });
           } catch (base64Error) {
             console.error(`${file.name} Base64 변환 실패:`, base64Error);
             alert(`${file.name}: 파일 처리에 실패했습니다.`);
@@ -968,10 +982,42 @@ export default function Dashboard({ user }: DashboardProps) {
                                               <img
                                                 src={attachment.fileUrl}
                                                 alt={attachment.fileName}
-                                                className="w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80"
-                                                onClick={() => {
-                                                  // 클릭 시 원본 크기로 새 창에서 열기
-                                                  window.open(attachment.fileUrl, '_blank');
+                                                className="w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80 bg-gray-100"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  e.stopPropagation();
+                                                  console.log('이미지 클릭:', attachment.fileName, attachment.fileUrl);
+                                                  
+                                                  if (attachment.isBase64) {
+                                                    // Base64 이미지의 경우 새 창에서 직접 표시
+                                                    const newWindow = window.open('', '_blank');
+                                                    if (newWindow) {
+                                                      newWindow.document.write(`
+                                                        <html>
+                                                          <head><title>${attachment.fileName}</title></head>
+                                                          <body style="margin:0;padding:20px;background:#f0f0f0;display:flex;justify-content:center;align-items:center;">
+                                                            <img src="${attachment.fileUrl}" alt="${attachment.fileName}" style="max-width:100%;max-height:100vh;object-fit:contain;" />
+                                                          </body>
+                                                        </html>
+                                                      `);
+                                                      newWindow.document.close();
+                                                    }
+                                                  } else {
+                                                    // Firebase Storage URL의 경우
+                                                    window.open(attachment.fileUrl, '_blank');
+                                                  }
+                                                }}
+                                                onError={(e) => {
+                                                  console.error('이미지 로드 실패:', attachment.fileName, attachment.fileUrl);
+                                                  const target = e.target as HTMLImageElement;
+                                                  target.style.backgroundColor = '#f3f4f6';
+                                                  target.style.display = 'flex';
+                                                  target.style.alignItems = 'center';
+                                                  target.style.justifyContent = 'center';
+                                                  target.alt = '이미지 로드 실패';
+                                                }}
+                                                onLoad={() => {
+                                                  console.log('이미지 로드 성공:', attachment.fileName);
                                                 }}
                                               />
                                               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded transition-all duration-200 flex items-center justify-center">

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
+import DateInput from './DateInput';
 // import html2pdf from 'html2pdf.js'; // 동적 import로 변경
 
 interface Employee {
@@ -1825,10 +1826,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               <label className="block text-sm font-medium text-gray-700 mb-1">
                                 입사일
                               </label>
-                              <input
-                                type="date"
+                              <DateInput
                                 value={formData.hireDate}
-                                onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
+                                onChange={(value) => setFormData({ ...formData, hireDate: value })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
                             </div>
@@ -1837,10 +1837,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               <label className="block text-sm font-medium text-gray-700 mb-1">
                                 퇴사일
                               </label>
-                              <input
-                                type="date"
+                              <DateInput
                                 value={formData.resignationDate || ''}
-                                onChange={(e) => setFormData({ ...formData, resignationDate: e.target.value })}
+                                onChange={(value) => setFormData({ ...formData, resignationDate: value })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
                             </div>
@@ -1894,11 +1893,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                   수습 시작일
                                 </label>
-                                <input
-                                  type="date"
+                                <DateInput
                                   value={formData.probationStartDate}
-                                  onChange={(e) => {
-                                    const startDate = e.target.value;
+                                  onChange={(startDate) => {
                                     const endDate = calculateProbationPeriod(startDate, formData.probationPeriod);
                                     const isOnProbation = isCurrentlyOnProbation(startDate, endDate);
                                     setFormData({ 
@@ -1941,10 +1938,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                   수습 종료일
                                 </label>
-                                <input
-                                  type="date"
+                                <DateInput
                                   value={formData.probationEndDate}
-                                  onChange={(e) => setFormData({ ...formData, probationEndDate: e.target.value })}
+                                  onChange={(value) => setFormData({ ...formData, probationEndDate: value })}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                               </div>
@@ -2205,10 +2201,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           입사일
                         </label>
-                        <input
-                          type="date"
+                        <DateInput
                           value={formData.hireDate}
-                          onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
+                          onChange={(value) => setFormData({ ...formData, hireDate: value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
@@ -2235,10 +2230,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           퇴사일
                         </label>
-                        <input
-                          type="date"
+                        <DateInput
                           value={formData.resignationDate}
-                          onChange={(e) => setFormData({ ...formData, resignationDate: e.target.value })}
+                          onChange={(value) => setFormData({ ...formData, resignationDate: value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
@@ -2471,10 +2465,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         입사일
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={formData.hireDate}
-                        onChange={(e) => setFormData({ ...formData, hireDate: e.target.value })}
+                        onChange={(value) => setFormData({ ...formData, hireDate: value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -2483,10 +2476,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         퇴사일
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={formData.resignationDate}
-                        onChange={(e) => setFormData({ ...formData, resignationDate: e.target.value })}
+                        onChange={(value) => setFormData({ ...formData, resignationDate: value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -2540,11 +2532,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         수습 시작일
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={formData.probationStartDate}
-                        onChange={(e) => {
-                          const startDate = e.target.value;
+                        onChange={(startDate) => {
                           const endDate = calculateProbationPeriod(startDate, formData.probationPeriod);
                           const isOnProbation = isCurrentlyOnProbation(startDate, endDate);
                           setFormData({ 
@@ -2587,10 +2577,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         수습 종료일
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={formData.probationEndDate}
-                        onChange={(e) => setFormData({ ...formData, probationEndDate: e.target.value })}
+                        onChange={(value) => setFormData({ ...formData, probationEndDate: value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -2746,10 +2735,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         기준일 *
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={contractFormData.startDate}
-                        onChange={(e) => setContractFormData({ ...contractFormData, startDate: e.target.value })}
+                        onChange={(value) => setContractFormData({ ...contractFormData, startDate: value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
@@ -3081,10 +3069,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         기준일 *
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={contractFormData.startDate}
-                        onChange={(e) => setContractFormData({ ...contractFormData, startDate: e.target.value })}
+                        onChange={(value) => setContractFormData({ ...contractFormData, startDate: value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />

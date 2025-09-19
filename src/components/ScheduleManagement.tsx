@@ -5,6 +5,7 @@ import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore'
 import { db } from '@/lib/firebase';
 import ScheduleInputNew from './ScheduleInputNew';
 import { isRedDay } from '@/lib/holidays';
+import DateInput from './DateInput';
 
 interface Schedule {
   id: string;
@@ -605,10 +606,9 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">날짜</label>
-                <input
-                  type="date"
+                <DateInput
                   value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  onChange={(value) => setFormData({ ...formData, date: value })}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
