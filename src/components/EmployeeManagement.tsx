@@ -1107,8 +1107,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       const sortedContracts = contractsData.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
       console.log('정렬된 계약서 목록:', sortedContracts);
       console.log('setContracts 호출 전 현재 contracts 길이:', contracts.length);
-      setContracts(sortedContracts);
-      console.log('setContracts 호출 완료');
+      
+      // 상태를 완전히 리셋하고 새로 설정
+      setContracts([]);
+      setTimeout(() => {
+        setContracts(sortedContracts);
+        setContractsKey(prev => prev + 1);
+        console.log('setContracts 호출 완료, 새로운 길이:', sortedContracts.length);
+      }, 100);
     } catch (error) {
       console.error('근로계약서 로드 중 오류:', error);
     }
@@ -1306,7 +1312,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       });
       
       // CORS 문제 회피를 위해 Base64 방식을 우선 사용
-      if (file.size < 3 * 1024 * 1024) { // 3MB 미만은 Base64로 처리
+      if (file.size < 5 * 1024 * 1024) { // 5MB 미만은 Base64로 처리 (제한 확대)
         console.log('Base64 방식으로 파일 저장 시도...');
         
         try {
