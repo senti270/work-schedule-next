@@ -2846,8 +2846,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
               {/* 근로계약서 목록 */}
               <div>
-                <h3 className="text-md font-medium text-gray-900 mb-4">근로계약서 히스토리</h3>
-                {contracts.length === 0 ? (
+                <h3 className="text-md font-medium text-gray-900 mb-4">
+                  근로계약서 히스토리 (총 {contracts.length}개)
+                </h3>
+                {(() => {
+                  console.log('히스토리 테이블 렌더링 체크 - contracts.length:', contracts.length);
+                  console.log('현재 contracts 배열:', contracts);
+                  return contracts.length === 0;
+                })() ? (
                   <div className="text-center py-8 text-gray-500">
                     등록된 근로계약서가 없습니다.
                   </div>
@@ -3034,23 +3040,55 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                 {(() => {
                   console.log('문서관리 모달 렌더링 - contracts 길이:', contracts.length);
                   console.log('contracts 배열:', contracts);
-                  return contracts.length > 0;
+                  
+                  // 파일이 있는 최신 계약서 찾기
+                  const latestContractWithFile = contracts.find(contract => 
+                    contract.contractFile && contract.contractFile.trim() !== '' && 
+                    contract.contractFileName && contract.contractFileName.trim() !== ''
+                  );
+                  
+                  console.log('파일이 있는 최신 계약서:', latestContractWithFile);
+                  return latestContractWithFile;
                 })() ? (
                   <div className="mb-4 p-3 bg-white border border-gray-200 rounded-md">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-700">
-                        📄 최신 계약서: {contracts[0]?.contractFileName || '파일명 없음'} 
-                        (기준일: {contracts[0]?.startDate?.toLocaleDateString('ko-KR') || '날짜 없음'})
+                        📄 최신 계약서: {(() => {
+                          const latestContract = contracts.find(contract => 
+                            contract.contractFile && contract.contractFile.trim() !== '' && 
+                            contract.contractFileName && contract.contractFileName.trim() !== ''
+                          );
+                          return latestContract?.contractFileName || '파일명 없음';
+                        })()} 
+                        (기준일: {(() => {
+                          const latestContract = contracts.find(contract => 
+                            contract.contractFile && contract.contractFile.trim() !== '' && 
+                            contract.contractFileName && contract.contractFileName.trim() !== ''
+                          );
+                          return latestContract?.startDate?.toLocaleDateString('ko-KR') || '날짜 없음';
+                        })()})
                       </span>
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => handleFileDownload(contracts[0])}
+                          onClick={() => {
+                            const latestContract = contracts.find(contract => 
+                              contract.contractFile && contract.contractFile.trim() !== '' && 
+                              contract.contractFileName && contract.contractFileName.trim() !== ''
+                            );
+                            if (latestContract) handleFileDownload(latestContract);
+                          }}
                           className="text-xs text-blue-600 hover:text-blue-800"
                         >
                           다운로드
                         </button>
                         <button
-                          onClick={() => handleFileDelete(contracts[0])}
+                          onClick={() => {
+                            const latestContract = contracts.find(contract => 
+                              contract.contractFile && contract.contractFile.trim() !== '' && 
+                              contract.contractFileName && contract.contractFileName.trim() !== ''
+                            );
+                            if (latestContract) handleFileDelete(latestContract);
+                          }}
                           className="text-xs text-red-600 hover:text-red-800"
                         >
                           삭제
