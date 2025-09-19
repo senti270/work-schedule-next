@@ -3074,16 +3074,111 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </div>
                 )}
                 
-                {/* 파일 업로드 */}
-                <div className="space-y-3">
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => handleContractUpload(e, showDocumentModal.employee!)}
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
+                {/* 새 계약서 추가 */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        기준일 *
+                      </label>
+                      <input
+                        type="date"
+                        value={contractFormData.startDate}
+                        onChange={(e) => setContractFormData({ ...contractFormData, startDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        파일 선택
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              // 파일 크기 및 형식 검증
+                              const maxSize = 10 * 1024 * 1024; // 10MB
+                              if (file.size > maxSize) {
+                                alert('파일 크기는 10MB를 초과할 수 없습니다.');
+                                e.target.value = '';
+                                return;
+                              }
+                              
+                              const allowedTypes = [
+                                'application/pdf', 
+                                'application/msword', 
+                                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                'image/jpeg', 
+                                'image/jpg',
+                                'image/png'
+                              ];
+                              
+                              if (!allowedTypes.includes(file.type)) {
+                                alert('지원되는 파일 형식: PDF, DOC, DOCX, JPG, PNG');
+                                e.target.value = '';
+                                return;
+                              }
+                              
+                              setSelectedFile(file);
+                              setContractFormData({ ...contractFormData, contractFile: file.name });
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                        {selectedFile && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!contractFormData.startDate) {
+                                alert('기준일을 먼저 입력해주세요.');
+                                return;
+                              }
+                              
+                              try {
+                                // 계약서 레코드 생성
+                                const contractData = {
+                                  employeeId: showDocumentModal.employee!.id,
+                                  startDate: new Date(contractFormData.startDate),
+                                  contractFile: '',
+                                  contractFileName: '',
+                                  createdAt: new Date(),
+                                  updatedAt: new Date()
+                                };
+                                
+                                const docRef = await addDoc(collection(db, 'employmentContracts'), contractData);
+                                console.log('계약서 레코드 생성 완료:', docRef.id);
+                                
+                                // 파일 업로드
+                                await handleFileUpload(selectedFile, docRef.id);
+                                
+                                // 폼 리셋
+                                resetContractForm();
+                              } catch (error) {
+                                console.error('계약서 추가 중 오류:', error);
+                                alert('계약서 추가 중 오류가 발생했습니다.');
+                              }
+                            }}
+                            disabled={uploadingFile}
+                            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium disabled:opacity-50 text-sm"
+                          >
+                            {uploadingFile ? '업로드중...' : '업로드'}
+                          </button>
+                        )}
+                      </div>
+                      {selectedFile && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          선택된 파일: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)}MB)
+                        </p>
+                      )}
+                    </div>
+                  </div>
                   <p className="text-xs text-gray-500">
-                    PDF, JPG, PNG 파일을 업로드할 수 있습니다. (최대 10MB)
+                    PDF, DOC, DOCX, JPG, PNG 파일을 업로드할 수 있습니다. (최대 10MB)
                   </p>
                 </div>
               </div>
