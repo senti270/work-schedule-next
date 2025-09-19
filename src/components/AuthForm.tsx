@@ -23,10 +23,15 @@ export default function AuthForm() {
         return;
       }
       
-      // 기존 계정들을 임시로 특별 처리
-      const legacyAccounts = ['yes0619', 'cdeel_dt'];
-      if (legacyAccounts.includes(userId)) {
-        // 여러 가능한 이메일 형식을 시도
+      // 매니저 계정 DB에서 해당 userId 확인
+      const managerAccountsSnapshot = await getDocs(collection(db, 'managerAccounts'));
+      const managerAccount = managerAccountsSnapshot.docs.find(doc => {
+        const data = doc.data();
+        return data.userId === userId && data.password === password && data.isActive;
+      });
+      
+      if (managerAccount) {
+        // 매니저 계정이면 기존 Firebase Auth 계정 시도
         const possibleEmails = [
           `${userId}@naver.com`,
           `${userId}@gmail.com`, 
@@ -43,25 +48,16 @@ export default function AuthForm() {
           }
         }
         
-        // 모든 기존 이메일 실패시 매니저 계정으로 시도
-        console.log('기존 이메일 형식 모두 실패, 매니저 계정으로 시도...');
-      }
-      
-      // 기타 계정들은 매니저 계정 DB에서 확인
-      const managerAccountsSnapshot = await getDocs(collection(db, 'managerAccounts'));
-      const managerAccount = managerAccountsSnapshot.docs.find(doc => {
-        const data = doc.data();
-        return data.userId === userId && data.password === password && data.isActive;
-      });
-      
-      if (!managerAccount) {
+        // 모든 기존 이메일 실패시 새 Firebase Auth 계정 생성
+        console.log('기존 이메일 형식 모두 실패, 새 Firebase Auth 계정 생성...');
+      } else {
         alert('등록되지 않은 계정이거나 아이디/비밀번호가 틀렸습니다.');
         return;
       }
       
       // 매니저 계정이 확인되면 Firebase Auth로 로그인
       // 각 매니저 계정마다 고유한 이메일 생성
-      const email = `${userId}@manager.workschedule.local`;
+      const email = `${managerAccount.data().userId}@manager.workschedule.local`;
       const firebasePassword = 'workschedule_manager_2024'; // 모든 매니저 공통 Firebase 비밀번호
       
       try {

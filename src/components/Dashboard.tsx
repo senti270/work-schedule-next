@@ -52,8 +52,42 @@ export default function Dashboard({ user }: DashboardProps) {
 
   const checkManagerRole = async () => {
     try {
-      // drawing555@naver.com을 drawing555로 변경
-      const userId = user.email === 'drawing555@naver.com' ? 'drawing555' : user.email;
+      // 사용자 ID 추출
+      let userId = '';
+      if (user.email === 'drawing555@naver.com') {
+        userId = 'drawing555';
+      } else if (user.email?.includes('@manager.workschedule.local')) {
+        userId = user.email.split('@')[0];
+      } else {
+        // 매니저 계정 DB에서 해당 사용자 찾기
+        const managerAccountsSnapshot = await getDocs(collection(db, 'managerAccounts'));
+        const managerAccount = managerAccountsSnapshot.docs.find(doc => {
+          const data = doc.data();
+          // 이메일에 userId가 포함되어 있는지 확인
+          return user.email?.includes(data.userId);
+        });
+        
+        if (managerAccount) {
+          userId = managerAccount.data().userId;
+          
+          // 매니저 계정의 branchId로 지점 정보 설정
+          if (managerAccount.data().branchId !== 'master') {
+            const branchesSnapshot = await getDocs(collection(db, 'branches'));
+            const branch = branchesSnapshot.docs.find(doc => doc.id === managerAccount.data().branchId);
+            if (branch) {
+              setUserBranch({
+                id: branch.id,
+                name: branch.data().name,
+                managerId: userId
+              });
+              setIsManager(true);
+            }
+          }
+        } else {
+          userId = user.email || '';
+        }
+      }
+      
       console.log('매니저 권한 확인 중:', userId);
       
       // 매니저 ID로 지점을 찾기
@@ -121,22 +155,31 @@ export default function Dashboard({ user }: DashboardProps) {
         userId = 'drawing555';
         authorName = 'drawing555(마스터)';
       } else if (user.email?.includes('@manager.workschedule.local')) {
-        // 매니저 계정에서 userId 추출 (예: yes0619@manager.workschedule.local -> yes0619)
+        // 매니저 계정에서 userId 추출
         userId = user.email.split('@')[0];
         const branchName = isManager && userBranch ? userBranch.name : '관리자';
         authorName = `${userId}(${branchName})`;
       } else {
-        // 기존 계정들 처리
-        if (user.email?.includes('yes0619')) {
-          userId = 'yes0619';
-          authorName = 'yes0619(마스터)';
-        } else if (user.email?.includes('cdeel_dt')) {
-          userId = 'cdeel_dt';
-          const branchName = isManager && userBranch ? userBranch.name : '청담장어마켓 동탄점';
-          authorName = `cdeel_dt(${branchName})`;
+        // 매니저 계정 DB에서 해당 사용자 찾기
+        const managerAccountsSnapshot = await getDocs(collection(db, 'managerAccounts'));
+        const managerAccount = managerAccountsSnapshot.docs.find(doc => {
+          const data = doc.data();
+          return user.email?.includes(data.userId);
+        });
+        
+        if (managerAccount) {
+          userId = managerAccount.data().userId;
+          // 마스터 계정인지 확인 (branchId가 'master'인 경우)
+          if (managerAccount.data().branchId === 'master') {
+            authorName = `${userId}(마스터)`;
+          } else {
+            const branchName = isManager && userBranch ? userBranch.name : '관리자';
+            authorName = `${userId}(${branchName})`;
+          }
         } else {
           userId = user.email || '';
-          authorName = isManager && userBranch ? `${userId}(${userBranch.name})` : '관리자';
+          const branchName = isManager && userBranch ? userBranch.name : '관리자';
+          authorName = `${userId}(${branchName})`;
         }
       }
       

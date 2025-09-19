@@ -670,6 +670,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 스케줄을 표시용 문자열로 변환하는 함수
   const formatScheduleForDisplay = (schedule: Schedule) => {
+    // originalInput이 있으면 원본 입력 형식 사용
+    if (schedule.originalInput) {
+      return schedule.originalInput;
+    }
+    
     // timeSlots가 있으면 여러 시간대로 표시
     if (schedule.timeSlots && schedule.timeSlots.length > 0) {
       return schedule.timeSlots.map(slot => 
@@ -997,6 +1002,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 breakTime: parsed.breakTime,
                 totalHours: totalHours,
                 timeSlots: parsed.timeSlots, // 여러 시간대 정보 저장
+                originalInput: inputValue, // 원본 입력 형식 저장
                 updatedAt: new Date()
               });
             } else {
@@ -1012,6 +1018,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 breakTime: parsed.breakTime,
                 totalHours: totalHours,
                 timeSlots: parsed.timeSlots, // 여러 시간대 정보 저장
+                originalInput: inputValue, // 원본 입력 형식 저장
                 createdAt: new Date(),
                 updatedAt: new Date()
               });
@@ -1270,6 +1277,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           endTime: prevSchedule.endTime,
           breakTime: prevSchedule.breakTime,
           totalHours: prevSchedule.totalHours,
+          timeSlots: prevSchedule.timeSlots, // 다중 시간대 정보 복사
+          originalInput: prevSchedule.originalInput, // 원본 입력 형식 복사
           createdAt: new Date(),
           updatedAt: new Date()
         });
@@ -1392,6 +1401,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             endTime: sourceSchedule.endTime,
             breakTime: sourceSchedule.breakTime,
             totalHours: sourceSchedule.totalHours,
+            timeSlots: sourceSchedule.timeSlots, // 다중 시간대 정보 복사
+            originalInput: sourceSchedule.originalInput, // 원본 입력 형식 복사
             updatedAt: new Date()
           });
         } else {
@@ -1406,6 +1417,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             endTime: sourceSchedule.endTime,
             breakTime: sourceSchedule.breakTime,
             totalHours: sourceSchedule.totalHours,
+            timeSlots: sourceSchedule.timeSlots, // 다중 시간대 정보 복사
+            originalInput: sourceSchedule.originalInput, // 원본 입력 형식 복사
             createdAt: new Date(),
             updatedAt: new Date()
           });
