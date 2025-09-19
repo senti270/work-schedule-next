@@ -16,6 +16,7 @@ interface Schedule {
   breakTime: string;
   totalHours: number;
   timeSlots?: Array<{startTime: string; endTime: string; breakTime: number}>;
+  originalInput?: string; // 원본 입력 형식 저장 (예: "10-13, 19-23(0.5)")
   createdAt: Date;
   updatedAt: Date;
 }

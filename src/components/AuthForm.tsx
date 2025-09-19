@@ -23,12 +23,14 @@ export default function AuthForm() {
         return;
       }
       
-      if (userId === 'yes0619') {
+      // 기존 계정들을 임시로 특별 처리
+      const legacyAccounts = ['yes0619', 'cdeel_dt'];
+      if (legacyAccounts.includes(userId)) {
         // 여러 가능한 이메일 형식을 시도
         const possibleEmails = [
-          'yes0619@naver.com',
-          'yes0619@gmail.com', 
-          'yes0619@workschedule.local'
+          `${userId}@naver.com`,
+          `${userId}@gmail.com`, 
+          `${userId}@workschedule.local`
         ];
         
         // 첫 번째로 성공하는 이메일 사용
@@ -40,7 +42,9 @@ export default function AuthForm() {
             console.log(`${testEmail} 로그인 실패, 다음 시도...`);
           }
         }
-        throw new Error('모든 이메일 형식 로그인 실패');
+        
+        // 모든 기존 이메일 실패시 매니저 계정으로 시도
+        console.log('기존 이메일 형식 모두 실패, 매니저 계정으로 시도...');
       }
       
       // 기타 계정들은 매니저 계정 DB에서 확인
