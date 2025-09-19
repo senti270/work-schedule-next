@@ -102,6 +102,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [contracts, setContracts] = useState<EmploymentContract[]>([]);
+  const [contractsKey, setContractsKey] = useState(0); // 강제 리렌더링용
   const [showContractModal, setShowContractModal] = useState(false);
   // 필터링 및 검색 상태
   const [showResignedEmployees, setShowResignedEmployees] = useState(false);
@@ -1377,13 +1378,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         (input as HTMLInputElement).value = '';
       });
       
-      // 로컬 상태 즉시 업데이트
+      // 즉시 새로운 계약서를 상태에 추가
       if (selectedEmployee) {
         console.log('계약서 목록 다시 로드 시작');
         await loadContracts(selectedEmployee.id);
-        
-        // 강제 리렌더링 트리거
-        setContracts(prev => [...prev]); // 배열 참조 변경으로 리렌더링 유도
+        setContractsKey(prev => prev + 1); // 강제 리렌더링
+        console.log('업로드 후 계약서 목록 새로고침 완료');
       }
       
       alert('파일이 성공적으로 업로드되었습니다.');
@@ -1439,13 +1439,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           await deleteDoc(doc(db, 'employmentContracts', contract.id));
           console.log('계약서 레코드 삭제 완료');
           
-          // 즉시 상태에서 삭제된 계약서 제거
-          setContracts(prev => prev.filter(c => c.id !== contract.id));
-          
-          // 로컬 상태 업데이트
-          if (selectedEmployee) {
-            await loadContracts(selectedEmployee.id);
-          }
+        // 즉시 상태에서 삭제된 계약서 제거
+        const updatedContracts = contracts.filter(c => c.id !== contract.id);
+        setContracts(updatedContracts);
+        setContractsKey(prev => prev + 1); // 강제 리렌더링
+        console.log('레코드 삭제 후 즉시 상태 업데이트 완료, 남은 계약서 수:', updatedContracts.length);
           
           alert('계약서 레코드가 성공적으로 삭제되었습니다.');
         } catch (error) {
@@ -1481,13 +1479,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         console.log('Firestore 업데이트 완료');
         
         // 즉시 상태에서 삭제된 계약서 제거
-        setContracts(prev => prev.filter(c => c.id !== contract.id));
-        
-        // 로컬 상태 업데이트
-        if (selectedEmployee) {
-          console.log('계약서 목록 다시 로드 시작');
-          await loadContracts(selectedEmployee.id);
-        }
+        const updatedContracts = contracts.filter(c => c.id !== contract.id);
+        setContracts(updatedContracts);
+        setContractsKey(prev => prev + 1); // 강제 리렌더링
+        console.log('파일 삭제 후 즉시 상태 업데이트 완료, 남은 계약서 수:', updatedContracts.length);
         
         alert('파일이 성공적으로 삭제되었습니다.');
       } catch (error) {
@@ -3093,7 +3088,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       등록된 근로계약서가 없습니다.
                     </div>
                   ) : (
-                    <div className="overflow-x-auto bg-white border border-gray-200 rounded-md">
+                    <div key={contractsKey} className="overflow-x-auto bg-white border border-gray-200 rounded-md">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
