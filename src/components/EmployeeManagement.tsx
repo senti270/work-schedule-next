@@ -1045,14 +1045,46 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     try {
       setUploadingFile(true);
       
+      // 파일 크기 및 형식 검증
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        alert('파일 크기는 10MB를 초과할 수 없습니다.');
+        return;
+      }
+      
+      const allowedTypes = [
+        'application/pdf', 
+        'application/msword', 
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/jpeg', 
+        'image/jpg',
+        'image/png'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        alert('지원되는 파일 형식: PDF, DOC, DOCX, JPG, PNG');
+        return;
+      }
+      
       // 파일명 생성 (직원ID_계약ID_타임스탬프.확장자)
       const timestamp = Date.now();
       const fileExtension = file.name.split('.').pop();
       const fileName = `contracts/${contractId}_${timestamp}.${fileExtension}`;
       
-      // Firebase Storage에 업로드
+      // Firebase Storage에 업로드 (메타데이터 추가)
       const storageRef = ref(storage, fileName);
-      const snapshot = await uploadBytes(storageRef, file);
+      
+      const metadata = {
+        contentType: file.type,
+        customMetadata: {
+          'originalName': file.name,
+          'uploadedBy': 'employee-management',
+          'contractId': contractId,
+          'uploadTime': new Date().toISOString()
+        }
+      };
+      
+      const snapshot = await uploadBytes(storageRef, file, metadata);
       const downloadURL = await getDownloadURL(snapshot.ref);
       
       // Firestore에 파일 정보 업데이트
@@ -1072,7 +1104,26 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       alert('파일이 성공적으로 업로드되었습니다.');
     } catch (error) {
       console.error('파일 업로드 중 오류:', error);
-      alert('파일 업로드 중 오류가 발생했습니다.');
+      
+      // 구체적인 에러 메시지 제공
+      let errorMessage = '파일 업로드 중 오류가 발생했습니다.';
+      if (error instanceof Error) {
+        if (error.message.includes('storage/unauthorized')) {
+          errorMessage = '파일 업로드 권한이 없습니다. 관리자에게 문의하세요.';
+        } else if (error.message.includes('storage/canceled')) {
+          errorMessage = '파일 업로드가 취소되었습니다.';
+        } else if (error.message.includes('storage/unknown')) {
+          errorMessage = '알 수 없는 오류가 발생했습니다. 다시 시도해주세요.';
+        } else if (error.message.includes('storage/invalid-format')) {
+          errorMessage = '지원하지 않는 파일 형식입니다.';
+        } else if (error.message.includes('storage/object-not-found')) {
+          errorMessage = '파일을 찾을 수 없습니다.';
+        } else if (error.message.includes('storage/quota-exceeded')) {
+          errorMessage = '저장 공간이 부족합니다.';
+        }
+      }
+      
+      alert(errorMessage);
     } finally {
       setUploadingFile(false);
     }
@@ -2376,10 +2427,33 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       </label>
                       <input
                         type="file"
-                        accept=".pdf,.doc,.docx"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
+                            // 파일 크기 및 형식 검증
+                            const maxSize = 10 * 1024 * 1024; // 10MB
+                            if (file.size > maxSize) {
+                              alert('파일 크기는 10MB를 초과할 수 없습니다.');
+                              e.target.value = ''; // 파일 선택 취소
+                              return;
+                            }
+                            
+                            const allowedTypes = [
+                              'application/pdf', 
+                              'application/msword', 
+                              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                              'image/jpeg', 
+                              'image/jpg',
+                              'image/png'
+                            ];
+                            
+                            if (!allowedTypes.includes(file.type)) {
+                              alert('지원되는 파일 형식: PDF, DOC, DOCX, JPG, PNG');
+                              e.target.value = ''; // 파일 선택 취소
+                              return;
+                            }
+                            
                             setSelectedFile(file);
                             setContractFormData({ ...contractFormData, contractFile: file.name });
                           }
@@ -2434,7 +2508,18 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         {contracts.map((contract) => (
                           <tr key={contract.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {contract.startDate.toLocaleDateString('ko-KR')}
+                              <div className="font-medium">
+                                {contract.startDate.toLocaleDateString('ko-KR', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit'
+                                })}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {contract.startDate.toLocaleDateString('ko-KR', {
+                                  weekday: 'short'
+                                })}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="space-y-2">
@@ -2458,14 +2543,37 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                   <div className="space-y-1">
                                     <input
                                       type="file"
-                                      accept=".pdf,.doc,.docx"
+                                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                                       onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
+                                          // 파일 크기 및 형식 검증
+                                          const maxSize = 10 * 1024 * 1024; // 10MB
+                                          if (file.size > maxSize) {
+                                            alert('파일 크기는 10MB를 초과할 수 없습니다.');
+                                            e.target.value = ''; // 파일 선택 취소
+                                            return;
+                                          }
+                                          
+                                          const allowedTypes = [
+                                            'application/pdf', 
+                                            'application/msword', 
+                                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                            'image/jpeg', 
+                                            'image/jpg',
+                                            'image/png'
+                                          ];
+                                          
+                                          if (!allowedTypes.includes(file.type)) {
+                                            alert('지원되는 파일 형식: PDF, DOC, DOCX, JPG, PNG');
+                                            e.target.value = ''; // 파일 선택 취소
+                                            return;
+                                          }
+                                          
                                           setSelectedFile(file);
                                         }
                                       }}
-                                      className="text-xs"
+                                      className="text-xs w-full"
                                       id={`file-${contract.id}`}
                                     />
                                     {selectedFile && (
