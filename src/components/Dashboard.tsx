@@ -1002,124 +1002,86 @@ export default function Dashboard({ user }: DashboardProps) {
                                     <div className="flex flex-wrap gap-2">
                                       {comment.attachments.map((attachment, index) => (
                                         <div key={index} className="relative">
-                                          {attachment.fileType.startsWith('image/') ? (
-                                            // 이미지 파일: 섬네일 표시
-                                            <div className="relative group w-16 h-16 border border-gray-300 cursor-pointer hover:opacity-80 rounded bg-gray-100 overflow-hidden">
-                                              <img
-                                                src={attachment.fileUrl}
-                                                alt={attachment.fileName}
-                                                className="w-full h-full object-cover"
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  e.stopPropagation();
-                                                  console.log('=== 이미지 클릭 디버깅 ===');
-                                                  console.log('파일명:', attachment.fileName);
-                                                  console.log('파일타입:', attachment.fileType);
-                                                  console.log('isBase64:', attachment.isBase64);
-                                                  console.log('fileUrl 시작 부분:', attachment.fileUrl?.substring(0, 100));
-                                                  console.log('fileUrl 전체 길이:', attachment.fileUrl?.length);
-                                                  
-                                                  // Base64 데이터 검증
-                                                  if (attachment.isBase64 && attachment.fileUrl.startsWith('data:image/')) {
-                                                    console.log('Base64 이미지 클릭 - 새 창 열기 시도');
-                                                    // Base64 이미지의 경우 새 창에서 직접 표시
-                                                    const newWindow = window.open('', '_blank', 'width=800,height=600');
-                                                    console.log('새 창 생성 결과:', newWindow);
-                                                    if (newWindow) {
-                                                        newWindow.document.write(`
-                                                          <!DOCTYPE html>
-                                                          <html>
-                                                            <head>
-                                                              <title>${attachment.fileName}</title>
-                                                              <meta charset="utf-8">
-                                                              <style>
-                                                                body { 
-                                                                  margin: 0; 
-                                                                  padding: 20px; 
-                                                                  background: #f0f0f0; 
-                                                                  display: flex; 
-                                                                  justify-content: center; 
-                                                                  align-items: center; 
-                                                                  min-height: 100vh;
-                                                                  font-family: Arial, sans-serif;
-                                                                }
-                                                                img { 
-                                                                  max-width: 100%; 
-                                                                  max-height: 90vh; 
-                                                                  object-fit: contain;
-                                                                  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-                                                                }
-                                                                .filename {
-                                                                  position: fixed;
-                                                                  top: 10px;
-                                                                  left: 50%;
-                                                                  transform: translateX(-50%);
-                                                                  background: rgba(0,0,0,0.7);
-                                                                  color: white;
-                                                                  padding: 8px 16px;
-                                                                  border-radius: 4px;
-                                                                  font-size: 14px;
-                                                                }
-                                                              </style>
-                                                            </head>
-                                                            <body>
-                                                              <div class="filename">${attachment.fileName}</div>
-                                                              <img src="${attachment.fileUrl}" alt="${attachment.fileName}" />
-                                                            </body>
-                                                          </html>
-                                                        `);
-                                                        newWindow.document.close();
-                                                      } else {
-                                                        alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
-                                                      }
-                                                    } else if (!attachment.isBase64 && attachment.fileUrl.startsWith('http')) {
-                                                      // Firebase Storage URL의 경우
-                                                      window.open(attachment.fileUrl, '_blank');
+                                          <div className="inline-flex items-center px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded border hover:bg-gray-200 transition-colors cursor-pointer"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              
+                                              if (attachment.isBase64 && attachment.fileUrl.startsWith('data:image/')) {
+                                                // Base64 이미지의 경우 새 창에서 직접 표시
+                                                const newWindow = window.open('', '_blank', 'width=800,height=600');
+                                                if (newWindow) {
+                                                    newWindow.document.write(`
+                                                      <!DOCTYPE html>
+                                                      <html>
+                                                        <head>
+                                                          <title>${attachment.fileName}</title>
+                                                          <meta charset="utf-8">
+                                                          <style>
+                                                            body { 
+                                                              margin: 0; 
+                                                              padding: 20px; 
+                                                              background: #f0f0f0; 
+                                                              display: flex; 
+                                                              justify-content: center; 
+                                                              align-items: center; 
+                                                              min-height: 100vh;
+                                                              font-family: Arial, sans-serif;
+                                                            }
+                                                            img { 
+                                                              max-width: 100%; 
+                                                              max-height: 90vh; 
+                                                              object-fit: contain;
+                                                              box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                                                            }
+                                                            .filename {
+                                                              position: fixed;
+                                                              top: 10px;
+                                                              left: 50%;
+                                                              transform: translateX(-50%);
+                                                              background: rgba(0,0,0,0.7);
+                                                              color: white;
+                                                              padding: 8px 16px;
+                                                              border-radius: 4px;
+                                                              font-size: 14px;
+                                                            }
+                                                          </style>
+                                                        </head>
+                                                        <body>
+                                                          <div class="filename">${attachment.fileName}</div>
+                                                          <img src="${attachment.fileUrl}" alt="${attachment.fileName}" />
+                                                        </body>
+                                                      </html>
+                                                    `);
+                                                    newWindow.document.close();
                                                   } else {
-                                                    alert('이미지를 열 수 없습니다. 파일이 손상되었을 수 있습니다.');
+                                                    alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
                                                   }
-                                                }}
-                                                onError={(e) => {
-                                                  console.error('=== 이미지 로드 실패 ===');
-                                                  console.error('파일명:', attachment.fileName);
-                                                  const target = e.target as HTMLImageElement;
-                                                  target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMCAyMEg0NFY0NEgyMFYyMFoiIHN0cm9rZT0iIzlDQTNBRiIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+CjxjaXJjbGUgY3g9IjI2IiBjeT0iMjgiIHI9IjMiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTIwIDM2TDI2IDMwTDMyIDM2TDM4IDMwTDQ0IDM2VjQ0SDIwVjM2WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K';
-                                                  target.alt = '이미지 로드 실패';
-                                                }}
-                                                onLoad={() => {
-                                                  console.log('=== 이미지 로드 성공 ===');
-                                                  console.log('파일명:', attachment.fileName);
-                                                }}
-                                              />
-                                              {/* 호버 오버레이 */}
-                                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded transition-all duration-200 flex items-center justify-center pointer-events-none">
-                                                <span className="text-white text-xs opacity-0 group-hover:opacity-100">🔍</span>
-                                              </div>
-                                              {/* 파일명 표시 */}
-                                              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs p-1 rounded-b truncate pointer-events-none">
-                                                {attachment.fileName}
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            // 일반 파일: 다운로드 링크
-                                            <a
-                                              href={attachment.fileUrl}
-                                              download={attachment.fileName}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="inline-flex items-center px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded border hover:bg-gray-200 transition-colors"
-                                            >
-                                              <span className="mr-1">
-                                                {attachment.fileType.includes('pdf') ? '📄' :
-                                                 attachment.fileType.includes('word') ? '📝' :
-                                                 attachment.fileType.includes('text') ? '📃' : '📎'}
-                                              </span>
-                                              {attachment.fileName}
-                                              <span className="ml-1 text-gray-500">
-                                                ({(attachment.fileSize / 1024 / 1024).toFixed(1)}MB)
-                                              </span>
-                                            </a>
-                                          )}
+                                                } else if (!attachment.isBase64 && attachment.fileUrl.startsWith('http')) {
+                                                  // Firebase Storage URL의 경우
+                                                  window.open(attachment.fileUrl, '_blank');
+                                              } else {
+                                                // 다운로드 링크로 처리
+                                                const link = document.createElement('a');
+                                                link.href = attachment.fileUrl;
+                                                link.download = attachment.fileName;
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                              }
+                                            }}
+                                          >
+                                            <span className="mr-1">
+                                              {attachment.fileType.startsWith('image/') ? '🖼️' :
+                                               attachment.fileType.includes('pdf') ? '📄' :
+                                               attachment.fileType.includes('word') ? '📝' :
+                                               attachment.fileType.includes('text') ? '📃' : '📎'}
+                                            </span>
+                                            {attachment.fileName}
+                                            <span className="ml-1 text-gray-500">
+                                              ({(attachment.fileSize / 1024 / 1024).toFixed(1)}MB)
+                                            </span>
+                                          </div>
                                         </div>
                                       ))}
                                     </div>

@@ -1075,6 +1075,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           notes: data.notes || '',
           contractFile: data.contractFile || '',
           contractFileName: data.contractFileName || '',
+          fileType: data.fileType || '',
+          fileSize: data.fileSize || 0,
+          isBase64: data.isBase64 || false,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
         };
