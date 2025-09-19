@@ -216,7 +216,7 @@ export default function Dashboard({ user }: DashboardProps) {
         if (attachments.length > 0) {
           console.log('=== 코멘트 첨부파일 로드 ===');
           console.log('코멘트 ID:', doc.id);
-          attachments.forEach((att: any, index: number) => {
+          attachments.forEach((att: { fileName: string; fileType: string; isBase64?: boolean; fileUrl?: string }, index: number) => {
             console.log(`첨부파일 ${index + 1}:`, {
               fileName: att.fileName,
               fileType: att.fileType,
