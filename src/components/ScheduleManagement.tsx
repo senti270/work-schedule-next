@@ -326,24 +326,35 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
       {/* 지점 선택 */}
       <div className="bg-white p-4 rounded-lg shadow border">
         <div className="space-y-3">
-          <label className="text-sm font-medium text-gray-700">지점 선택:</label>
-          <div className="flex flex-wrap gap-2">
-            {branches
-              .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-              .map((branch) => (
-              <button
-                key={branch.id}
-                onClick={() => setSelectedBranchId(branch.id)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedBranchId === branch.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {branch.name}
-              </button>
-            ))}
-          </div>
+          {!isManager ? (
+            <>
+              <label className="text-sm font-medium text-gray-700">지점 선택:</label>
+              <div className="flex flex-wrap gap-2">
+                {branches
+                  .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+                  .map((branch) => (
+                  <button
+                    key={branch.id}
+                    onClick={() => setSelectedBranchId(branch.id)}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      selectedBranchId === branch.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {branch.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <label className="text-sm font-medium text-gray-700">현재 지점:</label>
+              <div className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium inline-block">
+                {userBranch?.name || '지점 정보 없음'}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

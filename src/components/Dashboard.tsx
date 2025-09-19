@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { collection, getDocs, query, where, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import EmployeeManagement from './EmployeeManagement';
 import ScheduleManagement from './ScheduleManagement';
 import BranchManagement from './BranchManagement';
@@ -27,6 +27,9 @@ interface Comment {
   content: string;
   authorId: string;
   authorName: string; // 지점명 또는 "관리자"
+  adminConfirmRequest?: boolean; // 관리자 확인 요청
+  isImportant?: boolean; // 중요
+  isPinned?: boolean; // 상단고정
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +47,21 @@ export default function Dashboard({ user }: DashboardProps) {
   // 코멘트 관련 상태
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [commentOptions, setCommentOptions] = useState({
+    adminConfirmRequest: false,
+    isImportant: false,
+    isPinned: false
+  });
+  const [editingComment, setEditingComment] = useState<{ 
+    id: string; 
+    content: string; 
+    options: {
+      adminConfirmRequest: boolean;
+      isImportant: boolean;
+      isPinned: boolean;
+    }
+  } | null>(null);
 
   useEffect(() => {
     checkManagerRole();
@@ -89,6 +107,7 @@ export default function Dashboard({ user }: DashboardProps) {
       }
       
       console.log('매니저 권한 확인 중:', userId);
+      setCurrentUserId(userId);
       
       // 매니저 계정 DB에서 지점 정보 가져오기
       const managerAccountsSnapshot = await getDocs(collection(db, 'managerAccounts'));
@@ -155,12 +174,23 @@ export default function Dashboard({ user }: DashboardProps) {
         content: doc.data().content,
         authorId: doc.data().authorId || '',
         authorName: doc.data().authorName || '알 수 없음',
+        adminConfirmRequest: doc.data().adminConfirmRequest || false,
+        isImportant: doc.data().isImportant || false,
+        isPinned: doc.data().isPinned || false,
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date()
       })) as Comment[];
       
-      // 최신순으로 정렬
-      commentsData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      // 상단고정 코멘트를 먼저, 나머지는 최신순으로 정렬
+      commentsData.sort((a, b) => {
+        // 상단고정 우선
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        
+        // 둘 다 상단고정이거나 둘 다 일반이면 최신순
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+      
       setComments(commentsData);
     } catch (error) {
       console.error('코멘트 로드 중 오류:', error);
@@ -229,15 +259,46 @@ export default function Dashboard({ user }: DashboardProps) {
         content: newComment.trim(),
         authorId: userId,
         authorName: authorName,
+        adminConfirmRequest: commentOptions.adminConfirmRequest,
+        isImportant: commentOptions.isImportant,
+        isPinned: commentOptions.isPinned,
         createdAt: new Date(),
         updatedAt: new Date()
       });
       
       setNewComment('');
+      setCommentOptions({
+        adminConfirmRequest: false,
+        isImportant: false,
+        isPinned: false
+      });
       await loadComments();
     } catch (error) {
       console.error('코멘트 추가 중 오류:', error);
       alert('코멘트 추가 중 오류가 발생했습니다.');
+    }
+  };
+
+  const editComment = async () => {
+    if (!editingComment || !editingComment.content.trim()) {
+      alert('코멘트 내용을 입력해주세요.');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'comments', editingComment.id), {
+        content: editingComment.content.trim(),
+        adminConfirmRequest: editingComment.options.adminConfirmRequest,
+        isImportant: editingComment.options.isImportant,
+        isPinned: editingComment.options.isPinned,
+        updatedAt: new Date()
+      });
+      
+      setEditingComment(null);
+      await loadComments();
+    } catch (error) {
+      console.error('코멘트 수정 중 오류:', error);
+      alert('코멘트 수정 중 오류가 발생했습니다.');
     }
   };
 
@@ -458,6 +519,40 @@ export default function Dashboard({ user }: DashboardProps) {
                         placeholder="코멘트를 입력하세요..."
                         className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       />
+                      
+                      {/* 코멘트 옵션 체크박스 */}
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={commentOptions.adminConfirmRequest}
+                            onChange={(e) => setCommentOptions(prev => ({ ...prev, adminConfirmRequest: e.target.checked }))}
+                            className="mr-2"
+                          />
+                          <span className="text-gray-700">📋 관리자 확인 요청</span>
+                        </label>
+                        
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={commentOptions.isImportant}
+                            onChange={(e) => setCommentOptions(prev => ({ ...prev, isImportant: e.target.checked }))}
+                            className="mr-2"
+                          />
+                          <span className="text-gray-700">⚠️ 중요</span>
+                        </label>
+                        
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={commentOptions.isPinned}
+                            onChange={(e) => setCommentOptions(prev => ({ ...prev, isPinned: e.target.checked }))}
+                            className="mr-2"
+                          />
+                          <span className="text-gray-700">📌 상단고정</span>
+                        </label>
+                      </div>
+                      
                       <div className="flex justify-end">
                         <button
                           onClick={addComment}
@@ -473,27 +568,132 @@ export default function Dashboard({ user }: DashboardProps) {
                   <div className="divide-y divide-gray-200">
                     {comments.length > 0 ? (
                       comments.map((comment) => (
-                        <div key={comment.id} className="p-6">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <span className="text-xs font-medium text-blue-600">
-                                  {comment.authorName}
-                                </span>
-                                <span className="text-xs text-gray-400">•</span>
-                                <span className="text-xs text-gray-500">
-                                  {comment.createdAt.toLocaleString('ko-KR')}
-                                </span>
+                        <div key={comment.id} className={`p-6 ${comment.isPinned ? 'bg-yellow-50 border-l-4 border-yellow-400' : ''}`}>
+                          {editingComment?.id === comment.id ? (
+                            /* 수정 모드 */
+                            <div className="space-y-4">
+                              <textarea
+                                value={editingComment.content}
+                                onChange={(e) => setEditingComment(prev => prev ? { ...prev, content: e.target.value } : null)}
+                                className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                              />
+                              
+                              {/* 수정 시 옵션 체크박스 */}
+                              <div className="flex flex-wrap gap-4 text-sm">
+                                <label className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={editingComment.options.adminConfirmRequest}
+                                    onChange={(e) => setEditingComment(prev => prev ? { 
+                                      ...prev, 
+                                      options: { ...prev.options, adminConfirmRequest: e.target.checked }
+                                    } : null)}
+                                    className="mr-2"
+                                  />
+                                  <span className="text-gray-700">📋 관리자 확인 요청</span>
+                                </label>
+                                
+                                <label className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={editingComment.options.isImportant}
+                                    onChange={(e) => setEditingComment(prev => prev ? { 
+                                      ...prev, 
+                                      options: { ...prev.options, isImportant: e.target.checked }
+                                    } : null)}
+                                    className="mr-2"
+                                  />
+                                  <span className="text-gray-700">⚠️ 중요</span>
+                                </label>
+                                
+                                <label className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={editingComment.options.isPinned}
+                                    onChange={(e) => setEditingComment(prev => prev ? { 
+                                      ...prev, 
+                                      options: { ...prev.options, isPinned: e.target.checked }
+                                    } : null)}
+                                    className="mr-2"
+                                  />
+                                  <span className="text-gray-700">📌 상단고정</span>
+                                </label>
                               </div>
-                              <p className="text-sm text-gray-800 whitespace-pre-wrap">{comment.content}</p>
+                              
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={editComment}
+                                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                                >
+                                  저장
+                                </button>
+                                <button
+                                  onClick={() => setEditingComment(null)}
+                                  className="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"
+                                >
+                                  취소
+                                </button>
+                              </div>
                             </div>
-                            <button
-                              onClick={() => deleteComment(comment.id)}
-                              className="ml-4 text-red-600 hover:text-red-800 text-sm"
-                            >
-                              삭제
-                            </button>
-                          </div>
+                          ) : (
+                            /* 일반 표시 모드 */
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <span className="text-xs font-medium text-blue-600">
+                                    {comment.authorName}
+                                  </span>
+                                  <span className="text-xs text-gray-400">•</span>
+                                  <span className="text-xs text-gray-500">
+                                    {comment.createdAt.toLocaleString('ko-KR')}
+                                  </span>
+                                  
+                                  {/* 옵션 표시 */}
+                                  {comment.adminConfirmRequest && (
+                                    <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                                      📋 확인요청
+                                    </span>
+                                  )}
+                                  {comment.isImportant && (
+                                    <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+                                      ⚠️ 중요
+                                    </span>
+                                  )}
+                                  {comment.isPinned && (
+                                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                                      📌 고정
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-800 whitespace-pre-wrap">{comment.content}</p>
+                              </div>
+                              
+                              {(comment.authorId === currentUserId || user.email === 'drawing555@naver.com') && (
+                                <div className="flex space-x-2 ml-4">
+                                  <button
+                                    onClick={() => setEditingComment({
+                                      id: comment.id,
+                                      content: comment.content,
+                                      options: {
+                                        adminConfirmRequest: comment.adminConfirmRequest || false,
+                                        isImportant: comment.isImportant || false,
+                                        isPinned: comment.isPinned || false
+                                      }
+                                    })}
+                                    className="text-blue-600 hover:text-blue-800 text-sm"
+                                  >
+                                    수정
+                                  </button>
+                                  <button
+                                    onClick={() => deleteComment(comment.id)}
+                                    className="text-red-600 hover:text-red-800 text-sm"
+                                  >
+                                    삭제
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))
                     ) : (

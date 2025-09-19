@@ -1432,7 +1432,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         await loadSchedules();
       } catch (error) {
         console.error('드래그 작업 오류:', error);
-        alert('드래그 작업 중 오류가 발생했습니다.');
+        console.error('드래그 상태:', dragState);
+        console.error('소스 스케줄:', sourceSchedule);
+        console.error('대상 직원:', employee);
+        console.error('대상 지점:', branch);
+        alert(`드래그 작업 중 오류가 발생했습니다.\n\n오류: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
