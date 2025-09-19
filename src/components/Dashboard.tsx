@@ -1004,45 +1004,25 @@ export default function Dashboard({ user }: DashboardProps) {
                                         <div key={index} className="relative">
                                           {attachment.fileType.startsWith('image/') ? (
                                             // 이미지 파일: 섬네일 표시
-                                            <div className="relative group">
-                                              <div 
-                                                className="w-16 h-16 border border-gray-300 cursor-pointer hover:opacity-80 rounded bg-gray-100 flex items-center justify-center"
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  e.stopPropagation();
-                                                  console.log('=== DIV 클릭 테스트 ===');
-                                                  console.log('파일명:', attachment.fileName);
-                                                  alert('클릭 이벤트 작동 확인!');
-                                                }}
-                                              >
-                                                <span className="text-xs text-gray-500">클릭</span>
-                                              </div>
-                                              <img
-                                                src={attachment.fileUrl}
-                                                alt={attachment.fileName}
-                                                className="absolute inset-0 w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80"
-                                                style={{ 
-                                                  backgroundColor: '#f3f4f6',
-                                                  minHeight: '64px',
-                                                  minWidth: '64px'
-                                                }}
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  e.stopPropagation();
-                                                  console.log('=== 이미지 클릭 디버깅 ===');
-                                                  console.log('파일명:', attachment.fileName);
-                                                  console.log('파일타입:', attachment.fileType);
-                                                  console.log('isBase64:', attachment.isBase64);
-                                                  console.log('fileUrl 시작 부분:', attachment.fileUrl?.substring(0, 100));
-                                                  console.log('fileUrl 전체 길이:', attachment.fileUrl?.length);
-                                                  
-                                                  // Base64 데이터 검증
-                                                  if (attachment.isBase64 && attachment.fileUrl.startsWith('data:image/')) {
-                                                    console.log('Base64 이미지 클릭 - 새 창 열기 시도');
-                                                    // Base64 이미지의 경우 새 창에서 직접 표시
-                                                    const newWindow = window.open('', '_blank', 'width=800,height=600');
-                                                    console.log('새 창 생성 결과:', newWindow);
-                                                    if (newWindow) {
+                                            <div 
+                                              className="relative group w-16 h-16 border border-gray-300 cursor-pointer hover:opacity-80 rounded bg-gray-100 overflow-hidden"
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                console.log('=== 이미지 클릭 디버깅 ===');
+                                                console.log('파일명:', attachment.fileName);
+                                                console.log('파일타입:', attachment.fileType);
+                                                console.log('isBase64:', attachment.isBase64);
+                                                console.log('fileUrl 시작 부분:', attachment.fileUrl?.substring(0, 100));
+                                                console.log('fileUrl 전체 길이:', attachment.fileUrl?.length);
+                                                
+                                                // Base64 데이터 검증
+                                                if (attachment.isBase64 && attachment.fileUrl.startsWith('data:image/')) {
+                                                  console.log('Base64 이미지 클릭 - 새 창 열기 시도');
+                                                  // Base64 이미지의 경우 새 창에서 직접 표시
+                                                  const newWindow = window.open('', '_blank', 'width=800,height=600');
+                                                  console.log('새 창 생성 결과:', newWindow);
+                                                  if (newWindow) {
                                                       newWindow.document.write(`
                                                         <!DOCTYPE html>
                                                         <html>
@@ -1092,32 +1072,22 @@ export default function Dashboard({ user }: DashboardProps) {
                                                   } else if (!attachment.isBase64 && attachment.fileUrl.startsWith('http')) {
                                                     // Firebase Storage URL의 경우
                                                     window.open(attachment.fileUrl, '_blank');
-                                                  } else {
-                                                    alert('이미지를 열 수 없습니다. 파일이 손상되었을 수 있습니다.');
-                                                  }
-                                                }}
-                                                onError={(e) => {
-                                                  console.error('=== 이미지 로드 실패 ===');
-                                                  console.error('파일명:', attachment.fileName);
-                                                  console.error('파일타입:', attachment.fileType);
-                                                  console.error('isBase64:', attachment.isBase64);
-                                                  console.error('fileUrl 시작 부분:', attachment.fileUrl?.substring(0, 100));
-                                                  console.error('에러 이벤트:', e);
-                                                  
-                                                  const target = e.target as HTMLImageElement;
-                                                  target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMCAyMEg0NFY0NEgyMFYyMFoiIHN0cm9rZT0iIzlDQTNBRiIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+CjxjaXJjbGUgY3g9IjI2IiBjeT0iMjgiIHI9IjMiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTIwIDM2TDI2IDMwTDMyIDM2TDM4IDMwTDQ0IDM2VjQ0SDIwVjM2WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K';
-                                                  target.alt = '이미지 로드 실패';
-                                                  target.title = `${attachment.fileName} - 이미지를 불러올 수 없습니다`;
-                                                }}
-                                                onLoad={(e) => {
-                                                  console.log('=== 이미지 로드 성공 ===');
-                                                  console.log('파일명:', attachment.fileName);
-                                                  console.log('실제 이미지 크기:', (e.target as HTMLImageElement).naturalWidth, 'x', (e.target as HTMLImageElement).naturalHeight);
-                                                }}
-                                              />
+                                                } else {
+                                                  alert('이미지를 열 수 없습니다. 파일이 손상되었을 수 있습니다.');
+                                                }
+                                              }}
+                                              style={{
+                                                backgroundImage: `url(${attachment.fileUrl})`,
+                                                backgroundSize: 'cover',
+                                                backgroundPosition: 'center',
+                                                backgroundRepeat: 'no-repeat'
+                                              }}
+                                            >
+                                              {/* 호버 오버레이 */}
                                               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded transition-all duration-200 flex items-center justify-center">
                                                 <span className="text-white text-xs opacity-0 group-hover:opacity-100">🔍</span>
                                               </div>
+                                              {/* 파일명 표시 */}
                                               <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs p-1 rounded-b truncate">
                                                 {attachment.fileName}
                                               </div>
