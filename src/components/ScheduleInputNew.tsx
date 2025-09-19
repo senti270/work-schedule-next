@@ -1592,6 +1592,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                     
                     if (!isSameDate) return false;
                     
+                    // 지점 필터링 추가
+                    if (schedule.branchId !== selectedBranchId) return false;
+                    
                     // 시작시간과 종료시간을 숫자로 변환
                     const startHour = parseFloat(schedule.startTime.split(':')[0]) + 
                                     (parseFloat(schedule.startTime.split(':')[1]) / 60);
