@@ -1367,11 +1367,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         }
       }
       
-      // 로컬 상태 업데이트
-      if (selectedEmployee) {
-        await loadContracts(selectedEmployee.id);
-      }
-      
       // 파일 선택 초기화
       setSelectedFile(null);
       setContractFormData(prev => ({ ...prev, contractFile: '' }));
@@ -1381,6 +1376,15 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       fileInputs.forEach(input => {
         (input as HTMLInputElement).value = '';
       });
+      
+      // 로컬 상태 즉시 업데이트
+      if (selectedEmployee) {
+        console.log('계약서 목록 다시 로드 시작');
+        await loadContracts(selectedEmployee.id);
+        
+        // 강제 리렌더링 트리거
+        setContracts(prev => [...prev]); // 배열 참조 변경으로 리렌더링 유도
+      }
       
       alert('파일이 성공적으로 업로드되었습니다.');
     } catch (error) {
@@ -1435,6 +1439,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           await deleteDoc(doc(db, 'employmentContracts', contract.id));
           console.log('계약서 레코드 삭제 완료');
           
+          // 즉시 상태에서 삭제된 계약서 제거
+          setContracts(prev => prev.filter(c => c.id !== contract.id));
+          
           // 로컬 상태 업데이트
           if (selectedEmployee) {
             await loadContracts(selectedEmployee.id);
@@ -1472,6 +1479,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         });
         
         console.log('Firestore 업데이트 완료');
+        
+        // 즉시 상태에서 삭제된 계약서 제거
+        setContracts(prev => prev.filter(c => c.id !== contract.id));
         
         // 로컬 상태 업데이트
         if (selectedEmployee) {
