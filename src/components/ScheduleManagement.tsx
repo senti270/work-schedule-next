@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import ScheduleInputNew from './ScheduleInputNew';
+import { isRedDay } from '@/lib/holidays';
 
 interface Schedule {
   id: string;
@@ -16,6 +17,8 @@ interface Schedule {
   endTime: string;
   breakTime: string;
   totalHours: number;
+  timeSlots?: Array<{startTime: string; endTime: string; breakTime: number}>;
+  originalInput?: string; // 원본 입력 형식 저장
   createdAt: Date;
   updatedAt: Date;
 }
@@ -429,8 +432,15 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
                     {/* 날짜만 표시 - 요일 없음 */}
                     <div className={`text-sm font-medium ${
                       day.isCurrentMonth ? 'text-gray-900' : 'text-gray-600'
-                    } ${day.isToday ? 'text-blue-600' : ''}`}>
+                    } ${day.isToday ? 'text-blue-600' : ''} ${
+                      isRedDay(day.date).isRed ? 'text-red-600' : ''
+                    }`}>
                       {day.dayNumber}
+                      {isRedDay(day.date).isRed && (
+                        <div className="text-xs text-red-500 mt-1" title={isRedDay(day.date).reason}>
+                          {isRedDay(day.date).holiday ? '🎌' : ''}
+                        </div>
+                      )}
                     </div>
                     
                     {/* 해당 날짜의 스케줄 표시 */}
@@ -438,34 +448,53 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
                       {getSchedulesForDate(day.date).map((schedule) => (
                         <div
                           key={schedule.id}
-                          className="text-xs p-1 bg-blue-100 text-blue-800 rounded truncate cursor-pointer hover:bg-blue-200"
+                          className="text-xs p-1 bg-blue-100 text-blue-800 rounded cursor-pointer hover:bg-blue-200"
                           onClick={() => handleEdit(schedule)}
-                          title={`${schedule.employeeName}: ${schedule.startTime}-${schedule.endTime}`}
+                          title={`${schedule.employeeName}: ${schedule.originalInput || `${schedule.startTime}-${schedule.endTime}`}`}
                         >
-                          {(() => {
-                            // 시:분 형태를 소수점 형태로 변환 (18:30 -> 18.5)
-                            const timeToDecimal = (timeStr: string) => {
-                              const [hours, minutes] = timeStr.split(':').map(Number);
-                              if (minutes === 0) {
-                                return hours.toString();
-                              } else {
-                                const decimalMinutes = minutes / 60;
-                                if (decimalMinutes === 0.5) {
-                                  return `${hours}.5`;
-                                } else if (decimalMinutes === 0.25) {
-                                  return `${hours}.25`;
-                                } else if (decimalMinutes === 0.75) {
-                                  return `${hours}.75`;
-                                } else {
-                                  return (hours + decimalMinutes).toString();
-                                }
+                          <div className="font-medium truncate">{schedule.employeeName}</div>
+                          <div className="text-xs truncate">
+                            {(() => {
+                              // originalInput이 있으면 사용
+                              if (schedule.originalInput) {
+                                return schedule.originalInput;
                               }
-                            };
-                            
-                            const startTimeDisplay = timeToDecimal(schedule.startTime);
-                            const endTimeDisplay = timeToDecimal(schedule.endTime);
-                            return `${schedule.employeeName} ${startTimeDisplay}-${endTimeDisplay}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
-                          })()}
+                              
+                              // timeSlots가 있으면 여러 시간대 표시
+                              if (schedule.timeSlots && schedule.timeSlots.length > 0) {
+                                return schedule.timeSlots.map(slot => {
+                                  const timeToDecimal = (timeStr: string) => {
+                                    const [hours, minutes] = timeStr.split(':').map(Number);
+                                    if (minutes === 0) return hours.toString();
+                                    const decimalMinutes = minutes / 60;
+                                    if (decimalMinutes === 0.5) return `${hours}.5`;
+                                    if (decimalMinutes === 0.25) return `${hours}.25`;
+                                    if (decimalMinutes === 0.75) return `${hours}.75`;
+                                    return (hours + decimalMinutes).toString();
+                                  };
+                                  
+                                  const start = timeToDecimal(slot.startTime);
+                                  const end = timeToDecimal(slot.endTime);
+                                  return `${start}-${end}${slot.breakTime > 0 ? `(${slot.breakTime})` : ''}`;
+                                }).join(', ');
+                              }
+                              
+                              // 단일 시간대 표시
+                              const timeToDecimal = (timeStr: string) => {
+                                const [hours, minutes] = timeStr.split(':').map(Number);
+                                if (minutes === 0) return hours.toString();
+                                const decimalMinutes = minutes / 60;
+                                if (decimalMinutes === 0.5) return `${hours}.5`;
+                                if (decimalMinutes === 0.25) return `${hours}.25`;
+                                if (decimalMinutes === 0.75) return `${hours}.75`;
+                                return (hours + decimalMinutes).toString();
+                              };
+                              
+                              const startTimeDisplay = timeToDecimal(schedule.startTime);
+                              const endTimeDisplay = timeToDecimal(schedule.endTime);
+                              return `${startTimeDisplay}-${endTimeDisplay}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
+                            })()}
+                          </div>
                         </div>
                       ))}
                     </div>

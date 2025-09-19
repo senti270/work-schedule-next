@@ -475,6 +475,11 @@ export default function Dashboard({ user }: DashboardProps) {
                 <p className="mt-2 text-sm text-gray-700 font-medium">
                   근무 스케줄 관리 시스템에 오신 것을 환영합니다.
                 </p>
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800 text-center">
+                    💻 본 시스템은 PC화면에서 최적화되어있습니다
+                  </p>
+                </div>
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                   {!isManager && (
                     <button 

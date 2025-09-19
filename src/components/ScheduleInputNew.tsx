@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { isRedDay } from '@/lib/holidays';
 
 interface Schedule {
   id: string;
@@ -1586,11 +1587,25 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 <th className="w-24 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   지점직원
                 </th>
-                {weekDates.map((date, index) => (
-                  <th key={index} className="w-24 px-1 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {date.getDate()}({['일', '월', '화', '수', '목', '금', '토'][date.getDay()]})
-                  </th>
-                ))}
+                {weekDates.map((date, index) => {
+                  const redDayInfo = isRedDay(date);
+                  return (
+                    <th 
+                      key={index} 
+                      className={`w-24 px-1 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                        redDayInfo.isRed ? 'text-red-600' : 'text-gray-500'
+                      }`}
+                      title={redDayInfo.isRed ? redDayInfo.reason : ''}
+                    >
+                      <div>
+                        {date.getDate()}({['일', '월', '화', '수', '목', '금', '토'][date.getDay()]})
+                      </div>
+                      {redDayInfo.holiday && (
+                        <div className="text-xs text-red-500 mt-1">🎌</div>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
