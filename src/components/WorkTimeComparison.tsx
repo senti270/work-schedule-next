@@ -431,7 +431,12 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       console.log(`실제근무 데이터 찾기:`, actualRecord);
 
       if (actualRecord) {
-        const difference = actualRecord.totalHours - schedule.totalHours;
+        // 휴게시간과 실근무시간 계산
+        const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
+        const actualWorkHours = actualRecord.totalHours; // 실제 근무시간 (이미 휴게시간 제외된 순 근무시간)
+        
+        // 차이 계산: 스케줄시간 - 실제근무시간
+        const difference = schedule.totalHours - actualWorkHours;
         let status: 'time_match' | 'review_required' | 'review_completed' = 'time_match';
         
         // 10분(0.17시간) 이상 차이나면 확인필요, 이내면 시간일치
@@ -440,10 +445,6 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         } else {
           status = 'time_match';
         }
-
-        // 휴게시간과 실근무시간 계산
-        const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
-        const actualWorkHours = Math.max(0, actualRecord.totalHours - breakTime); // 실근무시간 (실제근무시간 - 휴게시간)
         
         comparisons.push({
           employeeName: schedule.employeeName,
