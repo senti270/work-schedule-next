@@ -23,6 +23,7 @@ interface Employee {
   id: string;
   name: string;
   status?: 'active' | 'inactive';
+  hireDate?: Date;
   resignationDate?: Date;
   branchNames?: string[]; // 소속 지점명들
   weeklyWorkHours?: number; // 주간 근무시간
@@ -346,6 +347,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       const employeesData = employeesSnapshot.docs.map(doc => {
         const data = doc.data();
+        const hireDate = data.hireDate?.toDate ? data.hireDate.toDate() : undefined;
         const resignationDate = data.resignationDate?.toDate ? data.resignationDate.toDate() : undefined;
         
         // 직원의 지점명들 가져오기
@@ -373,22 +375,40 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           id: doc.id,
           name: data.name || '',
           status: resignationDate ? 'inactive' : 'active',
+          hireDate: hireDate,
           resignationDate: resignationDate,
           branchNames: branchNames,
           weeklyWorkHours: data.weeklyWorkHours || 40
         };
       }) as Employee[];
       
-      // 재직 중인 직원만 필터링
-      const activeEmployees = employeesData.filter(emp => emp.status === 'active');
+      // 현재 주간 날짜 범위 계산
+      const weekDates = getWeekDates();
+      const weekStart = weekDates[0]; // 월요일
+      const weekEnd = weekDates[6]; // 일요일
+      
+      // 해당 주간에 근무 중인 직원만 필터링 (입사일/퇴사일 기준)
+      const workingEmployees = employeesData.filter(emp => {
+        // 입사일 체크 (입사일이 없으면 제한 없음)
+        if (emp.hireDate && emp.hireDate > weekEnd) {
+          return false; // 주간 종료일 이후 입사 -> 제외
+        }
+        
+        // 퇴사일 체크 (퇴사일이 없으면 제한 없음)
+        if (emp.resignationDate && emp.resignationDate < weekStart) {
+          return false; // 주간 시작일 이전 퇴사 -> 제외
+        }
+        
+        return true; // 해당 주간에 근무 중
+      });
       
       // 지점별 필터링
       const filteredEmployees = selectedBranchId 
-        ? activeEmployees.filter(emp => {
+        ? workingEmployees.filter(emp => {
             const selectedBranch = branches.find(b => b.id === selectedBranchId);
             return selectedBranch && emp.branchNames?.includes(selectedBranch.name);
           })
-        : activeEmployees;
+        : workingEmployees;
       
       setEmployees(filteredEmployees);
     } catch (error) {
