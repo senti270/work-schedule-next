@@ -117,7 +117,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     phone: '',
     residentNumber: '',
     hireDate: '',
-    type: '사업소득자',
+    type: '',
     // 급여관리용 은행 정보
     bankName: '',
     bankCode: '',
@@ -628,7 +628,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         phone: '',
         residentNumber: '',
         hireDate: '',
-        type: '사업소득자',
+        type: '',
         // 급여관리용 은행 정보
         bankName: '',
         bankCode: '',
@@ -785,7 +785,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       phone: '',
       residentNumber: '',
       hireDate: '',
-      type: '사업소득자',
+      type: '',
       // 급여관리용 은행 정보
       bankName: '',
       bankCode: '',

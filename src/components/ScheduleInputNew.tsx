@@ -35,6 +35,7 @@ interface Employee {
   id: string;
   name: string;
   status?: 'active' | 'inactive';
+  type?: string; // 고용형태
   hireDate?: Date;
   resignationDate?: Date;
   branchNames?: string[]; // 소속 지점명들
@@ -394,6 +395,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           id: doc.id,
           name: data.name || '',
           status: resignationDate ? 'inactive' : 'active',
+          type: data.type || '',
           hireDate: hireDate,
           resignationDate: resignationDate,
           branchNames: branchNames,
@@ -1091,7 +1093,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         employeeName: employee.name,
         dailyHours,
         totalHours,
-        weeklyWorkHours: employee.weeklyWorkHours
+        weeklyWorkHours: employee.weeklyWorkHours,
+        employmentType: employee.type || ''
       };
     }).filter(emp => emp.totalHours > 0); // 총 근무시간이 0보다 큰 직원만 필터링
     
@@ -1759,7 +1762,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                     <tr key={index}>
                       <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
                         {summary.employeeName}
-                        {summary.weeklyWorkHours && (
+                        {summary.employmentType === '근로소득자' && summary.weeklyWorkHours && (
                           <span className="text-xs text-gray-500 ml-1">
                             ({summary.weeklyWorkHours})
                           </span>
