@@ -16,11 +16,31 @@ export default function AuthForm() {
     setLoading(true);
     
     try {
-      // drawing555는 마스터 계정이므로 기존 방식 유지
+      // 기존 계정들은 기존 방식 유지
       if (userId === 'drawing555') {
         const email = 'drawing555@naver.com';
         await signInWithEmailAndPassword(auth, email, password);
         return;
+      }
+      
+      if (userId === 'yes0619') {
+        // 여러 가능한 이메일 형식을 시도
+        const possibleEmails = [
+          'yes0619@naver.com',
+          'yes0619@gmail.com', 
+          'yes0619@workschedule.local'
+        ];
+        
+        // 첫 번째로 성공하는 이메일 사용
+        for (const testEmail of possibleEmails) {
+          try {
+            await signInWithEmailAndPassword(auth, testEmail, password);
+            return; // 성공하면 함수 종료
+          } catch (error) {
+            console.log(`${testEmail} 로그인 실패, 다음 시도...`);
+          }
+        }
+        throw new Error('모든 이메일 형식 로그인 실패');
       }
       
       // 기타 계정들은 매니저 계정 DB에서 확인

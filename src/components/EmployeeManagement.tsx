@@ -102,6 +102,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   // 필터링 및 검색 상태
   const [showResignedEmployees, setShowResignedEmployees] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showDocumentModal, setShowDocumentModal] = useState<{ show: boolean; employee: Employee | null }>({ show: false, employee: null });
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [contractFormData, setContractFormData] = useState({
     startDate: '',
@@ -1219,20 +1220,16 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   근무일수 / 입사일
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  퇴사일
-                </th>
+                {showResignedEmployees && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    퇴사일
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   상태
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  메모
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   문서
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  작업
                 </th>
               </tr>
             </thead>
@@ -1242,7 +1239,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                 <tr className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     <div className="space-y-1">
-                      <div className="font-semibold">{employee.name}</div>
+                      <button
+                        onClick={() => handleEdit(employee)}
+                        className="font-semibold text-blue-600 hover:text-blue-800 text-left"
+                      >
+                        {employee.name}
+                      </button>
                       <div className="text-xs text-gray-400">{employee.residentNumber || '-'}</div>
                     </div>
                   </td>
@@ -1273,9 +1275,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {employee.resignationDate ? employee.resignationDate.toLocaleDateString() : '-'}
-                  </td>
+                  {showResignedEmployees && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {employee.resignationDate ? employee.resignationDate.toLocaleDateString() : '-'}
+                    </td>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       employee.status === 'active' 
@@ -1285,52 +1289,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       {employee.status === 'active' ? '재직' : '퇴사'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    <div className="max-w-xs truncate" title={employee.memo || '-'}>
-                      {employee.memo || '-'}
-                    </div>
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => generateEmploymentCertificate(employee)}
-                        className="text-blue-600 hover:text-blue-900 text-xs"
-                      >
-                        재직증명서
-                      </button>
-                      <button
-                        onClick={() => handleContractClick(employee)}
-                        className="text-green-600 hover:text-green-900 text-xs"
-                      >
-                        근로계약서
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
-                      onClick={() => handleEdit(employee)}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
+                      onClick={() => setShowDocumentModal({ show: true, employee })}
+                      className="text-blue-600 hover:text-blue-900 text-xs"
                     >
-                      수정
-                    </button>
-                    <button
-                      onClick={() => handleDelete(employee.id)}
-                      className="text-red-600 hover:text-red-900 mr-3"
-                    >
-                      삭제
-                    </button>
-                    <button
-                      onClick={() => handleDeactivate(employee.id)}
-                      className="text-orange-600 hover:text-orange-900"
-                    >
-                      퇴사
+                      문서관리
                     </button>
                   </td>
                 </tr>
                 {/* 수정 폼 - 해당 직원 행 바로 아래에 표시 */}
                 {editingEmployee && editingEmployee.id === employee.id && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-4 bg-gray-50">
+                    <td colSpan={showResignedEmployees ? 6 : 5} className="px-6 py-4 bg-gray-50">
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
                         <h3 className="text-lg font-semibold mb-4 text-gray-900">
                           {editingEmployee.name} 정보 수정
@@ -1641,6 +1612,28 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 font-medium"
                             >
                               수정
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm('정말 이 직원을 삭제하시겠습니까?')) {
+                                  handleDelete(editingEmployee.id);
+                                }
+                              }}
+                              className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 font-medium"
+                            >
+                              삭제
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm('이 직원을 퇴사 처리하시겠습니까?')) {
+                                  handleDeactivate(editingEmployee.id);
+                                }
+                              }}
+                              className="bg-yellow-600 text-white px-6 py-2 rounded-md hover:bg-yellow-700 font-medium"
+                            >
+                              퇴사처리
                             </button>
                             <button
                               type="button"
@@ -2404,6 +2397,55 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 문서관리 모달 */}
+      {showDocumentModal.show && showDocumentModal.employee && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {showDocumentModal.employee.name} - 문서관리
+              </h3>
+              <button
+                onClick={() => setShowDocumentModal({ show: false, employee: null })}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <button
+                onClick={() => {
+                  generateEmploymentCertificate(showDocumentModal.employee!);
+                  setShowDocumentModal({ show: false, employee: null });
+                }}
+                className="w-full bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 font-medium text-left flex items-center"
+              >
+                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                재직증명서 생성
+              </button>
+              
+              <button
+                onClick={() => {
+                  handleContractClick(showDocumentModal.employee!);
+                  setShowDocumentModal({ show: false, employee: null });
+                }}
+                className="w-full bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 font-medium text-left flex items-center"
+              >
+                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                근로계약서 관리
+              </button>
             </div>
           </div>
         </div>
