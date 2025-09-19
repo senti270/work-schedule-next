@@ -1108,13 +1108,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       console.log('정렬된 계약서 목록:', sortedContracts);
       console.log('setContracts 호출 전 현재 contracts 길이:', contracts.length);
       
-      // 상태를 완전히 리셋하고 새로 설정
-      setContracts([]);
-      setTimeout(() => {
-        setContracts(sortedContracts);
-        setContractsKey(prev => prev + 1);
-        console.log('setContracts 호출 완료, 새로운 길이:', sortedContracts.length);
-      }, 100);
+      // 상태 직접 업데이트
+      setContracts(sortedContracts);
+      setContractsKey(prev => prev + 1);
+      console.log('setContracts 호출 완료, 새로운 길이:', sortedContracts.length);
     } catch (error) {
       console.error('근로계약서 로드 중 오류:', error);
     }
@@ -1283,10 +1280,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     try {
       setUploadingFile(true);
       
-      // 파일 크기 및 형식 검증 (Base64 제한에 맞춤)
-      const maxSize = 5 * 1024 * 1024; // 5MB (Base64 처리 가능 크기)
+      // 파일 크기 및 형식 검증
+      const maxSize = 3 * 1024 * 1024; // 3MB
       if (file.size > maxSize) {
-        alert('파일 크기가 너무 큽니다. 5MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
+        alert('파일 크기가 너무 큽니다. 3MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
         return;
       }
       
@@ -1312,7 +1309,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       });
       
       // CORS 문제 회피를 위해 Base64 방식을 우선 사용
-      if (file.size < 5 * 1024 * 1024) { // 5MB 미만은 Base64로 처리 (제한 확대)
+      if (file.size <= 3 * 1024 * 1024) { // 3MB 이하는 Base64로 처리
         console.log('Base64 방식으로 파일 저장 시도...');
         
         try {
@@ -1386,10 +1383,31 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       
       // 즉시 새로운 계약서를 상태에 추가
       if (selectedEmployee) {
-        console.log('계약서 목록 다시 로드 시작');
-        await loadContracts(selectedEmployee.id);
-        setContractsKey(prev => prev + 1); // 강제 리렌더링
-        console.log('업로드 후 계약서 목록 새로고침 완료');
+        console.log('업로드 완료, 상태에 즉시 추가');
+        
+        // 새로운 계약서 객체 생성
+        const newContract: EmploymentContract = {
+          id: contractId,
+          employeeId: selectedEmployee.id,
+          contractType: '',
+          startDate: new Date(), // 실제 기준일은 loadContracts에서 가져옴
+          contractFile: file.size <= 3 * 1024 * 1024 ? 'base64_data' : 'firebase_url', // 임시값
+          contractFileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          isBase64: file.size <= 3 * 1024 * 1024,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        // 즉시 상태에 추가
+        setContracts(prev => [newContract, ...prev]);
+        setContractsKey(prev => prev + 1);
+        
+        // 백그라운드에서 정확한 데이터 로드
+        setTimeout(() => loadContracts(selectedEmployee.id), 500);
+        
+        console.log('업로드 후 즉시 상태 추가 완료');
       }
       
       alert('파일이 성공적으로 업로드되었습니다.');
@@ -3181,9 +3199,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             const file = e.target.files?.[0];
                             if (file) {
                               // 파일 크기 및 형식 검증
-                              const maxSize = 5 * 1024 * 1024; // 5MB (Base64 처리 가능 크기)
+                              const maxSize = 3 * 1024 * 1024; // 3MB
                               if (file.size > maxSize) {
-                                alert('파일 크기가 너무 큽니다. 5MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
+                                alert('파일 크기가 너무 큽니다. 3MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
                                 e.target.value = '';
                                 return;
                               }
