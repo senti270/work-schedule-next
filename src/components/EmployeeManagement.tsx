@@ -410,6 +410,13 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const generateEmploymentCertificate = async (employee: Employee) => {
     // 직원의 지점 정보 찾기 (EmployeeBranch 관계를 통해)
     let employeeBranch = null;
+    let branchInfo = {
+      companyName: '[회사명]',
+      ceoName: '[대표자명]',
+      businessNumber: '[사업자등록번호]',
+      name: '[지점명]'
+    };
+    
     try {
       const employeeBranchesSnapshot = await getDocs(
         query(collection(db, 'employeeBranches'), where('employeeId', '==', employee.id))
@@ -418,6 +425,15 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       if (!employeeBranchesSnapshot.empty) {
         const firstBranch = employeeBranchesSnapshot.docs[0].data();
         employeeBranch = branches.find(branch => branch.id === firstBranch.branchId);
+        
+        if (employeeBranch) {
+          branchInfo = {
+            companyName: employeeBranch.companyName || '[회사명]',
+            ceoName: employeeBranch.ceoName || '[대표자명]',
+            businessNumber: employeeBranch.businessNumber || '[사업자등록번호]',
+            name: employeeBranch.name || '[지점명]'
+          };
+        }
       }
     } catch (error) {
       console.error('직원 지점 정보 조회 중 오류:', error);
@@ -429,17 +445,17 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         <h1 style="text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 40px;">재직증명서</h1>
         
         <div style="margin-bottom: 30px;">
-          <p style="margin: 5px 0;"><strong>회사명:</strong> ${employeeBranch?.companyName || '[회사명]'}</p>
-          <p style="margin: 5px 0;"><strong>대표자:</strong> ${employeeBranch?.ceoName || '[대표자명]'}</p>
-          <p style="margin: 5px 0;"><strong>사업자등록번호:</strong> ${employeeBranch?.businessNumber || '[사업자등록번호]'}</p>
+          <p style="margin: 5px 0;"><strong>회사명:</strong> ${branchInfo.companyName}</p>
+          <p style="margin: 5px 0;"><strong>대표자:</strong> ${branchInfo.ceoName}</p>
+          <p style="margin: 5px 0;"><strong>사업자등록번호:</strong> ${branchInfo.businessNumber}</p>
         </div>
         
         <div style="margin-bottom: 30px;">
-          <p style="margin: 8px 0;"><strong>성명:</strong> ${employee.name}</p>
+          <p style="margin: 8px 0;"><strong>성명:</strong> ${employee.name || '-'}</p>
           <p style="margin: 8px 0;"><strong>주민등록번호:</strong> ${employee.residentNumber || '-'}</p>
-          <p style="margin: 8px 0;"><strong>입사일:</strong> ${employee.hireDate ? employee.hireDate.toLocaleDateString() : '-'}</p>
-          <p style="margin: 8px 0;"><strong>퇴사일:</strong> ${employee.resignationDate ? employee.resignationDate.toLocaleDateString() : '재직중'}</p>
-          <p style="margin: 8px 0;"><strong>지점:</strong> ${employeeBranch?.name || '-'}</p>
+          <p style="margin: 8px 0;"><strong>입사일:</strong> ${employee.hireDate ? employee.hireDate.toLocaleDateString('ko-KR') : '-'}</p>
+          <p style="margin: 8px 0;"><strong>퇴사일:</strong> ${employee.resignationDate ? employee.resignationDate.toLocaleDateString('ko-KR') : '재직중'}</p>
+          <p style="margin: 8px 0;"><strong>지점:</strong> ${branchInfo.name}</p>
           <p style="margin: 8px 0;"><strong>직급:</strong> ${employee.type || '-'}</p>
         </div>
         
@@ -448,12 +464,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         </div>
         
         <div style="margin-bottom: 30px;">
-          <p style="margin: 5px 0;"><strong>발급일:</strong> ${new Date().toLocaleDateString()}</p>
+          <p style="margin: 5px 0;"><strong>발급일:</strong> ${new Date().toLocaleDateString('ko-KR')}</p>
         </div>
         
         <div style="margin-top: 50px;">
-          <p style="margin: 5px 0;"><strong>회사명:</strong> ${employeeBranch?.companyName || '[회사명]'}</p>
-          <p style="margin: 5px 0;"><strong>대표자:</strong> ${employeeBranch?.ceoName || '[대표자명]'} (인)</p>
+          <p style="margin: 5px 0;"><strong>회사명:</strong> ${branchInfo.companyName}</p>
+          <p style="margin: 5px 0;"><strong>대표자:</strong> ${branchInfo.ceoName} (인)</p>
         </div>
       </div>
     `;

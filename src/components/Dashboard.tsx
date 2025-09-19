@@ -64,10 +64,16 @@ export default function Dashboard({ user }: DashboardProps) {
     }
   } | null>(null);
   const [showAllComments, setShowAllComments] = useState(false);
+  
+  // 지점선택 관련 상태
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+  const [showAllBranches, setShowAllBranches] = useState(true);
 
   useEffect(() => {
     checkManagerRole();
     loadComments();
+    loadBranches();
   }, [user]);
 
   const checkManagerRole = async () => {
@@ -168,10 +174,29 @@ export default function Dashboard({ user }: DashboardProps) {
     }
   };
 
+  const loadBranches = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'branches'));
+      const branchesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        managerId: doc.data().managerId
+      })) as Branch[];
+      
+      // 한글 가나다순으로 정렬
+      branchesData.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+      
+      setBranches(branchesData);
+      setSelectedBranches(branchesData.map(b => b.id)); // 초기에는 모든 지점 선택
+    } catch (error) {
+      console.error('지점 로드 중 오류:', error);
+    }
+  };
+
   const loadComments = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'comments'));
-      const commentsData = querySnapshot.docs.map(doc => ({
+      let commentsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         content: doc.data().content,
         authorId: doc.data().authorId || '',
@@ -183,6 +208,20 @@ export default function Dashboard({ user }: DashboardProps) {
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date()
       })) as Comment[];
+      
+      // 지점 필터링 적용
+      if (!showAllBranches && selectedBranches.length > 0) {
+        commentsData = commentsData.filter(comment => {
+          // 마스터 계정 코멘트는 항상 표시
+          if (comment.authorId === 'drawing555') return true;
+          
+          // 선택된 지점의 코멘트만 표시
+          return selectedBranches.some(branchId => {
+            const branch = branches.find(b => b.id === branchId);
+            return branch && comment.authorName.includes(branch.name);
+          });
+        });
+      }
       
       // 상단고정 코멘트를 먼저, 나머지는 최신순으로 정렬
       commentsData.sort((a, b) => {
@@ -492,34 +531,34 @@ export default function Dashboard({ user }: DashboardProps) {
                   )}
                   <button 
                     onClick={() => setActiveTab('employees')}
-                    className="bg-green-50 p-4 rounded-lg hover:bg-green-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                    className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
                   >
-                    <h4 className="font-medium text-green-900">직원 관리</h4>
-                    <p className="text-green-600 text-sm">직원 정보를 관리합니다</p>
+                    <h4 className="font-medium text-blue-900">직원 관리</h4>
+                    <p className="text-blue-600 text-sm">직원 정보를 관리합니다</p>
                   </button>
                   <button 
                     onClick={() => setActiveTab('schedule')}
-                    className="bg-purple-50 p-4 rounded-lg hover:bg-purple-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                    className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
                   >
-                    <h4 className="font-medium text-purple-900">스케줄 관리</h4>
-                    <p className="text-purple-600 text-sm">근무 스케줄을 관리합니다</p>
+                    <h4 className="font-medium text-blue-900">스케줄 관리</h4>
+                    <p className="text-blue-600 text-sm">근무 스케줄을 관리합니다</p>
                   </button>
                   {!isManager && (
                     <button 
                       onClick={() => setActiveTab('payroll')}
-                      className="bg-yellow-50 p-4 rounded-lg hover:bg-yellow-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                      className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
                     >
-                      <h4 className="font-medium text-yellow-900">급여작업</h4>
-                      <p className="text-yellow-600 text-sm">급여 관련 작업을 수행합니다</p>
+                      <h4 className="font-medium text-blue-900">급여작업</h4>
+                      <p className="text-blue-600 text-sm">급여 관련 작업을 수행합니다</p>
                     </button>
                   )}
                   {!isManager && (
                     <button 
                       onClick={() => setActiveTab('reports')}
-                      className="bg-orange-50 p-4 rounded-lg hover:bg-orange-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                      className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
                     >
-                      <h4 className="font-medium text-orange-900">보고서</h4>
-                      <p className="text-orange-600 text-sm">근무 현황을 확인합니다</p>
+                      <h4 className="font-medium text-blue-900">보고서</h4>
+                      <p className="text-blue-600 text-sm">근무 현황을 확인합니다</p>
                     </button>
                   )}
                 </div>
@@ -572,6 +611,45 @@ export default function Dashboard({ user }: DashboardProps) {
                           />
                           <span className="text-gray-700">📌 상단고정</span>
                         </label>
+                      </div>
+                      
+                      {/* 지점선택 체크박스 */}
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={showAllBranches}
+                            onChange={(e) => {
+                              setShowAllBranches(e.target.checked);
+                              if (e.target.checked) {
+                                setSelectedBranches(branches.map(b => b.id));
+                              }
+                              setTimeout(loadComments, 100);
+                            }}
+                            className="mr-2"
+                          />
+                          <span className="text-gray-700">전지점</span>
+                        </label>
+                        
+                        {branches.map((branch) => (
+                          <label key={branch.id} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedBranches.includes(branch.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedBranches(prev => [...prev, branch.id]);
+                                } else {
+                                  setSelectedBranches(prev => prev.filter(id => id !== branch.id));
+                                  setShowAllBranches(false);
+                                }
+                                setTimeout(loadComments, 100);
+                              }}
+                              className="mr-2"
+                            />
+                            <span className="text-gray-700">{branch.name}</span>
+                          </label>
+                        ))}
                       </div>
                       
                       <div className="flex justify-end">
