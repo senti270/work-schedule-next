@@ -507,69 +507,135 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     
     console.log('생성된 HTML 내용:', htmlContent);
     
-    // PDF 생성 및 다운로드
+    // PDF 생성 및 다운로드 (다중 방법 시도)
     try {
       console.log('PDF 생성 시작...');
       
-      // html2pdf.js 동적 import
-      const html2pdf = await import('html2pdf.js');
-      console.log('html2pdf 라이브러리 로드 완료');
-      
-      // PDF 생성 옵션 (더 안정적인 설정)
-      const opt = {
-        margin: [0.5, 0.5, 0.5, 0.5],
-        filename: `${employee.name}_재직증명서_${new Date().toISOString().split('T')[0]}.pdf`,
-        image: { 
-          type: 'jpeg', 
-          quality: 1.0 
-        },
-        html2canvas: { 
-          scale: 1,
+      // 방법 1: jsPDF + html2canvas 조합 시도
+      try {
+        console.log('방법 1: jsPDF + html2canvas 시도...');
+        
+        const jsPDF = (await import('jspdf')).default;
+        const html2canvas = (await import('html2canvas')).default;
+        
+        // 임시 div 생성
+        const element = document.createElement('div');
+        element.innerHTML = htmlContent;
+        element.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 800px;
+          background: white;
+          font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
+          color: black;
+          z-index: 9999;
+          padding: 40px;
+        `;
+        document.body.appendChild(element);
+        
+        // HTML을 캔버스로 변환
+        const canvas = await html2canvas(element, {
+          scale: 2,
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#ffffff',
           width: 800,
           height: 1000
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4', 
-          orientation: 'portrait',
-          compress: true
-        },
-        pagebreak: { mode: 'avoid-all' }
-      };
-      
-      // 임시 div 생성 및 스타일 개선
-      const element = document.createElement('div');
-      element.innerHTML = htmlContent;
-      element.style.cssText = `
-        position: fixed;
-        top: -9999px;
-        left: -9999px;
-        width: 800px;
-        background: white;
-        font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
-        color: black;
-        z-index: -1;
-      `;
-      document.body.appendChild(element);
-      
-      console.log('임시 DOM 요소 생성 완료');
-      
-      // PDF 생성
-      const pdf = html2pdf.default();
-      await pdf.set(opt).from(element).save();
-      
-      console.log('PDF 생성 및 다운로드 완료');
-      
-      // 임시 div 제거
-      if (document.body.contains(element)) {
-        document.body.removeChild(element);
-        console.log('임시 DOM 요소 제거 완료');
+        });
+        
+        // 캔버스를 PDF로 변환
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        const imgWidth = 190; // A4 width in mm minus margins
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        
+        let position = 10; // top margin
+        
+        // 첫 페이지 추가
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        
+        // 여러 페이지가 필요한 경우 추가 페이지 생성
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+        
+        // PDF 다운로드
+        pdf.save(`${employee.name}_재직증명서_${new Date().toISOString().split('T')[0]}.pdf`);
+        
+        // 임시 div 제거
+        if (document.body.contains(element)) {
+          document.body.removeChild(element);
+        }
+        
+        console.log('jsPDF + html2canvas 방법으로 PDF 생성 완료');
+        alert('재직증명서가 성공적으로 생성되었습니다.');
+        return; // 성공 시 함수 종료
+        
+      } catch (jsPdfError) {
+        console.log('jsPDF 방법 실패, html2pdf.js 시도...', jsPdfError);
+        
+        // 방법 2: 기존 html2pdf.js 시도
+        const html2pdf = await import('html2pdf.js');
+        console.log('html2pdf 라이브러리 로드 완료');
+        
+        // PDF 생성 옵션
+        const opt = {
+          margin: [10, 10, 10, 10],
+          filename: `${employee.name}_재직증명서_${new Date().toISOString().split('T')[0]}.pdf`,
+          image: { 
+            type: 'jpeg', 
+            quality: 0.98 
+          },
+          html2canvas: { 
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            letterRendering: true,
+            logging: true
+          },
+          jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait'
+          }
+        };
+        
+        // 임시 div 생성
+        const element = document.createElement('div');
+        element.innerHTML = htmlContent;
+        element.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 800px;
+          background: white;
+          font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
+          color: black;
+          z-index: 9999;
+          visibility: visible;
+        `;
+        document.body.appendChild(element);
+        
+        console.log('html2pdf로 PDF 생성 시도...');
+        await html2pdf.default().set(opt).from(element).save();
+        
+        // 임시 div 제거
+        if (document.body.contains(element)) {
+          document.body.removeChild(element);
+        }
+        
+        console.log('html2pdf로 PDF 생성 완료');
+        alert('재직증명서가 성공적으로 생성되었습니다.');
       }
-      
-      alert('재직증명서가 성공적으로 생성되었습니다.');
       
     } catch (error) {
       console.error('PDF 생성 중 오류:', error);
