@@ -104,18 +104,32 @@ export default function ReportManagement() {
 
       // 직원 데이터 로드
       const employeesSnapshot = await getDocs(collection(db, 'employees'));
-      const employeesData = employeesSnapshot.docs.map(doc => {
+      const employeesData = [];
+      
+      // 직원-지점 관계 로드
+      const employeeBranchesSnapshot = await getDocs(collection(db, 'employeeBranches'));
+      const employeeBranches = employeeBranchesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        employeeId: doc.data().employeeId,
+        branchId: doc.data().branchId,
+        branchName: doc.data().branchName
+      }));
+
+      for (const doc of employeesSnapshot.docs) {
         const data = doc.data();
-        return {
+        // 해당 직원의 지점 관계 찾기 (첫 번째 지점만 사용)
+        const employeeBranch = employeeBranches.find(eb => eb.employeeId === doc.id);
+        
+        employeesData.push({
           id: doc.id,
           name: data.name,
-          branchId: data.branchId,
-          branchName: data.branchName,
-          employmentType: data.employmentType,
+          branchId: employeeBranch?.branchId || '',
+          branchName: employeeBranch?.branchName || '',
+          employmentType: data.type || data.employmentType || '',
           hireDate: data.hireDate?.toDate ? data.hireDate.toDate() : new Date(),
           resignationDate: data.resignationDate?.toDate ? data.resignationDate.toDate() : undefined
-        };
-      });
+        });
+      }
 
       // 지점 데이터 로드
       const branchesSnapshot = await getDocs(collection(db, 'branches'));
@@ -314,13 +328,36 @@ export default function ReportManagement() {
             <label className="block text-sm font-medium text-gray-700 mb-1">지점 선택</label>
             <select
               value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
+              onChange={(e) => {
+                setSelectedBranch(e.target.value);
+                setSelectedEmployee(''); // 지점 변경 시 직원 선택 초기화
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">전체 지점</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 직원 선택 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">직원 선택</label>
+            <select
+              value={selectedEmployee}
+              onChange={(e) => setSelectedEmployee(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">전체 직원</option>
+              {employees
+                .filter(employee => !selectedBranch || employee.branchId === selectedBranch)
+                .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+                .map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.name}
                 </option>
               ))}
             </select>

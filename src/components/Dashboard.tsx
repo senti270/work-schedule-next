@@ -87,6 +87,9 @@ export default function Dashboard({ user }: DashboardProps) {
     // 보고서 탭인 경우 근무보고서를 기본으로 설정
     if (tab === 'reports') {
       setActiveSubTab('work-report');
+    } else if (tab === 'payroll') {
+      // 급여작업 탭인 경우 근무시간 비교를 기본으로 설정
+      setActiveSubTab('work-comparison');
     } else {
       setActiveSubTab(''); // 다른 탭 변경 시 서브탭 초기화
     }
@@ -203,14 +206,16 @@ export default function Dashboard({ user }: DashboardProps) {
                 <p className="mt-2 text-sm text-gray-700 font-medium">
                   근무 스케줄 관리 시스템에 오신 것을 환영합니다.
                 </p>
-                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <button 
-                    onClick={() => setActiveTab('branches')}
-                    className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
-                  >
-                    <h4 className="font-medium text-blue-900">지점 관리</h4>
-                    <p className="text-blue-600 text-sm">지점 정보를 관리합니다</p>
-                  </button>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                  {!isManager && (
+                    <button 
+                      onClick={() => setActiveTab('branches')}
+                      className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                    >
+                      <h4 className="font-medium text-blue-900">지점 관리</h4>
+                      <p className="text-blue-600 text-sm">지점 정보를 관리합니다</p>
+                    </button>
+                  )}
                   <button 
                     onClick={() => setActiveTab('employees')}
                     className="bg-green-50 p-4 rounded-lg hover:bg-green-100 transition-colors duration-200 cursor-pointer text-left w-full"
@@ -224,6 +229,13 @@ export default function Dashboard({ user }: DashboardProps) {
                   >
                     <h4 className="font-medium text-purple-900">스케줄 관리</h4>
                     <p className="text-purple-600 text-sm">근무 스케줄을 관리합니다</p>
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('payroll')}
+                    className="bg-yellow-50 p-4 rounded-lg hover:bg-yellow-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                  >
+                    <h4 className="font-medium text-yellow-900">급여작업</h4>
+                    <p className="text-yellow-600 text-sm">급여 관련 작업을 수행합니다</p>
                   </button>
                   <button 
                     onClick={() => setActiveTab('reports')}
