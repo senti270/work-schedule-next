@@ -1057,12 +1057,26 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   // 근로계약서 목록 로드
   const loadContracts = async (employeeId: string) => {
     try {
+      console.log('=== 근로계약서 로드 시작 ===');
+      console.log('직원 ID:', employeeId);
+      
       const contractsRef = collection(db, 'employmentContracts');
       const q = query(contractsRef, where('employeeId', '==', employeeId));
       const querySnapshot = await getDocs(q);
       
+      console.log('쿼리 결과 문서 수:', querySnapshot.docs.length);
+      
       const contractsData = querySnapshot.docs.map(doc => {
         const data = doc.data();
+        console.log('계약서 문서 데이터:', {
+          id: doc.id,
+          employeeId: data.employeeId,
+          contractFileName: data.contractFileName,
+          startDate: data.startDate,
+          fileSize: data.fileSize,
+          isBase64: data.isBase64
+        });
+        
         return {
           id: doc.id,
           employeeId: data.employeeId,
@@ -1083,7 +1097,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         };
       });
       
-      setContracts(contractsData.sort((a, b) => b.startDate.getTime() - a.startDate.getTime()));
+      const sortedContracts = contractsData.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+      console.log('정렬된 계약서 목록:', sortedContracts);
+      setContracts(sortedContracts);
     } catch (error) {
       console.error('근로계약서 로드 중 오류:', error);
     }
