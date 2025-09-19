@@ -1283,10 +1283,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     try {
       setUploadingFile(true);
       
-      // 파일 크기 및 형식 검증
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      // 파일 크기 및 형식 검증 (Base64 제한에 맞춤)
+      const maxSize = 5 * 1024 * 1024; // 5MB (Base64 처리 가능 크기)
       if (file.size > maxSize) {
-        alert('파일 크기는 10MB를 초과할 수 없습니다.');
+        alert('파일 크기가 너무 큽니다. 5MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
         return;
       }
       
@@ -3181,9 +3181,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             const file = e.target.files?.[0];
                             if (file) {
                               // 파일 크기 및 형식 검증
-                              const maxSize = 10 * 1024 * 1024; // 10MB
+                              const maxSize = 5 * 1024 * 1024; // 5MB (Base64 처리 가능 크기)
                               if (file.size > maxSize) {
-                                alert('파일 크기는 10MB를 초과할 수 없습니다.');
+                                alert('파일 크기가 너무 큽니다. 5MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
                                 e.target.value = '';
                                 return;
                               }
