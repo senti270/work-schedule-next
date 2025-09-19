@@ -90,29 +90,56 @@ export default function Dashboard({ user }: DashboardProps) {
       
       console.log('매니저 권한 확인 중:', userId);
       
-      // 매니저 ID로 지점을 찾기
-      const branchesQuery = query(
-        collection(db, 'branches'),
-        where('managerId', '==', userId)
-      );
+      // 매니저 계정 DB에서 지점 정보 가져오기
+      const managerAccountsSnapshot = await getDocs(collection(db, 'managerAccounts'));
+      const managerAccount = managerAccountsSnapshot.docs.find(doc => {
+        const data = doc.data();
+        return data.userId === userId && data.isActive;
+      });
       
-      const querySnapshot = await getDocs(branchesQuery);
-      
-      if (!querySnapshot.empty) {
-        const branchDoc = querySnapshot.docs[0];
-        const branchData = branchDoc.data();
+      if (managerAccount) {
+        const accountData = managerAccount.data();
         
-        setUserBranch({
-          id: branchDoc.id,
-          name: branchData.name,
-          managerId: branchData.managerId
-        });
-        setIsManager(true);
-        
-        console.log('매니저로 확인됨:', branchData.name);
+        if (accountData.branchId === 'master') {
+          // 마스터 계정
+          setIsManager(false); // 마스터는 관리자
+          setUserBranch(null);
+          console.log('마스터 계정으로 확인됨');
+        } else {
+          // 지점 매니저
+          setUserBranch({
+            id: accountData.branchId,
+            name: accountData.branchName,
+            managerId: userId
+          });
+          setIsManager(true);
+          console.log('지점 매니저로 확인됨:', accountData.branchName);
+        }
       } else {
-        setIsManager(false);
-        console.log('일반 사용자로 확인됨');
+        // 기존 방식으로 branches 컬렉션에서 찾기 (drawing555 등)
+        const branchesQuery = query(
+          collection(db, 'branches'),
+          where('managerId', '==', userId)
+        );
+        
+        const querySnapshot = await getDocs(branchesQuery);
+        
+        if (!querySnapshot.empty) {
+          const branchDoc = querySnapshot.docs[0];
+          const branchData = branchDoc.data();
+          
+          setUserBranch({
+            id: branchDoc.id,
+            name: branchData.name,
+            managerId: branchData.managerId
+          });
+          setIsManager(true);
+          
+          console.log('기존 방식으로 매니저 확인됨:', branchData.name);
+        } else {
+          setIsManager(false);
+          console.log('일반 사용자로 확인됨');
+        }
       }
     } catch (error) {
       console.error('매니저 권한 확인 중 오류:', error);
@@ -151,14 +178,22 @@ export default function Dashboard({ user }: DashboardProps) {
       let userId = '';
       let authorName = '';
       
+      console.log('코멘트 작성 디버깅:', {
+        email: user.email,
+        isManager,
+        userBranch: userBranch?.name
+      });
+      
       if (user.email === 'drawing555@naver.com') {
         userId = 'drawing555';
         authorName = 'drawing555(마스터)';
+        console.log('drawing555 마스터 계정으로 처리');
       } else if (user.email?.includes('@manager.workschedule.local')) {
         // 매니저 계정에서 userId 추출
         userId = user.email.split('@')[0];
         const branchName = isManager && userBranch ? userBranch.name : '관리자';
         authorName = `${userId}(${branchName})`;
+        console.log('매니저 계정으로 처리:', { userId, branchName, isManager, userBranch: userBranch?.name });
       } else {
         // 매니저 계정 DB에서 해당 사용자 찾기
         const managerAccountsSnapshot = await getDocs(collection(db, 'managerAccounts'));
@@ -167,21 +202,28 @@ export default function Dashboard({ user }: DashboardProps) {
           return user.email?.includes(data.userId);
         });
         
+        console.log('매니저 계정 DB 검색 결과:', managerAccount?.data());
+        
         if (managerAccount) {
           userId = managerAccount.data().userId;
           // 마스터 계정인지 확인 (branchId가 'master'인 경우)
           if (managerAccount.data().branchId === 'master') {
             authorName = `${userId}(마스터)`;
+            console.log('DB에서 마스터 계정으로 확인');
           } else {
-            const branchName = isManager && userBranch ? userBranch.name : '관리자';
+            const branchName = isManager && userBranch ? userBranch.name : managerAccount.data().branchName;
             authorName = `${userId}(${branchName})`;
+            console.log('DB에서 지점 매니저로 확인:', { userId, branchName, isManager, userBranch: userBranch?.name });
           }
         } else {
           userId = user.email || '';
           const branchName = isManager && userBranch ? userBranch.name : '관리자';
           authorName = `${userId}(${branchName})`;
+          console.log('매니저 계정 DB에서 찾지 못함:', { userId, branchName });
         }
       }
+      
+      console.log('최종 작성자 정보:', { userId, authorName });
       
       await addDoc(collection(db, 'comments'), {
         content: newComment.trim(),
@@ -242,6 +284,11 @@ export default function Dashboard({ user }: DashboardProps) {
   };
 
   console.log('Dashboard 렌더링됨, 현재 탭:', activeTab);
+  console.log('현재 사용자 정보:', { 
+    email: user.email, 
+    isManager, 
+    userBranch: userBranch?.name 
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
