@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User } from 'firebase/auth';
 import { signOut } from 'firebase/auth';
 import { auth, db, storage } from '@/lib/firebase';
@@ -82,6 +82,7 @@ export default function Dashboard({ user }: DashboardProps) {
   // 파일 업로드 관련 상태
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     checkManagerRole();
@@ -324,9 +325,8 @@ export default function Dashboard({ user }: DashboardProps) {
       });
       
       // 파일 input 초기화
-      const fileInput = document.querySelector('input[type="file"][multiple]') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
       
       await loadComments();
@@ -695,6 +695,7 @@ export default function Dashboard({ user }: DashboardProps) {
                           📎 파일 첨부 (최대 5개, 각 3MB 이하)
                         </label>
                         <input
+                          ref={fileInputRef}
                           type="file"
                           multiple
                           accept="image/*,.pdf,.doc,.docx,.txt"
@@ -729,7 +730,13 @@ export default function Dashboard({ user }: DashboardProps) {
                                 </span>
                                 <button
                                   onClick={() => {
-                                    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+                                    const newFiles = selectedFiles.filter((_, i) => i !== index);
+                                    setSelectedFiles(newFiles);
+                                    
+                                    // 파일이 모두 제거되면 input 필드도 초기화
+                                    if (newFiles.length === 0 && fileInputRef.current) {
+                                      fileInputRef.current.value = '';
+                                    }
                                   }}
                                   className="text-red-600 hover:text-red-800 ml-2"
                                 >
@@ -982,39 +989,81 @@ export default function Dashboard({ user }: DashboardProps) {
                                               <img
                                                 src={attachment.fileUrl}
                                                 alt={attachment.fileName}
-                                                className="w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80 bg-gray-100"
+                                                className="w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80"
+                                                style={{ 
+                                                  backgroundColor: '#f3f4f6',
+                                                  minHeight: '64px',
+                                                  minWidth: '64px'
+                                                }}
                                                 onClick={(e) => {
                                                   e.preventDefault();
                                                   e.stopPropagation();
-                                                  console.log('이미지 클릭:', attachment.fileName, attachment.fileUrl);
+                                                  console.log('이미지 클릭:', attachment.fileName, attachment.fileUrl?.substring(0, 50) + '...');
                                                   
-                                                  if (attachment.isBase64) {
+                                                  // Base64 데이터 검증
+                                                  if (attachment.isBase64 && attachment.fileUrl.startsWith('data:image/')) {
                                                     // Base64 이미지의 경우 새 창에서 직접 표시
-                                                    const newWindow = window.open('', '_blank');
+                                                    const newWindow = window.open('', '_blank', 'width=800,height=600');
                                                     if (newWindow) {
                                                       newWindow.document.write(`
+                                                        <!DOCTYPE html>
                                                         <html>
-                                                          <head><title>${attachment.fileName}</title></head>
-                                                          <body style="margin:0;padding:20px;background:#f0f0f0;display:flex;justify-content:center;align-items:center;">
-                                                            <img src="${attachment.fileUrl}" alt="${attachment.fileName}" style="max-width:100%;max-height:100vh;object-fit:contain;" />
+                                                          <head>
+                                                            <title>${attachment.fileName}</title>
+                                                            <meta charset="utf-8">
+                                                            <style>
+                                                              body { 
+                                                                margin: 0; 
+                                                                padding: 20px; 
+                                                                background: #f0f0f0; 
+                                                                display: flex; 
+                                                                justify-content: center; 
+                                                                align-items: center; 
+                                                                min-height: 100vh;
+                                                                font-family: Arial, sans-serif;
+                                                              }
+                                                              img { 
+                                                                max-width: 100%; 
+                                                                max-height: 90vh; 
+                                                                object-fit: contain;
+                                                                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                                                              }
+                                                              .filename {
+                                                                position: fixed;
+                                                                top: 10px;
+                                                                left: 50%;
+                                                                transform: translateX(-50%);
+                                                                background: rgba(0,0,0,0.7);
+                                                                color: white;
+                                                                padding: 8px 16px;
+                                                                border-radius: 4px;
+                                                                font-size: 14px;
+                                                              }
+                                                            </style>
+                                                          </head>
+                                                          <body>
+                                                            <div class="filename">${attachment.fileName}</div>
+                                                            <img src="${attachment.fileUrl}" alt="${attachment.fileName}" />
                                                           </body>
                                                         </html>
                                                       `);
                                                       newWindow.document.close();
+                                                    } else {
+                                                      alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
                                                     }
-                                                  } else {
+                                                  } else if (!attachment.isBase64 && attachment.fileUrl.startsWith('http')) {
                                                     // Firebase Storage URL의 경우
                                                     window.open(attachment.fileUrl, '_blank');
+                                                  } else {
+                                                    alert('이미지를 열 수 없습니다. 파일이 손상되었을 수 있습니다.');
                                                   }
                                                 }}
                                                 onError={(e) => {
-                                                  console.error('이미지 로드 실패:', attachment.fileName, attachment.fileUrl);
+                                                  console.error('이미지 로드 실패:', attachment.fileName, attachment.fileUrl?.substring(0, 50) + '...');
                                                   const target = e.target as HTMLImageElement;
-                                                  target.style.backgroundColor = '#f3f4f6';
-                                                  target.style.display = 'flex';
-                                                  target.style.alignItems = 'center';
-                                                  target.style.justifyContent = 'center';
+                                                  target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yMCAyMEg0NFY0NEgyMFYyMFoiIHN0cm9rZT0iIzlDQTNBRiIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+CjxjaXJjbGUgY3g9IjI2IiBjeT0iMjgiIHI9IjMiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTIwIDM2TDI2IDMwTDMyIDM2TDM4IDMwTDQ0IDM2VjQ0SDIwVjM2WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K';
                                                   target.alt = '이미지 로드 실패';
+                                                  target.title = `${attachment.fileName} - 이미지를 불러올 수 없습니다`;
                                                 }}
                                                 onLoad={() => {
                                                   console.log('이미지 로드 성공:', attachment.fileName);
