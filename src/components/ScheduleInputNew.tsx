@@ -1267,7 +1267,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           schedule: formatScheduleForDisplay(prevSchedule)
         });
         
-        await addDoc(collection(db, 'schedules'), {
+        // Firebase에 저장할 데이터 준비 (undefined 값 제거)
+        const scheduleData = {
           employeeId: employeeId,
           employeeName: prevSchedule.employeeName,
           branchId: selectedBranchId,
@@ -1277,11 +1278,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           endTime: prevSchedule.endTime,
           breakTime: prevSchedule.breakTime,
           totalHours: prevSchedule.totalHours,
-          timeSlots: prevSchedule.timeSlots, // 다중 시간대 정보 복사
-          originalInput: prevSchedule.originalInput, // 원본 입력 형식 복사
           createdAt: new Date(),
-          updatedAt: new Date()
-        });
+          updatedAt: new Date(),
+          ...(prevSchedule.timeSlots && { timeSlots: prevSchedule.timeSlots }),
+          ...(prevSchedule.originalInput && { originalInput: prevSchedule.originalInput })
+        };
+
+        await addDoc(collection(db, 'schedules'), scheduleData);
       }
 
       // 스케줄 다시 로드
@@ -1394,17 +1397,20 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         // 대상 셀에 스케줄 추가/수정
         const existingTargetSchedule = getScheduleForDate(targetCell.employeeId, targetCell.date);
         
+        // Firebase에 저장할 데이터 준비 (undefined 값 제거)
+        const scheduleData = {
+          startTime: sourceSchedule.startTime,
+          endTime: sourceSchedule.endTime,
+          breakTime: sourceSchedule.breakTime,
+          totalHours: sourceSchedule.totalHours,
+          updatedAt: new Date(),
+          ...(sourceSchedule.timeSlots && { timeSlots: sourceSchedule.timeSlots }),
+          ...(sourceSchedule.originalInput && { originalInput: sourceSchedule.originalInput })
+        };
+
         if (existingTargetSchedule) {
           // 수정
-          await updateDoc(doc(db, 'schedules', existingTargetSchedule.id), {
-            startTime: sourceSchedule.startTime,
-            endTime: sourceSchedule.endTime,
-            breakTime: sourceSchedule.breakTime,
-            totalHours: sourceSchedule.totalHours,
-            timeSlots: sourceSchedule.timeSlots, // 다중 시간대 정보 복사
-            originalInput: sourceSchedule.originalInput, // 원본 입력 형식 복사
-            updatedAt: new Date()
-          });
+          await updateDoc(doc(db, 'schedules', existingTargetSchedule.id), scheduleData);
         } else {
           // 추가
           await addDoc(collection(db, 'schedules'), {
@@ -1413,14 +1419,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             branchId: selectedBranchId,
             branchName: branch.name,
             date: targetCell.date,
-            startTime: sourceSchedule.startTime,
-            endTime: sourceSchedule.endTime,
-            breakTime: sourceSchedule.breakTime,
-            totalHours: sourceSchedule.totalHours,
-            timeSlots: sourceSchedule.timeSlots, // 다중 시간대 정보 복사
-            originalInput: sourceSchedule.originalInput, // 원본 입력 형식 복사
             createdAt: new Date(),
-            updatedAt: new Date()
+            ...scheduleData
           });
         }
 
