@@ -3036,73 +3036,79 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   근로계약서 파일을 업로드하고 관리합니다.
                 </p>
                 
-                {/* 기존 계약서 파일 표시 */}
-                {(() => {
-                  console.log('문서관리 모달 렌더링 - contracts 길이:', contracts.length);
-                  console.log('contracts 배열:', contracts);
-                  
-                  // 파일이 있는 최신 계약서 찾기
-                  const latestContractWithFile = contracts.find(contract => 
-                    contract.contractFile && contract.contractFile.trim() !== '' && 
-                    contract.contractFileName && contract.contractFileName.trim() !== ''
-                  );
-                  
-                  console.log('파일이 있는 최신 계약서:', latestContractWithFile);
-                  return latestContractWithFile;
-                })() ? (
-                  <div className="mb-4 p-3 bg-white border border-gray-200 rounded-md">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">
-                        📄 최신 계약서: {(() => {
-                          const latestContract = contracts.find(contract => 
-                            contract.contractFile && contract.contractFile.trim() !== '' && 
-                            contract.contractFileName && contract.contractFileName.trim() !== ''
-                          );
-                          return latestContract?.contractFileName || '파일명 없음';
-                        })()} 
-                        (기준일: {(() => {
-                          const latestContract = contracts.find(contract => 
-                            contract.contractFile && contract.contractFile.trim() !== '' && 
-                            contract.contractFileName && contract.contractFileName.trim() !== ''
-                          );
-                          return latestContract?.startDate?.toLocaleDateString('ko-KR') || '날짜 없음';
-                        })()})
-                      </span>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => {
-                            const latestContract = contracts.find(contract => 
-                              contract.contractFile && contract.contractFile.trim() !== '' && 
-                              contract.contractFileName && contract.contractFileName.trim() !== ''
-                            );
-                            if (latestContract) handleFileDownload(latestContract);
-                          }}
-                          className="text-xs text-blue-600 hover:text-blue-800"
-                        >
-                          다운로드
-                        </button>
-                        <button
-                          onClick={() => {
-                            const latestContract = contracts.find(contract => 
-                              contract.contractFile && contract.contractFile.trim() !== '' && 
-                              contract.contractFileName && contract.contractFileName.trim() !== ''
-                            );
-                            if (latestContract) handleFileDelete(latestContract);
-                          }}
-                          className="text-xs text-red-600 hover:text-red-800"
-                        >
-                          삭제
-                        </button>
-                      </div>
+                {/* 근로계약서 히스토리 (먼저 표시) */}
+                <div className="mb-6">
+                  <h4 className="text-md font-medium text-gray-900 mb-4">
+                    근로계약서 히스토리 (총 {contracts.length}개)
+                  </h4>
+                  {(() => {
+                    console.log('히스토리 테이블 렌더링 체크 - contracts.length:', contracts.length);
+                    console.log('현재 contracts 배열:', contracts);
+                    return contracts.length === 0;
+                  })() ? (
+                    <div className="text-center py-8 text-gray-500 bg-white border border-gray-200 rounded-md">
+                      등록된 근로계약서가 없습니다.
                     </div>
-                  </div>
-                ) : (
-                  <div className="mb-4 p-3 bg-white border border-gray-200 rounded-md">
-                    <span className="text-sm text-gray-500">
-                      📄 등록된 계약서가 없습니다.
-                    </span>
-                  </div>
-                )}
+                  ) : (
+                    <div className="overflow-x-auto bg-white border border-gray-200 rounded-md">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              기준일
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              파일명
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              파일크기
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              작업
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {contracts.map((contract) => (
+                            <tr key={contract.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {contract.startDate.toLocaleDateString('ko-KR')}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {contract.contractFileName || '파일명 없음'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {contract.fileSize ? `${(contract.fileSize / 1024 / 1024).toFixed(1)}MB` : '-'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                {contract.contractFile && (
+                                  <button
+                                    onClick={() => {
+                                      console.log('다운로드 버튼 클릭:', contract);
+                                      handleFileDownload(contract);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-900"
+                                  >
+                                    다운로드
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    console.log('삭제 버튼 클릭:', contract);
+                                    handleFileDelete(contract);
+                                  }}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  삭제
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
                 
                 {/* 새 계약서 추가 */}
                 <div className="space-y-4">
