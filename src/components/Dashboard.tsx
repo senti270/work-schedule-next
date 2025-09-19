@@ -31,6 +31,7 @@ interface Comment {
   isImportant?: boolean; // 중요
   isPinned?: boolean; // 상단고정
   isCompleted?: boolean; // 완료 처리
+  branchTags?: string[]; // 태그된 지점 ID들
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,7 +53,8 @@ export default function Dashboard({ user }: DashboardProps) {
   const [commentOptions, setCommentOptions] = useState({
     adminConfirmRequest: false,
     isImportant: false,
-    isPinned: false
+    isPinned: false,
+    selectedBranches: [] as string[] // 코멘트에 태그할 지점들
   });
   const [editingComment, setEditingComment] = useState<{ 
     id: string; 
@@ -61,14 +63,13 @@ export default function Dashboard({ user }: DashboardProps) {
       adminConfirmRequest: boolean;
       isImportant: boolean;
       isPinned: boolean;
+      selectedBranches: string[];
     }
   } | null>(null);
   const [showAllComments, setShowAllComments] = useState(false);
   
-  // 지점선택 관련 상태
+  // 지점 목록
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
-  const [showAllBranches, setShowAllBranches] = useState(true);
 
   useEffect(() => {
     checkManagerRole();
@@ -187,7 +188,6 @@ export default function Dashboard({ user }: DashboardProps) {
       branchesData.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
       
       setBranches(branchesData);
-      setSelectedBranches(branchesData.map(b => b.id)); // 초기에는 모든 지점 선택
     } catch (error) {
       console.error('지점 로드 중 오류:', error);
     }
@@ -196,7 +196,7 @@ export default function Dashboard({ user }: DashboardProps) {
   const loadComments = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'comments'));
-      let commentsData = querySnapshot.docs.map(doc => ({
+      const commentsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         content: doc.data().content,
         authorId: doc.data().authorId || '',
@@ -205,23 +205,11 @@ export default function Dashboard({ user }: DashboardProps) {
         isImportant: doc.data().isImportant || false,
         isPinned: doc.data().isPinned || false,
         isCompleted: doc.data().isCompleted || false,
+        branchTags: doc.data().branchTags || [], // 코멘트에 태그된 지점들
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date()
       })) as Comment[];
       
-      // 지점 필터링 적용
-      if (!showAllBranches && selectedBranches.length > 0) {
-        commentsData = commentsData.filter(comment => {
-          // 마스터 계정 코멘트는 항상 표시
-          if (comment.authorId === 'drawing555') return true;
-          
-          // 선택된 지점의 코멘트만 표시
-          return selectedBranches.some(branchId => {
-            const branch = branches.find(b => b.id === branchId);
-            return branch && comment.authorName.includes(branch.name);
-          });
-        });
-      }
       
       // 상단고정 코멘트를 먼저, 나머지는 최신순으로 정렬
       commentsData.sort((a, b) => {
@@ -304,6 +292,7 @@ export default function Dashboard({ user }: DashboardProps) {
         adminConfirmRequest: commentOptions.adminConfirmRequest,
         isImportant: commentOptions.isImportant,
         isPinned: commentOptions.isPinned,
+        branchTags: commentOptions.selectedBranches, // 선택된 지점들을 태그로 저장
         createdAt: new Date(),
         updatedAt: new Date()
       });
@@ -312,7 +301,8 @@ export default function Dashboard({ user }: DashboardProps) {
       setCommentOptions({
         adminConfirmRequest: false,
         isImportant: false,
-        isPinned: false
+        isPinned: false,
+        selectedBranches: []
       });
       await loadComments();
     } catch (error) {
@@ -333,6 +323,7 @@ export default function Dashboard({ user }: DashboardProps) {
         adminConfirmRequest: editingComment.options.adminConfirmRequest,
         isImportant: editingComment.options.isImportant,
         isPinned: editingComment.options.isPinned,
+        branchTags: editingComment.options.selectedBranches,
         updatedAt: new Date()
       });
       
@@ -443,16 +434,16 @@ export default function Dashboard({ user }: DashboardProps) {
               홈
             </button>
             {!isManager && (
-              <button
-                onClick={() => handleTabChange('branches')}
+            <button
+              onClick={() => handleTabChange('branches')}
                 className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === 'branches'
-                    ? 'border-blue-500 text-blue-600'
+                activeTab === 'branches'
+                  ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
-                }`}
-              >
-                지점 관리
-              </button>
+              }`}
+            >
+              지점 관리
+            </button>
             )}
             <button
               onClick={() => handleTabChange('employees')}
@@ -487,16 +478,16 @@ export default function Dashboard({ user }: DashboardProps) {
               </button>
             )}
             {!isManager && (
-              <button
-                onClick={() => handleTabChange('reports')}
+            <button
+              onClick={() => handleTabChange('reports')}
                 className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === 'reports'
-                    ? 'border-blue-500 text-blue-600'
+                activeTab === 'reports'
+                  ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
-                }`}
-              >
-                보고서
-              </button>
+              }`}
+            >
+              보고서
+            </button>
             )}
           </div>
         </div>
@@ -613,37 +604,26 @@ export default function Dashboard({ user }: DashboardProps) {
                         </label>
                       </div>
                       
-                      {/* 지점선택 체크박스 */}
+                      {/* 지점 태그 선택 체크박스 */}
                       <div className="flex flex-wrap gap-4 text-sm">
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={showAllBranches}
-                            onChange={(e) => {
-                              setShowAllBranches(e.target.checked);
-                              if (e.target.checked) {
-                                setSelectedBranches(branches.map(b => b.id));
-                              }
-                              setTimeout(loadComments, 100);
-                            }}
-                            className="mr-2"
-                          />
-                          <span className="text-gray-700">전지점</span>
-                        </label>
-                        
+                        <span className="text-gray-700 font-medium">지점 태그:</span>
                         {branches.map((branch) => (
                           <label key={branch.id} className="flex items-center">
                             <input
                               type="checkbox"
-                              checked={selectedBranches.includes(branch.id)}
+                              checked={commentOptions.selectedBranches.includes(branch.id)}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedBranches(prev => [...prev, branch.id]);
+                                  setCommentOptions(prev => ({
+                                    ...prev,
+                                    selectedBranches: [...prev.selectedBranches, branch.id]
+                                  }));
                                 } else {
-                                  setSelectedBranches(prev => prev.filter(id => id !== branch.id));
-                                  setShowAllBranches(false);
+                                  setCommentOptions(prev => ({
+                                    ...prev,
+                                    selectedBranches: prev.selectedBranches.filter(id => id !== branch.id)
+                                  }));
                                 }
-                                setTimeout(loadComments, 100);
                               }}
                               className="mr-2"
                             />
@@ -719,6 +699,40 @@ export default function Dashboard({ user }: DashboardProps) {
                                 </label>
                               </div>
                               
+                              {/* 수정 시 지점 태그 선택 */}
+                              <div className="flex flex-wrap gap-4 text-sm">
+                                <span className="text-gray-700 font-medium">지점 태그:</span>
+                                {branches.map((branch) => (
+                                  <label key={branch.id} className="flex items-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={editingComment.options.selectedBranches.includes(branch.id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setEditingComment(prev => prev ? {
+                                            ...prev,
+                                            options: {
+                                              ...prev.options,
+                                              selectedBranches: [...prev.options.selectedBranches, branch.id]
+                                            }
+                                          } : null);
+                                        } else {
+                                          setEditingComment(prev => prev ? {
+                                            ...prev,
+                                            options: {
+                                              ...prev.options,
+                                              selectedBranches: prev.options.selectedBranches.filter(id => id !== branch.id)
+                                            }
+                                          } : null);
+                                        }
+                                      }}
+                                      className="mr-2"
+                                    />
+                                    <span className="text-gray-700">{branch.name}</span>
+                                  </label>
+                                ))}
+                              </div>
+                              
                               <div className="flex space-x-2">
                                 <button
                                   onClick={editComment}
@@ -768,6 +782,18 @@ export default function Dashboard({ user }: DashboardProps) {
                                       ✅ 완료
                                     </span>
                                   )}
+                                  
+                                  {/* 지점 태그 표시 */}
+                                  {comment.branchTags && comment.branchTags.length > 0 && (
+                                    comment.branchTags.map(branchId => {
+                                      const branch = branches.find(b => b.id === branchId);
+                                      return branch ? (
+                                        <span key={branchId} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                          🏢 {branch.name}
+                                        </span>
+                                      ) : null;
+                                    })
+                                  )}
                                 </div>
                                 <p className={`text-sm whitespace-pre-wrap ${comment.isCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                                   {comment.content}
@@ -785,13 +811,14 @@ export default function Dashboard({ user }: DashboardProps) {
                                 {(comment.authorId === currentUserId || user.email === 'drawing555@naver.com') && (
                                   <>
                                     <button
-                                      onClick={() => setEditingComment({
+                                      onClick={() =>                                       setEditingComment({
                                         id: comment.id,
                                         content: comment.content,
                                         options: {
                                           adminConfirmRequest: comment.adminConfirmRequest || false,
                                           isImportant: comment.isImportant || false,
-                                          isPinned: comment.isPinned || false
+                                          isPinned: comment.isPinned || false,
+                                          selectedBranches: comment.branchTags || []
                                         }
                                       })}
                                       className="text-blue-600 hover:text-blue-800 text-sm"
@@ -814,7 +841,7 @@ export default function Dashboard({ user }: DashboardProps) {
                     ) : (
                       <div className="p-6 text-center text-gray-500">
                         아직 코멘트가 없습니다.
-                      </div>
+                  </div>
                     )}
                     
                     {/* 더보기 버튼 */}
@@ -826,7 +853,7 @@ export default function Dashboard({ user }: DashboardProps) {
                         >
                           더보기 ({comments.length - 10}개 더)
                         </button>
-                      </div>
+                  </div>
                     )}
                     
                     {/* 접기 버튼 */}
@@ -838,7 +865,7 @@ export default function Dashboard({ user }: DashboardProps) {
                         >
                           접기
                         </button>
-                      </div>
+                  </div>
                     )}
                   </div>
                 </div>
@@ -878,10 +905,10 @@ export default function Dashboard({ user }: DashboardProps) {
 
               {/* 서브탭 컨텐츠 */}
               {activeSubTab === '' && (
-                <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="bg-white overflow-hidden shadow rounded-lg">
                   <div className="p-4 sm:p-6">
                     <BranchManagement />
-                  </div>
+              </div>
                 </div>
               )}
 
@@ -1047,19 +1074,19 @@ export default function Dashboard({ user }: DashboardProps) {
               )}
 
               {activeSubTab === 'payroll-file' && (
-                <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="bg-white overflow-hidden shadow rounded-lg">
                   <div className="p-4 sm:p-6">
                     <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                       급여이체파일 생성
-                    </h3>
+                </h3>
                     <p className="text-sm text-gray-700 mb-4">
                       급여 이체용 Excel 파일을 생성합니다.
                     </p>
                     <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
                       <p className="text-sm text-yellow-800">
                         <strong>개발 예정:</strong> 이 기능은 향후 구현될 예정입니다.
-                      </p>
-                    </div>
+                </p>
+              </div>
                     <div className="mt-4">
                       <button
                         disabled
