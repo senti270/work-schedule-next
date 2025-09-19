@@ -801,12 +801,14 @@ export default function Dashboard({ user }: DashboardProps) {
                               </div>
                               
                               <div className="flex space-x-2 ml-4">
-                                <button
-                                  onClick={() => toggleCompleteComment(comment.id, comment.isCompleted || false)}
-                                  className={`text-sm ${comment.isCompleted ? 'text-gray-600 hover:text-gray-800' : 'text-green-600 hover:text-green-800'}`}
-                                >
-                                  {comment.isCompleted ? '완료취소' : '완료'}
-                                </button>
+                                {(comment.authorId === currentUserId || user.email === 'drawing555@naver.com') && (
+                                  <button
+                                    onClick={() => toggleCompleteComment(comment.id, comment.isCompleted || false)}
+                                    className={`text-sm ${comment.isCompleted ? 'text-gray-600 hover:text-gray-800' : 'text-green-600 hover:text-green-800'}`}
+                                  >
+                                    {comment.isCompleted ? '완료취소' : '완료'}
+                                  </button>
+                                )}
                                 
                                 {(comment.authorId === currentUserId || user.email === 'drawing555@naver.com') && (
                                   <>

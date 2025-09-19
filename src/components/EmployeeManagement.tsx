@@ -858,6 +858,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       // 메모
       memo: ''
     });
+    
+    // 지점 매니저인 경우 자신의 지점을 기본으로 선택
+    if (isManager && userBranch) {
+      setSelectedBranches([userBranch.id]);
+    } else {
+      setSelectedBranches([]);
+    }
+    
     setEditingEmployee(null);
     setShowForm(false);
   };
@@ -1275,13 +1283,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           )}
           <button
             onClick={() => {
-              // 매니저 권한이 있으면 해당 지점으로 자동 설정
-              if (isManager && userBranch) {
-                setFormData(prev => ({
-                  ...prev,
-                  branchId: userBranch.id
-                }));
-              }
+              console.log('직원 추가 버튼 클릭됨');
+              // 폼 초기화 (지점 매니저인 경우 자동으로 지점 선택됨)
+              resetForm();
               setShowForm(true);
             }}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium"
