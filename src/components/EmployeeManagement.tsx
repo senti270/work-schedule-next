@@ -77,6 +77,9 @@ interface EmploymentContract {
   notes?: string;
   contractFile?: string; // 계약서 파일 URL
   contractFileName?: string; // 원본 파일명
+  fileType?: string; // 파일 타입
+  fileSize?: number; // 파일 크기
+  isBase64?: boolean; // Base64 저장 여부
   createdAt: Date;
   updatedAt: Date;
 }
@@ -1417,7 +1420,13 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
   // 파일 삭제
   const handleFileDelete = async (contract: EmploymentContract) => {
-    if (!contract.contractFile) return;
+    console.log('=== 파일 삭제 시작 ===');
+    console.log('삭제할 계약서:', contract);
+    
+    if (!contract.contractFile) {
+      console.log('계약서 파일이 없음');
+      return;
+    }
     
     if (confirm('정말로 이 파일을 삭제하시겠습니까?')) {
       try {
@@ -1441,8 +1450,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           updatedAt: new Date()
         });
         
+        console.log('Firestore 업데이트 완료');
+        
         // 로컬 상태 업데이트
         if (selectedEmployee) {
+          console.log('계약서 목록 다시 로드 시작');
           await loadContracts(selectedEmployee.id);
         }
         
