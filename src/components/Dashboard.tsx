@@ -1005,10 +1005,22 @@ export default function Dashboard({ user }: DashboardProps) {
                                           {attachment.fileType.startsWith('image/') ? (
                                             // 이미지 파일: 섬네일 표시
                                             <div className="relative group">
+                                              <div 
+                                                className="w-16 h-16 border border-gray-300 cursor-pointer hover:opacity-80 rounded bg-gray-100 flex items-center justify-center"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  e.stopPropagation();
+                                                  console.log('=== DIV 클릭 테스트 ===');
+                                                  console.log('파일명:', attachment.fileName);
+                                                  alert('클릭 이벤트 작동 확인!');
+                                                }}
+                                              >
+                                                <span className="text-xs text-gray-500">클릭</span>
+                                              </div>
                                               <img
                                                 src={attachment.fileUrl}
                                                 alt={attachment.fileName}
-                                                className="w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80"
+                                                className="absolute inset-0 w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80"
                                                 style={{ 
                                                   backgroundColor: '#f3f4f6',
                                                   minHeight: '64px',
