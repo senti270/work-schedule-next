@@ -114,8 +114,31 @@ export default function Dashboard({ user }: DashboardProps) {
 
     try {
       // 작성자 정보 설정
-      const userId = user.email === 'drawing555@naver.com' ? 'drawing555' : user.email;
-      const authorName = isManager && userBranch ? userBranch.name : '관리자';
+      let userId = '';
+      let authorName = '';
+      
+      if (user.email === 'drawing555@naver.com') {
+        userId = 'drawing555';
+        authorName = 'drawing555(마스터)';
+      } else if (user.email?.includes('@manager.workschedule.local')) {
+        // 매니저 계정에서 userId 추출 (예: yes0619@manager.workschedule.local -> yes0619)
+        userId = user.email.split('@')[0];
+        const branchName = isManager && userBranch ? userBranch.name : '관리자';
+        authorName = `${userId}(${branchName})`;
+      } else {
+        // 기존 계정들 처리
+        if (user.email?.includes('yes0619')) {
+          userId = 'yes0619';
+          authorName = 'yes0619(마스터)';
+        } else if (user.email?.includes('cdeel_dt')) {
+          userId = 'cdeel_dt';
+          const branchName = isManager && userBranch ? userBranch.name : '청담장어마켓 동탄점';
+          authorName = `cdeel_dt(${branchName})`;
+        } else {
+          userId = user.email || '';
+          authorName = isManager && userBranch ? `${userId}(${userBranch.name})` : '관리자';
+        }
+      }
       
       await addDoc(collection(db, 'comments'), {
         content: newComment.trim(),
@@ -245,26 +268,30 @@ export default function Dashboard({ user }: DashboardProps) {
             >
               스케줄 관리
             </button>
-            <button
-              onClick={() => handleTabChange('payroll')}
-              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === 'payroll'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
-              }`}
-            >
-              급여작업
-            </button>
-            <button
-              onClick={() => handleTabChange('reports')}
-              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === 'reports'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
-              }`}
-            >
-              보고서
-            </button>
+            {!isManager && (
+              <button
+                onClick={() => handleTabChange('payroll')}
+                className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                  activeTab === 'payroll'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
+                }`}
+              >
+                급여작업
+              </button>
+            )}
+            {!isManager && (
+              <button
+                onClick={() => handleTabChange('reports')}
+                className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                  activeTab === 'reports'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
+                }`}
+              >
+                보고서
+              </button>
+            )}
           </div>
         </div>
       </nav>
@@ -305,20 +332,24 @@ export default function Dashboard({ user }: DashboardProps) {
                     <h4 className="font-medium text-purple-900">스케줄 관리</h4>
                     <p className="text-purple-600 text-sm">근무 스케줄을 관리합니다</p>
                   </button>
-                  <button 
-                    onClick={() => setActiveTab('payroll')}
-                    className="bg-yellow-50 p-4 rounded-lg hover:bg-yellow-100 transition-colors duration-200 cursor-pointer text-left w-full"
-                  >
-                    <h4 className="font-medium text-yellow-900">급여작업</h4>
-                    <p className="text-yellow-600 text-sm">급여 관련 작업을 수행합니다</p>
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('reports')}
-                    className="bg-orange-50 p-4 rounded-lg hover:bg-orange-100 transition-colors duration-200 cursor-pointer text-left w-full"
-                  >
-                    <h4 className="font-medium text-orange-900">보고서</h4>
-                    <p className="text-orange-600 text-sm">근무 현황을 확인합니다</p>
-                  </button>
+                  {!isManager && (
+                    <button 
+                      onClick={() => setActiveTab('payroll')}
+                      className="bg-yellow-50 p-4 rounded-lg hover:bg-yellow-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                    >
+                      <h4 className="font-medium text-yellow-900">급여작업</h4>
+                      <p className="text-yellow-600 text-sm">급여 관련 작업을 수행합니다</p>
+                    </button>
+                  )}
+                  {!isManager && (
+                    <button 
+                      onClick={() => setActiveTab('reports')}
+                      className="bg-orange-50 p-4 rounded-lg hover:bg-orange-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                    >
+                      <h4 className="font-medium text-orange-900">보고서</h4>
+                      <p className="text-orange-600 text-sm">근무 현황을 확인합니다</p>
+                    </button>
+                  )}
                 </div>
                 
                 {/* 코멘트 섹션 */}

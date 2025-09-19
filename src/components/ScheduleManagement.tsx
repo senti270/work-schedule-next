@@ -36,7 +36,7 @@ interface ScheduleManagementProps {
   isManager?: boolean;
 }
 
-export default function ScheduleManagement({ }: ScheduleManagementProps) {
+export default function ScheduleManagement({ userBranch, isManager }: ScheduleManagementProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -44,10 +44,10 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [activeTab, setActiveTab] = useState<'schedule-input' | 'schedule-input-old' | 'weekly-view' | 'calendar'>('schedule-input');
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(isManager && userBranch ? userBranch.id : '');
   const [formData, setFormData] = useState({
     employeeId: '',
-    branchId: '',
+    branchId: isManager && userBranch ? userBranch.id : '',
     date: '',
     startTime: '',
     endTime: '',

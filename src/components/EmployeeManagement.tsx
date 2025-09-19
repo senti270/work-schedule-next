@@ -867,6 +867,97 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     loadContracts(employee.id);
   };
 
+  // 근로계약서 파일 업로드
+  const handleContractUpload = async (e: React.ChangeEvent<HTMLInputElement>, employee: Employee) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 파일 크기 체크 (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('파일 크기는 10MB 이하여야 합니다.');
+      return;
+    }
+
+    try {
+      const timestamp = Date.now();
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `contracts/${employee.id}_${timestamp}.${fileExtension}`;
+      
+      // Firebase Storage에 업로드
+      const storageRef = ref(storage, fileName);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      // 직원 정보에 계약서 파일 URL 업데이트
+      const employeeRef = doc(db, 'employees', employee.id);
+      await updateDoc(employeeRef, {
+        contractFile: downloadURL,
+        updatedAt: new Date()
+      });
+      
+      // 로컬 상태 업데이트
+      setEmployees(prev => prev.map(emp => 
+        emp.id === employee.id 
+          ? { ...emp, contractFile: downloadURL }
+          : emp
+      ));
+      
+      // 문서 모달 상태 업데이트
+      setShowDocumentModal(prev => ({
+        ...prev,
+        employee: prev.employee ? { ...prev.employee, contractFile: downloadURL } : null
+      }));
+      
+      alert('계약서 파일이 업로드되었습니다.');
+      
+      // 파일 입력 필드 초기화
+      e.target.value = '';
+    } catch (error) {
+      console.error('파일 업로드 중 오류:', error);
+      alert('파일 업로드에 실패했습니다.');
+    }
+  };
+
+  // 근로계약서 파일 삭제
+  const handleDeleteContract = async (employee: Employee) => {
+    if (!employee.contractFile) return;
+    
+    if (!confirm('정말로 이 계약서 파일을 삭제하시겠습니까?')) {
+      return;
+    }
+    
+    try {
+      // Firebase Storage에서 파일 삭제
+      const fileRef = ref(storage, employee.contractFile);
+      await deleteObject(fileRef);
+      
+      // 직원 정보에서 계약서 파일 URL 제거
+      const employeeRef = doc(db, 'employees', employee.id);
+      await updateDoc(employeeRef, {
+        contractFile: '',
+        updatedAt: new Date()
+      });
+      
+      // 로컬 상태 업데이트
+      setEmployees(prev => prev.map(emp => 
+        emp.id === employee.id 
+          ? { ...emp, contractFile: undefined }
+          : emp
+      ));
+      
+      // 문서 모달 상태 업데이트
+      setShowDocumentModal(prev => ({
+        ...prev,
+        employee: prev.employee ? { ...prev.employee, contractFile: undefined } : null
+      }));
+      
+      alert('계약서 파일이 삭제되었습니다.');
+    } catch (error) {
+      console.error('파일 삭제 중 오류:', error);
+      alert('파일 삭제에 실패했습니다.');
+    }
+  };
+
   // 근로계약서 추가/수정
   const handleContractSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1301,7 +1392,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                 {/* 수정 폼 - 해당 직원 행 바로 아래에 표시 */}
                 {editingEmployee && editingEmployee.id === employee.id && (
                   <tr>
-                    <td colSpan={showResignedEmployees ? 6 : 5} className="px-6 py-4 bg-gray-50">
+                    <td colSpan={showResignedEmployees ? 7 : 6} className="px-6 py-4 bg-gray-50">
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
                         <h3 className="text-lg font-semibold mb-4 text-gray-900">
                           {editingEmployee.name} 정보 수정
@@ -2405,9 +2496,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       {/* 문서관리 모달 */}
       {showDocumentModal.show && showDocumentModal.employee && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">
                 {showDocumentModal.employee.name} - 문서관리
               </h3>
               <button
@@ -2420,32 +2511,84 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
               </button>
             </div>
             
-            <div className="space-y-4">
-              <button
-                onClick={() => {
-                  generateEmploymentCertificate(showDocumentModal.employee!);
-                  setShowDocumentModal({ show: false, employee: null });
-                }}
-                className="w-full bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 font-medium text-left flex items-center"
-              >
-                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                재직증명서 생성
-              </button>
-              
-              <button
-                onClick={() => {
-                  handleContractClick(showDocumentModal.employee!);
-                  setShowDocumentModal({ show: false, employee: null });
-                }}
-                className="w-full bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 font-medium text-left flex items-center"
-              >
-                <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                근로계약서 관리
-              </button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* 재직증명서 섹션 */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  재직증명서
+                </h4>
+                <p className="text-sm text-gray-600 mb-4">
+                  직원의 재직증명서를 PDF로 생성합니다.
+                </p>
+                <button
+                  onClick={() => generateEmploymentCertificate(showDocumentModal.employee!)}
+                  className="w-full bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 font-medium"
+                >
+                  재직증명서 생성
+                </button>
+              </div>
+
+              {/* 근로계약서 섹션 */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  근로계약서
+                </h4>
+                <p className="text-sm text-gray-600 mb-4">
+                  근로계약서 파일을 업로드하고 관리합니다.
+                </p>
+                
+                {/* 기존 계약서 파일 표시 */}
+                {showDocumentModal.employee.contractFile ? (
+                  <div className="mb-4 p-3 bg-white border border-gray-200 rounded-md">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700">
+                        📄 기존 계약서 파일
+                      </span>
+                      <div className="flex space-x-2">
+                        <a
+                          href={showDocumentModal.employee.contractFile}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          다운로드
+                        </a>
+                        <button
+                          onClick={() => handleDeleteContract(showDocumentModal.employee!)}
+                          className="text-xs text-red-600 hover:text-red-800"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-4 p-3 bg-white border border-gray-200 rounded-md">
+                    <span className="text-sm text-gray-500">
+                      📄 등록된 계약서가 없습니다.
+                    </span>
+                  </div>
+                )}
+                
+                {/* 파일 업로드 */}
+                <div className="space-y-3">
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => handleContractUpload(e, showDocumentModal.employee!)}
+                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  <p className="text-xs text-gray-500">
+                    PDF, JPG, PNG 파일을 업로드할 수 있습니다. (최대 10MB)
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
