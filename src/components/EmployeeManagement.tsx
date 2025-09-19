@@ -416,10 +416,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     
     // 지점 정보 기본값 설정
     let branchInfo = {
-      companyName: '[회사명을 입력하세요]',
-      ceoName: '[대표자명을 입력하세요]',
-      businessNumber: '[사업자등록번호를 입력하세요]',
-      name: '[지점명을 입력하세요]'
+      companyName: '카페드로잉 석촌호수점', // 기본 회사명
+      ceoName: '이진영', // 기본 대표자명
+      businessNumber: '522-27-02034', // 기본 사업자등록번호
+      name: '카페드로잉 석촌호수점' // 기본 지점명
     };
     
     try {
@@ -437,42 +437,30 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         const firstBranch = employeeBranchesSnapshot.docs[0].data();
         console.log('첫 번째 지점 관계:', firstBranch);
         
-        // branches 배열에서 해당 지점 찾기
-        const employeeBranch = branches.find(branch => branch.id === firstBranch.branchId);
-        console.log('찾은 지점 정보:', employeeBranch);
-        
-        if (employeeBranch) {
+        // 직접 DB에서 지점 정보 조회 (더 확실한 방법)
+        const branchDoc = await getDocs(query(collection(db, 'branches'), where('__name__', '==', firstBranch.branchId)));
+        if (!branchDoc.empty) {
+          const branchData = branchDoc.docs[0].data();
+          console.log('DB에서 직접 조회한 지점 데이터:', branchData);
+          
           branchInfo = {
-            companyName: employeeBranch.companyName || employeeBranch.name || '[회사명을 입력하세요]', // 회사명이 없으면 지점명 사용
-            ceoName: employeeBranch.ceoName || '[대표자명을 입력하세요]',
-            businessNumber: employeeBranch.businessNumber || '[사업자등록번호를 입력하세요]',
-            name: employeeBranch.name || '[지점명을 입력하세요]'
+            companyName: branchData.companyName || branchData.name || '카페드로잉 석촌호수점',
+            ceoName: branchData.ceoName || '이진영',
+            businessNumber: branchData.businessNumber || '522-27-02034',
+            name: branchData.name || '카페드로잉 석촌호수점'
           };
-        } else {
-          // branches 배열에서 찾지 못한 경우 직접 DB에서 조회
-          console.log('branches 배열에서 찾지 못함, 직접 DB 조회');
-          const branchDoc = await getDocs(query(collection(db, 'branches'), where('__name__', '==', firstBranch.branchId)));
-          if (!branchDoc.empty) {
-            const branchData = branchDoc.docs[0].data();
-            console.log('직접 조회한 지점 데이터:', branchData);
-            branchInfo = {
-              companyName: branchData.companyName || branchData.name || '[회사명을 입력하세요]', // 회사명이 없으면 지점명 사용
-              ceoName: branchData.ceoName || '[대표자명을 입력하세요]',
-              businessNumber: branchData.businessNumber || '[사업자등록번호를 입력하세요]',
-              name: branchData.name || '[지점명을 입력하세요]'
-            };
-          }
         }
-      } else {
-        console.log('직원-지점 관계 데이터가 없음');
-        // employeeBranches가 없는 경우, 기본 지점 정보로 대체
-        if (branches.length > 0) {
-          const firstBranch = branches[0];
+        
+        // branches 배열에서도 확인 (이중 체크)
+        const employeeBranch = branches.find(branch => branch.id === firstBranch.branchId);
+        console.log('branches 배열에서 찾은 지점 정보:', employeeBranch);
+        
+        if (employeeBranch && (employeeBranch.companyName || employeeBranch.ceoName || employeeBranch.businessNumber)) {
           branchInfo = {
-            companyName: firstBranch.companyName || firstBranch.name || '[회사명을 입력하세요]', // 회사명이 없으면 지점명 사용
-            ceoName: firstBranch.ceoName || '[대표자명을 입력하세요]',
-            businessNumber: firstBranch.businessNumber || '[사업자등록번호를 입력하세요]',
-            name: firstBranch.name || '[지점명을 입력하세요]'
+            companyName: employeeBranch.companyName || employeeBranch.name || branchInfo.companyName,
+            ceoName: employeeBranch.ceoName || branchInfo.ceoName,
+            businessNumber: employeeBranch.businessNumber || branchInfo.businessNumber,
+            name: employeeBranch.name || branchInfo.name
           };
         }
       }
@@ -519,75 +507,129 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     
     console.log('생성된 HTML 내용:', htmlContent);
     
-    // 임시 div 생성
-    const element = document.createElement('div');
-    element.innerHTML = htmlContent;
-    element.style.position = 'absolute';
-    element.style.left = '-9999px';
-    document.body.appendChild(element);
-    
-    // PDF 생성 옵션
-    const opt = {
-      margin: 1,
-      filename: `${employee.name}_재직증명서.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };
-    
-    // PDF 생성 및 다운로드 (동적 import)
+    // PDF 생성 및 다운로드
     try {
       console.log('PDF 생성 시작...');
+      
+      // html2pdf.js 동적 import
       const html2pdf = await import('html2pdf.js');
       console.log('html2pdf 라이브러리 로드 완료');
       
-      await html2pdf.default().set(opt).from(element).save();
+      // PDF 생성 옵션 (더 안정적인 설정)
+      const opt = {
+        margin: [0.5, 0.5, 0.5, 0.5],
+        filename: `${employee.name}_재직증명서_${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { 
+          type: 'jpeg', 
+          quality: 1.0 
+        },
+        html2canvas: { 
+          scale: 1,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          width: 800,
+          height: 1000
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait',
+          compress: true
+        },
+        pagebreak: { mode: 'avoid-all' }
+      };
+      
+      // 임시 div 생성 및 스타일 개선
+      const element = document.createElement('div');
+      element.innerHTML = htmlContent;
+      element.style.cssText = `
+        position: fixed;
+        top: -9999px;
+        left: -9999px;
+        width: 800px;
+        background: white;
+        font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
+        color: black;
+        z-index: -1;
+      `;
+      document.body.appendChild(element);
+      
+      console.log('임시 DOM 요소 생성 완료');
+      
+      // PDF 생성
+      const pdf = html2pdf.default();
+      await pdf.set(opt).from(element).save();
+      
       console.log('PDF 생성 및 다운로드 완료');
       
       // 임시 div 제거
       if (document.body.contains(element)) {
         document.body.removeChild(element);
+        console.log('임시 DOM 요소 제거 완료');
       }
       
       alert('재직증명서가 성공적으로 생성되었습니다.');
+      
     } catch (error) {
       console.error('PDF 생성 중 오류:', error);
-      
-      // 임시 div 제거
-      if (document.body.contains(element)) {
-        document.body.removeChild(element);
+      if (error instanceof Error) {
+        console.error('오류 상세:', error.stack);
       }
       
-      // 대안: HTML 내용을 새 창에서 출력
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>${employee.name} 재직증명서</title>
-            <meta charset="utf-8">
-            <style>
-              @media print {
-                body { margin: 0; }
-                @page { margin: 1in; }
-              }
-            </style>
-          </head>
-          <body>
-            ${htmlContent}
-            <script>
-              window.onload = function() {
-                window.print();
-              }
-            </script>
-          </body>
-          </html>
-        `);
-        printWindow.document.close();
-        alert('PDF 라이브러리 오류로 인해 인쇄 창을 열었습니다. 브라우저의 인쇄 기능을 사용해 PDF로 저장하세요.');
-      } else {
-        alert('PDF 생성에 실패했습니다. 팝업 차단을 해제하고 다시 시도해주세요.');
+      // 대안: 새 창에서 인쇄 가능한 페이지 열기
+      try {
+        const printWindow = window.open('', '_blank', 'width=800,height=1000');
+        if (printWindow) {
+          printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>${employee.name} 재직증명서</title>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                  font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif; 
+                  background: white; 
+                  color: black;
+                  padding: 20px;
+                }
+                @media print {
+                  body { margin: 0; padding: 20px; }
+                  @page { 
+                    margin: 20mm; 
+                    size: A4;
+                  }
+                }
+                .no-print { display: none; }
+                @media print {
+                  .no-print { display: none !important; }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="no-print" style="text-align: center; margin-bottom: 20px; padding: 10px; background: #f0f0f0; border: 1px solid #ccc;">
+                <p><strong>PDF 생성에 실패하여 인쇄 창을 열었습니다.</strong></p>
+                <p>Ctrl+P를 눌러 인쇄하거나 브라우저의 인쇄 기능을 사용해 PDF로 저장하세요.</p>
+                <button onclick="window.print()" style="margin: 10px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">인쇄하기</button>
+                <button onclick="window.close()" style="margin: 10px; padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">닫기</button>
+              </div>
+              ${htmlContent}
+            </body>
+            </html>
+          `);
+          printWindow.document.close();
+          printWindow.focus();
+          
+          alert('PDF 생성에 실패했습니다. 새 창에서 인쇄 기능을 사용해 PDF로 저장하세요.');
+        } else {
+          alert('PDF 생성 및 인쇄 창 열기에 실패했습니다. 팝업 차단을 해제하고 다시 시도해주세요.');
+        }
+      } catch (printError) {
+        console.error('인쇄 창 열기 실패:', printError);
+        alert('PDF 생성에 실패했습니다. 브라우저 설정을 확인하고 다시 시도해주세요.');
       }
     }
   };
@@ -1172,29 +1214,84 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       const fileExtension = file.name.split('.').pop();
       const fileName = `contracts/${contractId}_${timestamp}.${fileExtension}`;
       
-      // Firebase Storage에 업로드 (메타데이터 추가)
+      // Firebase Storage에 업로드 (CORS 문제 해결을 위한 개선)
       const storageRef = ref(storage, fileName);
       
+      console.log('파일 업로드 시작:', {
+        fileName,
+        fileType: file.type,
+        fileSize: file.size,
+        contractId
+      });
+      
+      // 간단한 메타데이터로 CORS 문제 최소화
       const metadata = {
-        contentType: file.type,
-        customMetadata: {
-          'originalName': file.name,
-          'uploadedBy': 'employee-management',
-          'contractId': contractId,
-          'uploadTime': new Date().toISOString()
-        }
+        contentType: file.type
       };
       
-      const snapshot = await uploadBytes(storageRef, file, metadata);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      // 업로드 시도 (CORS 에러 대응)
+      console.log('Firebase Storage 업로드 시도...');
+      let downloadURL;
       
-      // Firestore에 파일 정보 업데이트
-      const contractRef = doc(db, 'employmentContracts', contractId);
-      await updateDoc(contractRef, {
-        contractFile: downloadURL,
-        contractFileName: file.name,
-        updatedAt: new Date()
-      });
+      try {
+        const snapshot = await uploadBytes(storageRef, file, metadata);
+        console.log('업로드 완료:', snapshot);
+        
+        console.log('다운로드 URL 생성 시도...');
+        downloadURL = await getDownloadURL(snapshot.ref);
+        console.log('다운로드 URL 생성 완료:', downloadURL);
+        
+        // Firestore에 파일 정보 업데이트
+        const contractRef = doc(db, 'employmentContracts', contractId);
+        await updateDoc(contractRef, {
+          contractFile: downloadURL,
+          contractFileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          isBase64: false,
+          updatedAt: new Date()
+        });
+        
+      } catch (uploadError) {
+        console.error('Firebase Storage 업로드 실패:', uploadError);
+        
+        // CORS 에러인 경우 Base64 대안 방법 시도
+        const errorMessage = uploadError instanceof Error ? uploadError.message : String(uploadError);
+        if (errorMessage.includes('CORS') || errorMessage.includes('blocked')) {
+          console.log('CORS 에러 감지, Base64 저장 방식으로 대안 시도...');
+          
+          // 파일을 Base64로 변환하여 Firestore에 직접 저장
+          if (file.size < 2 * 1024 * 1024) { // 2MB 미만
+            const reader = new FileReader();
+            const base64Promise = new Promise((resolve, reject) => {
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            
+            const base64Data = await base64Promise as string;
+            console.log('Base64 변환 완료, 크기:', base64Data.length);
+            
+            // Firestore에 Base64 데이터 저장
+            const contractRef = doc(db, 'employmentContracts', contractId);
+            await updateDoc(contractRef, {
+              contractFile: base64Data,
+              contractFileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+              isBase64: true,
+              updatedAt: new Date()
+            });
+            
+            console.log('Base64 데이터 Firestore 저장 완료');
+            downloadURL = base64Data;
+          } else {
+            throw new Error('CORS 문제로 인해 파일 업로드에 실패했습니다. 파일 크기를 2MB 이하로 줄여주세요.');
+          }
+        } else {
+          throw uploadError;
+        }
+      }
       
       // 로컬 상태 업데이트
       if (selectedEmployee) {
@@ -1234,9 +1331,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const handleFileDownload = (contract: EmploymentContract) => {
     if (contract.contractFile) {
       const link = document.createElement('a');
-      link.href = contract.contractFile;
-      link.download = contract.contractFileName || 'contract.pdf';
-      link.target = '_blank';
+      
+      // Base64 데이터인지 확인
+      if (contract.contractFile.startsWith('data:')) {
+        // Base64 데이터인 경우
+        link.href = contract.contractFile;
+        link.download = contract.contractFileName || 'contract.pdf';
+      } else {
+        // Firebase Storage URL인 경우
+        link.href = contract.contractFile;
+        link.download = contract.contractFileName || 'contract.pdf';
+        link.target = '_blank';
+      }
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1249,15 +1356,23 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     
     if (confirm('정말로 이 파일을 삭제하시겠습니까?')) {
       try {
-        // Firebase Storage에서 파일 삭제
-        const fileRef = ref(storage, contract.contractFile);
-        await deleteObject(fileRef);
+        // Base64 데이터가 아닌 경우에만 Firebase Storage에서 삭제
+        if (!contract.contractFile.startsWith('data:')) {
+          const fileRef = ref(storage, contract.contractFile);
+          await deleteObject(fileRef);
+          console.log('Firebase Storage에서 파일 삭제 완료');
+        } else {
+          console.log('Base64 데이터 삭제 (Storage 삭제 불필요)');
+        }
         
         // Firestore에서 파일 정보 삭제
         const contractRef = doc(db, 'employmentContracts', contract.id);
         await updateDoc(contractRef, {
           contractFile: '',
           contractFileName: '',
+          fileType: '',
+          fileSize: 0,
+          isBase64: false,
           updatedAt: new Date()
         });
         
