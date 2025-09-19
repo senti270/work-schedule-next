@@ -273,9 +273,13 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       const querySnapshot = await getDocs(collection(db, 'branches'));
       const branchesData = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        name: doc.data().name
+        name: doc.data().name,
+        companyName: doc.data().companyName,
+        ceoName: doc.data().ceoName,
+        businessNumber: doc.data().businessNumber
       })) as Branch[];
       setBranches(branchesData);
+      console.log('지점 데이터 로드됨 (상세 정보 포함):', branchesData);
     } catch (error) {
       console.error('지점 목록을 불러올 수 없습니다:', error);
     }
@@ -532,12 +536,60 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     };
     
     // PDF 생성 및 다운로드 (동적 import)
-    import('html2pdf.js').then((html2pdf) => {
-      html2pdf.default().set(opt).from(element).save().then(() => {
-        // 임시 div 제거
+    try {
+      console.log('PDF 생성 시작...');
+      const html2pdf = await import('html2pdf.js');
+      console.log('html2pdf 라이브러리 로드 완료');
+      
+      await html2pdf.default().set(opt).from(element).save();
+      console.log('PDF 생성 및 다운로드 완료');
+      
+      // 임시 div 제거
+      if (document.body.contains(element)) {
         document.body.removeChild(element);
-      });
-    });
+      }
+      
+      alert('재직증명서가 성공적으로 생성되었습니다.');
+    } catch (error) {
+      console.error('PDF 생성 중 오류:', error);
+      
+      // 임시 div 제거
+      if (document.body.contains(element)) {
+        document.body.removeChild(element);
+      }
+      
+      // 대안: HTML 내용을 새 창에서 출력
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>${employee.name} 재직증명서</title>
+            <meta charset="utf-8">
+            <style>
+              @media print {
+                body { margin: 0; }
+                @page { margin: 1in; }
+              }
+            </style>
+          </head>
+          <body>
+            ${htmlContent}
+            <script>
+              window.onload = function() {
+                window.print();
+              }
+            </script>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+        alert('PDF 라이브러리 오류로 인해 인쇄 창을 열었습니다. 브라우저의 인쇄 기능을 사용해 PDF로 저장하세요.');
+      } else {
+        alert('PDF 생성에 실패했습니다. 팝업 차단을 해제하고 다시 시도해주세요.');
+      }
+    }
   };
 
   // 직원-지점 관계 생성
