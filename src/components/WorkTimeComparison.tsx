@@ -435,8 +435,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
         const actualWorkHours = Math.max(0, actualRecord.totalHours - breakTime); // 실제 순 근무시간 (실제근무시간 - 휴게시간)
         
-        // 차이 계산: 스케줄시간 - 실제순근무시간
-        const difference = schedule.totalHours - actualWorkHours;
+        // 차이 계산: 실제순근무시간 - 스케줄시간 (많이 하면 +, 적게 하면 -)
+        const difference = actualWorkHours - schedule.totalHours;
         let status: 'time_match' | 'review_required' | 'review_completed' = 'time_match';
         
         // 10분(0.17시간) 이상 차이나면 확인필요, 이내면 시간일치

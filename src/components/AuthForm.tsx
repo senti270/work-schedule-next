@@ -13,8 +13,18 @@ export default function AuthForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // 아이디를 이메일 형식으로 변환 (Firebase Auth 호환성)
-      const email = userId.includes('@') ? userId : `${userId}@workschedule.local`;
+      let email = '';
+      
+      // 특정 계정들의 기존 이메일 매핑
+      if (userId === 'drawing555') {
+        email = 'drawing555@naver.com';
+      } else if (userId === 'yes0619') {
+        email = 'yes0619@naver.com'; // 기존 이메일 형식으로 시도
+      } else if (userId.includes('@')) {
+        email = userId; // 이미 이메일 형식인 경우
+      } else {
+        email = `${userId}@workschedule.local`; // 새로운 계정용
+      }
       
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
