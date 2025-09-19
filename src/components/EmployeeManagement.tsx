@@ -1629,26 +1629,29 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 <option value="외국인 사업소득자">외국인 사업소득자</option>
                               </select>
                             </div>
+                            
+                            {/* 주간 근무시간 필드 (근로소득자, 사업소득자) */}
+                            {(formData.type === '근로소득자' || formData.type === '사업소득자' || 
+                              (editingEmployee && (editingEmployee.type === '근로소득자' || editingEmployee.type === '사업소득자'))) && (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  주간 근무시간 (시간)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="60"
+                                  value={formData.weeklyWorkHours}
+                                  onChange={(e) => setFormData({ ...formData, weeklyWorkHours: parseInt(e.target.value) || 40 })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="40"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {formData.type === '근로소득자' ? '근로소득자' : '사업소득자'}의 주간 근무시간을 입력하세요 (기본값: 40시간)
+                                </p>
+                              </div>
+                            )}
                           </div>
-                          
-                          {/* 근로소득자 주간 근무시간 필드 */}
-                          {(formData.type === '근로소득자' || (editingEmployee && editingEmployee.type === '근로소득자')) && (
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                주간 근무시간 (시간)
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="60"
-                                value={formData.weeklyWorkHours}
-                                onChange={(e) => setFormData({ ...formData, weeklyWorkHours: parseInt(e.target.value) || 40 })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="40"
-                              />
-                              <p className="text-xs text-gray-500 mt-1">근로소득자의 주간 근무시간을 입력하세요 (기본값: 40시간)</p>
-                            </div>
-                          )}
                           
                           {/* 수습기간 관리 */}
                           <div className="border-t border-gray-200 pt-4">
@@ -1985,11 +1988,62 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                           value={formData.type}
                           onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
                         >
-                          <option value="정규직">정규직</option>
-                          <option value="계약직">계약직</option>
-                          <option value="아르바이트">아르바이트</option>
+                          <option value="">고용형태를 선택하세요</option>
+                          <option value="근로소득자">근로소득자</option>
+                          <option value="사업소득자">사업소득자</option>
+                          <option value="일용직">일용직</option>
+                          <option value="외국인 사업소득자">외국인 사업소득자</option>
                         </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          퇴사일
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.resignationDate}
+                          onChange={(e) => setFormData({ ...formData, resignationDate: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      
+                      {/* 주간 근무시간 필드 (근로소득자, 사업소득자) */}
+                      {(formData.type === '근로소득자' || formData.type === '사업소득자' || 
+                        (editingEmployee && (editingEmployee.type === '근로소득자' || editingEmployee.type === '사업소득자'))) && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            주간 근무시간 (시간)
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="60"
+                            value={formData.weeklyWorkHours}
+                            onChange={(e) => setFormData({ ...formData, weeklyWorkHours: parseInt(e.target.value) || 40 })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="40"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formData.type === '근로소득자' ? '근로소득자' : '사업소득자'}의 주간 근무시간을 입력하세요 (기본값: 40시간)
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* 메모 필드 */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          직원 메모
+                        </label>
+                        <textarea
+                          value={formData.memo}
+                          onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          placeholder="직원에 대한 메모나 특이사항을 입력하세요..."
+                          rows={3}
+                        />
                       </div>
                     </div>
                     
@@ -2223,8 +2277,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     </div>
                   </div>
                   
-                  {/* 근로소득자 주간 근무시간 필드 */}
-                  {formData.type === '근로소득자' && (
+                  {/* 주간 근무시간 필드 (근로소득자, 사업소득자) */}
+                  {(formData.type === '근로소득자' || formData.type === '사업소득자') && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         주간 근무시간 (시간)
@@ -2238,7 +2292,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="40"
                       />
-                      <p className="text-xs text-gray-500 mt-1">근로소득자의 주간 근무시간을 입력하세요 (기본값: 40시간)</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formData.type === '근로소득자' ? '근로소득자' : '사업소득자'}의 주간 근무시간을 입력하세요 (기본값: 40시간)
+                      </p>
                     </div>
                   )}
                 </div>
