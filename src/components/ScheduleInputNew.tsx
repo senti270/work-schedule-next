@@ -1267,8 +1267,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           schedule: formatScheduleForDisplay(prevSchedule)
         });
         
-        // Firebase에 저장할 데이터 준비 (undefined 값 제거)
-        const scheduleData = {
+        // Firebase에 저장할 데이터 준비 (undefined 값 완전 제거)
+        const scheduleData: Record<string, unknown> = {
           employeeId: employeeId,
           employeeName: prevSchedule.employeeName,
           branchId: selectedBranchId,
@@ -1279,10 +1279,18 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           breakTime: prevSchedule.breakTime,
           totalHours: prevSchedule.totalHours,
           createdAt: new Date(),
-          updatedAt: new Date(),
-          ...(prevSchedule.timeSlots && { timeSlots: prevSchedule.timeSlots }),
-          ...(prevSchedule.originalInput && { originalInput: prevSchedule.originalInput })
+          updatedAt: new Date()
         };
+
+        // timeSlots가 있고 유효한 경우에만 추가
+        if (prevSchedule.timeSlots && Array.isArray(prevSchedule.timeSlots) && prevSchedule.timeSlots.length > 0) {
+          scheduleData.timeSlots = prevSchedule.timeSlots;
+        }
+
+        // originalInput이 있고 유효한 경우에만 추가
+        if (prevSchedule.originalInput && typeof prevSchedule.originalInput === 'string' && prevSchedule.originalInput.trim() !== '') {
+          scheduleData.originalInput = prevSchedule.originalInput;
+        }
 
         await addDoc(collection(db, 'schedules'), scheduleData);
       }
@@ -1397,16 +1405,24 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         // 대상 셀에 스케줄 추가/수정
         const existingTargetSchedule = getScheduleForDate(targetCell.employeeId, targetCell.date);
         
-        // Firebase에 저장할 데이터 준비 (undefined 값 제거)
-        const scheduleData = {
+        // Firebase에 저장할 데이터 준비 (undefined 값 완전 제거)
+        const scheduleData: Record<string, unknown> = {
           startTime: sourceSchedule.startTime,
           endTime: sourceSchedule.endTime,
           breakTime: sourceSchedule.breakTime,
           totalHours: sourceSchedule.totalHours,
-          updatedAt: new Date(),
-          ...(sourceSchedule.timeSlots && { timeSlots: sourceSchedule.timeSlots }),
-          ...(sourceSchedule.originalInput && { originalInput: sourceSchedule.originalInput })
+          updatedAt: new Date()
         };
+
+        // timeSlots가 있고 유효한 경우에만 추가
+        if (sourceSchedule.timeSlots && Array.isArray(sourceSchedule.timeSlots) && sourceSchedule.timeSlots.length > 0) {
+          scheduleData.timeSlots = sourceSchedule.timeSlots;
+        }
+
+        // originalInput이 있고 유효한 경우에만 추가
+        if (sourceSchedule.originalInput && typeof sourceSchedule.originalInput === 'string' && sourceSchedule.originalInput.trim() !== '') {
+          scheduleData.originalInput = sourceSchedule.originalInput;
+        }
 
         if (existingTargetSchedule) {
           // 수정

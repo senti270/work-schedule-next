@@ -62,6 +62,7 @@ export default function Dashboard({ user }: DashboardProps) {
       isPinned: boolean;
     }
   } | null>(null);
+  const [showAllComments, setShowAllComments] = useState(false);
 
   useEffect(() => {
     checkManagerRole();
@@ -567,7 +568,7 @@ export default function Dashboard({ user }: DashboardProps) {
                   {/* 코멘트 목록 */}
                   <div className="divide-y divide-gray-200">
                     {comments.length > 0 ? (
-                      comments.map((comment) => (
+                      (showAllComments ? comments : comments.slice(0, 10)).map((comment) => (
                         <div key={comment.id} className={`p-6 ${comment.isPinned ? 'bg-yellow-50 border-l-4 border-yellow-400' : ''}`}>
                           {editingComment?.id === comment.id ? (
                             /* 수정 모드 */
@@ -699,6 +700,30 @@ export default function Dashboard({ user }: DashboardProps) {
                     ) : (
                       <div className="p-6 text-center text-gray-500">
                         아직 코멘트가 없습니다.
+                      </div>
+                    )}
+                    
+                    {/* 더보기 버튼 */}
+                    {comments.length > 10 && !showAllComments && (
+                      <div className="p-4 text-center border-t border-gray-200">
+                        <button
+                          onClick={() => setShowAllComments(true)}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          더보기 ({comments.length - 10}개 더)
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* 접기 버튼 */}
+                    {showAllComments && comments.length > 10 && (
+                      <div className="p-4 text-center border-t border-gray-200">
+                        <button
+                          onClick={() => setShowAllComments(false)}
+                          className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+                        >
+                          접기
+                        </button>
                       </div>
                     )}
                   </div>
