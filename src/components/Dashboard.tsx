@@ -704,7 +704,51 @@ export default function Dashboard({ user }: DashboardProps) {
                       <textarea
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="코멘트를 입력하세요..."
+                        onPaste={async (e) => {
+                          const items = e.clipboardData?.items;
+                          if (!items) return;
+                          
+                          for (let i = 0; i < items.length; i++) {
+                            const item = items[i];
+                            
+                            // 이미지 파일인지 확인
+                            if (item.type.startsWith('image/')) {
+                              e.preventDefault(); // 기본 붙여넣기 방지
+                              
+                              const file = item.getAsFile();
+                              if (file) {
+                                console.log('클립보드에서 이미지 감지:', file.name, file.type, file.size);
+                                
+                                // 파일 크기 체크
+                                if (file.size > 3 * 1024 * 1024) {
+                                  alert('붙여넣은 이미지가 너무 큽니다. 3MB 이하의 이미지만 가능합니다.');
+                                  return;
+                                }
+                                
+                                // 현재 선택된 파일 개수 체크
+                                if (selectedFiles.length >= 5) {
+                                  alert('최대 5개의 파일만 첨부할 수 있습니다.');
+                                  return;
+                                }
+                                
+                                // 파일명 생성 (클립보드 이미지는 이름이 없으므로)
+                                const timestamp = Date.now();
+                                const extension = file.type.split('/')[1] || 'png';
+                                const generatedName = `붙여넣기_이미지_${timestamp}.${extension}`;
+                                
+                                // File 객체 재생성 (이름 포함)
+                                const renamedFile = new File([file], generatedName, { type: file.type });
+                                
+                                // 선택된 파일 목록에 추가
+                                setSelectedFiles(prev => [...prev, renamedFile]);
+                                
+                                alert(`이미지가 첨부파일로 추가되었습니다: ${generatedName}`);
+                              }
+                              break;
+                            }
+                          }
+                        }}
+                        placeholder="코멘트를 입력하세요... (이미지 붙여넣기 가능)"
                         className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       />
                       
