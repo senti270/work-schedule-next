@@ -204,6 +204,23 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         }
       }
       
+      // 기존 '정규직' 데이터를 '근로소득자'로 변경하는 임시 수정 로직
+      for (const employee of employeesData) {
+        if (employee.type === '정규직') {
+          console.log(`직원 ${employee.name}의 고용형태를 '정규직'에서 '근로소득자'로 변경합니다.`);
+          try {
+            const employeeRef = doc(db, 'employees', employee.id);
+            await updateDoc(employeeRef, {
+              type: '근로소득자',
+              updatedAt: new Date()
+            });
+            employee.type = '근로소득자'; // 로컬 상태도 업데이트
+          } catch (error) {
+            console.error(`직원 ${employee.name}의 고용형태 업데이트 실패:`, error);
+          }
+        }
+      }
+      
       setEmployees(employeesData);
       
       // 직원 검토 상태 초기화
@@ -530,8 +547,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         if (!employeeSnapshot.empty) {
           const employeeData = employeeSnapshot.docs[0].data();
           
-          // 정직원인 경우에만 연장근무시간 계산
-          if (employeeData.type === '정규직') {
+          // 근로소득자인 경우에만 연장근무시간 계산
+          if (employeeData.type === '근로소득자') {
             // 이번주 총 실제 근무시간 계산
             const totalActualHours = comparisons.reduce((sum, comp) => sum + comp.actualHours, 0);
             
