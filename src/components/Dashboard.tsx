@@ -1095,7 +1095,7 @@ export default function Dashboard({ user }: DashboardProps) {
                                                   target.alt = '이미지 로드 실패';
                                                   target.title = `${attachment.fileName} - 이미지를 불러올 수 없습니다`;
                                                 }}
-                                                onLoad={() => {
+                                                onLoad={(e) => {
                                                   console.log('=== 이미지 로드 성공 ===');
                                                   console.log('파일명:', attachment.fileName);
                                                   console.log('실제 이미지 크기:', (e.target as HTMLImageElement).naturalWidth, 'x', (e.target as HTMLImageElement).naturalHeight);
