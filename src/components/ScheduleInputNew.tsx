@@ -15,6 +15,7 @@ interface Schedule {
   endTime: string;
   breakTime: string;
   totalHours: number;
+  timeSlots?: Array<{startTime: string; endTime: string; breakTime: number}>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -154,33 +155,27 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       // 현재 로드된 스케줄에서 문제 있는 데이터 확인
       const problems = schedules.filter(s => {
-        const timeToMinutes = (timeStr: string) => {
-          const [hours, minutes] = timeStr.split(':').map(Number);
-          return hours * 60 + minutes;
-        };
-        
-        const startMinutes = timeToMinutes(s.startTime);
-        const endMinutes = timeToMinutes(s.endTime);
-        const breakMinutes = (parseFloat(s.breakTime) || 0) * 60;
-        const correctHours = (endMinutes - startMinutes - breakMinutes) / 60;
+        // timeSlots가 있으면 여러 시간대로 계산, 없으면 단일 시간대로 계산
+        const correctHours = s.timeSlots && s.timeSlots.length > 0
+          ? calculateTotalHours(s.startTime, s.endTime, s.breakTime, s.timeSlots)
+          : calculateTotalHours(s.startTime, s.endTime, s.breakTime);
         
         return Math.abs(s.totalHours - correctHours) > 0.01;
       });
       
       console.log('보정 필요한 스케줄:', problems.map(s => {
-        const timeToMinutes = (timeStr: string) => {
-          const [hours, minutes] = timeStr.split(':').map(Number);
-          return hours * 60 + minutes;
-        };
-        const startMinutes = timeToMinutes(s.startTime);
-        const endMinutes = timeToMinutes(s.endTime);
-        const breakMinutes = (parseFloat(s.breakTime) || 0) * 60;
-        const correctHours = (endMinutes - startMinutes - breakMinutes) / 60;
+        const correctHours = s.timeSlots && s.timeSlots.length > 0
+          ? calculateTotalHours(s.startTime, s.endTime, s.breakTime, s.timeSlots)
+          : calculateTotalHours(s.startTime, s.endTime, s.breakTime);
+        
+        const scheduleDisplay = s.timeSlots && s.timeSlots.length > 0
+          ? s.timeSlots.map(slot => `${slot.startTime}-${slot.endTime}${slot.breakTime > 0 ? `(${slot.breakTime})` : ''}`).join(', ')
+          : `${s.startTime}-${s.endTime}(${s.breakTime})`;
         
         return {
           employee: s.employeeName,
           date: s.date.toDateString(),
-          schedule: `${s.startTime}-${s.endTime}(${s.breakTime})`,
+          schedule: scheduleDisplay,
           현재값: s.totalHours,
           정확한값: parseFloat(correctHours.toFixed(1))
         };
@@ -199,7 +194,10 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       // 데이터베이스 업데이트
       let updatedCount = 0;
       for (const schedule of problems) {
-        const correctHours = calculateTotalHours(schedule.startTime, schedule.endTime, schedule.breakTime);
+        // timeSlots가 있으면 여러 시간대로 계산, 없으면 단일 시간대로 계산
+        const correctHours = schedule.timeSlots && schedule.timeSlots.length > 0
+          ? calculateTotalHours(schedule.startTime, schedule.endTime, schedule.breakTime, schedule.timeSlots)
+          : calculateTotalHours(schedule.startTime, schedule.endTime, schedule.breakTime);
         
         await updateDoc(doc(db, 'schedules', schedule.id), {
           totalHours: correctHours,
@@ -863,6 +861,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 endTime: parsed.endTime,
                 breakTime: parsed.breakTime,
                 totalHours: totalHours,
+                timeSlots: parsed.timeSlots, // 여러 시간대 정보 저장
                 updatedAt: new Date()
               });
             } else {
@@ -877,6 +876,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 endTime: parsed.endTime,
                 breakTime: parsed.breakTime,
                 totalHours: totalHours,
+                timeSlots: parsed.timeSlots, // 여러 시간대 정보 저장
                 createdAt: new Date(),
                 updatedAt: new Date()
               });
