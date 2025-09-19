@@ -25,6 +25,17 @@ interface WeeklySummary {
   totalHours: number;
 }
 
+interface WeeklyNote {
+  id: string;
+  branchId: string;
+  branchName: string;
+  weekStart: Date;
+  weekEnd: Date;
+  note: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 const DAYS_OF_WEEK = [
   { key: 'monday', label: '월', fullLabel: '월요일' },
   { key: 'tuesday', label: '화', fullLabel: '화요일' },
@@ -46,6 +57,7 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   const resolvedParams = use(params);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [weeklySummaries, setWeeklySummaries] = useState<WeeklySummary[]>([]);
+  const [weeklyNote, setWeeklyNote] = useState<WeeklyNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(new Date());
   const [branchName, setBranchName] = useState<string>('');
@@ -69,6 +81,48 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       setBranchName('알 수 없는 지점');
     }
   }, [resolvedParams.branchId]);
+
+  const loadWeeklyNote = useCallback(async () => {
+    if (resolvedParams.branchId === 'all') {
+      setWeeklyNote(null);
+      return;
+    }
+    
+    try {
+      const weekStart = new Date(resolvedParams.week);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      const querySnapshot = await getDocs(collection(db, 'weeklyNotes'));
+      const existingNote = querySnapshot.docs.find(doc => {
+        const data = doc.data();
+        const noteWeekStart = data.weekStart?.toDate();
+        const noteWeekEnd = data.weekEnd?.toDate();
+        
+        return data.branchId === resolvedParams.branchId &&
+               noteWeekStart?.toDateString() === weekStart.toDateString() &&
+               noteWeekEnd?.toDateString() === weekEnd.toDateString();
+      });
+      
+      if (existingNote) {
+        const noteData = {
+          id: existingNote.id,
+          ...existingNote.data(),
+          weekStart: existingNote.data().weekStart?.toDate() || new Date(),
+          weekEnd: existingNote.data().weekEnd?.toDate() || new Date(),
+          createdAt: existingNote.data().createdAt?.toDate() || new Date(),
+          updatedAt: existingNote.data().updatedAt?.toDate() || new Date()
+        } as WeeklyNote;
+        
+        setWeeklyNote(noteData);
+      } else {
+        setWeeklyNote(null);
+      }
+    } catch (error) {
+      console.error('주간 비고를 불러올 수 없습니다:', error);
+      setWeeklyNote(null);
+    }
+  }, [resolvedParams.week, resolvedParams.branchId]);
 
   const loadSchedules = useCallback(async () => {
     try {
@@ -134,7 +188,8 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
     setCurrentWeekStart(weekDate);
     loadBranchInfo();
     loadSchedules();
-  }, [resolvedParams.week, resolvedParams.branchId, loadBranchInfo, loadSchedules]);
+    loadWeeklyNote();
+  }, [resolvedParams.week, resolvedParams.branchId, loadBranchInfo, loadSchedules, loadWeeklyNote]);
 
   const generateWeeklySummary = (schedulesData: Schedule[]) => {
     const summaryMap = new Map<string, WeeklySummary>();
@@ -519,6 +574,23 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        )}
+
+        {/* 주간 비고 */}
+        {weeklyNote && weeklyNote.note && (
+          <div className="mt-6 bg-white shadow rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">주간 비고</h3>
+            </div>
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{weeklyNote.note}</p>
+                <div className="mt-3 text-xs text-gray-500">
+                  마지막 수정: {weeklyNote.updatedAt.toLocaleString('ko-KR')}
+                </div>
+              </div>
             </div>
           </div>
         )}

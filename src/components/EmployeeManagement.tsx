@@ -1097,7 +1097,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
             >
               전체 지점
             </button>
-            {branches.map((branch) => (
+            {branches
+              .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+              .map((branch) => (
               <button
                 key={branch.id}
                 onClick={() => setSelectedBranchId(branch.id)}
@@ -1366,7 +1368,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 지점 (복수 선택 가능) *
                               </label>
                               <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
-                                {branches.map(branch => (
+                                {branches
+                                  .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+                                  .map(branch => (
                                   <label key={branch.id} className="flex items-center mb-2">
                                     <input
                                       type="checkbox"

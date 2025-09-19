@@ -330,7 +330,9 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
         <div className="space-y-3">
           <label className="text-sm font-medium text-gray-700">지점 선택:</label>
           <div className="flex flex-wrap gap-2">
-            {branches.map((branch) => (
+            {branches
+              .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+              .map((branch) => (
               <button
                 key={branch.id}
                 onClick={() => setSelectedBranchId(branch.id)}
@@ -582,7 +584,9 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
                   required
                 >
                   <option value="">지점을 선택하세요</option>
-                  {branches.map((branch) => (
+                  {branches
+                    .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+                    .map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
                     </option>
