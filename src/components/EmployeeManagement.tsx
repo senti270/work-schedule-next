@@ -1086,12 +1086,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
   };
 
-  // 근로계약서 모달 열기
-  const handleContractClick = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setShowContractModal(true);
-    loadContracts(employee.id);
-  };
 
   // 근로계약서 파일 업로드
   const handleContractUpload = async (e: React.ChangeEvent<HTMLInputElement>, employee: Employee) => {
@@ -1351,7 +1345,16 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         await loadContracts(selectedEmployee.id);
       }
       
+      // 파일 선택 초기화
       setSelectedFile(null);
+      setContractFormData(prev => ({ ...prev, contractFile: '' }));
+      
+      // 파일 input 필드 초기화
+      const fileInputs = document.querySelectorAll('input[type="file"]');
+      fileInputs.forEach(input => {
+        (input as HTMLInputElement).value = '';
+      });
+      
       alert('파일이 성공적으로 업로드되었습니다.');
     } catch (error) {
       console.error('파일 업로드 중 오류:', error);
@@ -1702,7 +1705,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <button
-                      onClick={() => setShowDocumentModal({ show: true, employee })}
+                      onClick={() => {
+                        setShowDocumentModal({ show: true, employee });
+                        loadContracts(employee.id);
+                      }}
                       className="text-blue-600 hover:text-blue-900 text-xs"
                     >
                       문서관리
@@ -3004,23 +3010,21 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                 </p>
                 
                 {/* 기존 계약서 파일 표시 */}
-                {showDocumentModal.employee.contractFile ? (
+                {contracts.length > 0 ? (
                   <div className="mb-4 p-3 bg-white border border-gray-200 rounded-md">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-700">
-                        📄 기존 계약서 파일
+                        📄 최신 계약서: {contracts[0].contractFileName}
                       </span>
                       <div className="flex space-x-2">
-                        <a
-                          href={showDocumentModal.employee.contractFile}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => handleFileDownload(contracts[0])}
                           className="text-xs text-blue-600 hover:text-blue-800"
                         >
                           다운로드
-                        </a>
+                        </button>
                         <button
-                          onClick={() => handleDeleteContract(showDocumentModal.employee!)}
+                          onClick={() => handleFileDelete(contracts[0])}
                           className="text-xs text-red-600 hover:text-red-800"
                         >
                           삭제

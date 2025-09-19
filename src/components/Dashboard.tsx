@@ -1026,8 +1026,10 @@ export default function Dashboard({ user }: DashboardProps) {
                                                   
                                                   // Base64 데이터 검증
                                                   if (attachment.isBase64 && attachment.fileUrl.startsWith('data:image/')) {
+                                                    console.log('Base64 이미지 클릭 - 새 창 열기 시도');
                                                     // Base64 이미지의 경우 새 창에서 직접 표시
                                                     const newWindow = window.open('', '_blank', 'width=800,height=600');
+                                                    console.log('새 창 생성 결과:', newWindow);
                                                     if (newWindow) {
                                                       newWindow.document.write(`
                                                         <!DOCTYPE html>
