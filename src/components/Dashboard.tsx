@@ -523,42 +523,42 @@ export default function Dashboard({ user }: DashboardProps) {
                   {!isManager && (
                     <button 
                       onClick={() => setActiveTab('branches')}
-                      className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                      className="bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer text-left w-full"
                     >
-                      <h4 className="font-medium text-blue-900">지점 관리</h4>
-                      <p className="text-blue-600 text-sm">지점 정보를 관리합니다</p>
+                      <h4 className="font-medium text-gray-900">지점 관리</h4>
+                      <p className="text-gray-600 text-sm">지점 정보를 관리합니다</p>
                     </button>
                   )}
                   <button 
                     onClick={() => setActiveTab('employees')}
-                    className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                    className="bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer text-left w-full"
                   >
-                    <h4 className="font-medium text-blue-900">직원 관리</h4>
-                    <p className="text-blue-600 text-sm">직원 정보를 관리합니다</p>
+                    <h4 className="font-medium text-gray-900">직원 관리</h4>
+                    <p className="text-gray-600 text-sm">직원 정보를 관리합니다</p>
                   </button>
                   <button 
                     onClick={() => setActiveTab('schedule')}
-                    className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                    className="bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer text-left w-full"
                   >
-                    <h4 className="font-medium text-blue-900">스케줄 관리</h4>
-                    <p className="text-blue-600 text-sm">근무 스케줄을 관리합니다</p>
+                    <h4 className="font-medium text-gray-900">스케줄 관리</h4>
+                    <p className="text-gray-600 text-sm">근무 스케줄을 관리합니다</p>
                   </button>
                   {!isManager && (
                     <button 
                       onClick={() => setActiveTab('payroll')}
-                      className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                      className="bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer text-left w-full"
                     >
-                      <h4 className="font-medium text-blue-900">급여작업</h4>
-                      <p className="text-blue-600 text-sm">급여 관련 작업을 수행합니다</p>
+                      <h4 className="font-medium text-gray-900">급여작업</h4>
+                      <p className="text-gray-600 text-sm">급여 관련 작업을 수행합니다</p>
                     </button>
                   )}
                   {!isManager && (
                     <button 
                       onClick={() => setActiveTab('reports')}
-                      className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                      className="bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer text-left w-full"
                     >
-                      <h4 className="font-medium text-blue-900">보고서</h4>
-                      <p className="text-blue-600 text-sm">근무 현황을 확인합니다</p>
+                      <h4 className="font-medium text-gray-900">보고서</h4>
+                      <p className="text-gray-600 text-sm">근무 현황을 확인합니다</p>
                     </button>
                   )}
                 </div>
