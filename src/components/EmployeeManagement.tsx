@@ -1123,9 +1123,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 파일 크기 체크 (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('파일 크기는 10MB 이하여야 합니다.');
+    // 파일 크기 체크 (500KB)
+    if (file.size > 500 * 1024) {
+      alert('파일 크기가 너무 큽니다. 500KB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024).toFixed(0) + 'KB');
       return;
     }
 
@@ -1281,9 +1281,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       setUploadingFile(true);
       
       // 파일 크기 및 형식 검증
-      const maxSize = 3 * 1024 * 1024; // 3MB
+      const maxSize = 1 * 1024 * 1024; // 1MB
       if (file.size > maxSize) {
-        alert('파일 크기가 너무 큽니다. 3MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
+        alert('파일 크기가 너무 큽니다. 1MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
         return;
       }
       
@@ -1309,7 +1309,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       });
       
       // CORS 문제 회피를 위해 Base64 방식을 우선 사용
-      if (file.size <= 3 * 1024 * 1024) { // 3MB 이하는 Base64로 처리
+      if (file.size <= 1 * 1024 * 1024) { // 1MB 이하는 Base64로 처리
         console.log('Base64 방식으로 파일 저장 시도...');
         
         try {
@@ -1381,33 +1381,23 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         (input as HTMLInputElement).value = '';
       });
       
-      // 즉시 새로운 계약서를 상태에 추가
+      // 업로드 완료 후 모달 새로고침
       if (selectedEmployee) {
-        console.log('업로드 완료, 상태에 즉시 추가');
+        console.log('업로드 완료, 모달 새로고침 시작');
         
-        // 새로운 계약서 객체 생성
-        const newContract: EmploymentContract = {
-          id: contractId,
-          employeeId: selectedEmployee.id,
-          contractType: '',
-          startDate: new Date(), // 실제 기준일은 loadContracts에서 가져옴
-          contractFile: file.size <= 3 * 1024 * 1024 ? 'base64_data' : 'firebase_url', // 임시값
-          contractFileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          isBase64: file.size <= 3 * 1024 * 1024,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+        // 현재 선택된 직원 정보 저장
+        const currentEmployee = selectedEmployee;
         
-        // 즉시 상태에 추가
-        setContracts(prev => [newContract, ...prev]);
-        setContractsKey(prev => prev + 1);
+        // 모달 닫기
+        setShowDocumentModal({ show: false, employee: null });
         
-        // 백그라운드에서 정확한 데이터 로드
-        setTimeout(() => loadContracts(selectedEmployee.id), 500);
+        // 잠시 후 모달 다시 열기 (새로고침 효과)
+        setTimeout(() => {
+          setShowDocumentModal({ show: true, employee: currentEmployee });
+          loadContracts(currentEmployee.id);
+        }, 100);
         
-        console.log('업로드 후 즉시 상태 추가 완료');
+        console.log('모달 새로고침 완료');
       }
       
       alert('파일이 성공적으로 업로드되었습니다.');
@@ -3199,9 +3189,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             const file = e.target.files?.[0];
                             if (file) {
                               // 파일 크기 및 형식 검증
-                              const maxSize = 3 * 1024 * 1024; // 3MB
+                              const maxSize = 1 * 1024 * 1024; // 1MB
                               if (file.size > maxSize) {
-                                alert('파일 크기가 너무 큽니다. 3MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
+                                alert('파일 크기가 너무 큽니다. 1MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
                                 e.target.value = '';
                                 return;
                               }
@@ -3275,7 +3265,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     </div>
                   </div>
                   <p className="text-xs text-gray-500">
-                    PDF, DOC, DOCX, JPG, PNG 파일을 업로드할 수 있습니다. (최대 10MB)
+                    PDF, DOC, DOCX, JPG, PNG 파일을 업로드할 수 있습니다. (최대 1MB)
                   </p>
                 </div>
               </div>
