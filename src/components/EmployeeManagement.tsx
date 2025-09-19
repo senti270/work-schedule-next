@@ -839,6 +839,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         
         // 직원-지점 관계 생성
         await createEmployeeBranches(docRef.id, selectedBranches);
+        
+        // 직원 추가 성공 안내
+        alert(`직원이 성공적으로 추가되었습니다!\n\n⚠️ 안내: 직원 추가 후, 해당 직원의 근로계약서를 직원 목록의 문서관리에서 추가해주세요!`);
       }
 
       // 폼 초기화
@@ -1423,8 +1426,26 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     console.log('=== 파일 삭제 시작 ===');
     console.log('삭제할 계약서:', contract);
     
-    if (!contract.contractFile) {
-      console.log('계약서 파일이 없음');
+    if (!contract.contractFile || contract.contractFile.trim() === '') {
+      console.log('파일이 없는 계약서 레코드 삭제');
+      
+      if (confirm('이 계약서 레코드를 삭제하시겠습니까?')) {
+        try {
+          // Firestore에서 계약서 레코드 자체를 삭제
+          await deleteDoc(doc(db, 'employmentContracts', contract.id));
+          console.log('계약서 레코드 삭제 완료');
+          
+          // 로컬 상태 업데이트
+          if (selectedEmployee) {
+            await loadContracts(selectedEmployee.id);
+          }
+          
+          alert('계약서 레코드가 성공적으로 삭제되었습니다.');
+        } catch (error) {
+          console.error('계약서 레코드 삭제 중 오류:', error);
+          alert('계약서 레코드 삭제에 실패했습니다.');
+        }
+      }
       return;
     }
     
