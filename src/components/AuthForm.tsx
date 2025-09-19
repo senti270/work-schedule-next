@@ -2,38 +2,58 @@
 
 import { useState } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 
 export default function AuthForm() {
-  const [isLogin, setIsLogin] = useState(true);
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    
     try {
-      let email = '';
-      
-      // 특정 계정들의 기존 이메일 매핑
+      // drawing555는 마스터 계정이므로 기존 방식 유지
       if (userId === 'drawing555') {
-        email = 'drawing555@naver.com';
-      } else if (userId === 'yes0619') {
-        email = 'yes0619@naver.com'; // 기존 이메일 형식으로 시도
-      } else if (userId.includes('@')) {
-        email = userId; // 이미 이메일 형식인 경우
-      } else {
-        email = `${userId}@workschedule.local`; // 새로운 계정용
+        const email = 'drawing555@naver.com';
+        await signInWithEmailAndPassword(auth, email, password);
+        return;
       }
       
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+      // 기타 계정들은 매니저 계정 DB에서 확인
+      const managerAccountsSnapshot = await getDocs(collection(db, 'managerAccounts'));
+      const managerAccount = managerAccountsSnapshot.docs.find(doc => {
+        const data = doc.data();
+        return data.userId === userId && data.password === password && data.isActive;
+      });
+      
+      if (!managerAccount) {
+        alert('등록되지 않은 계정이거나 아이디/비밀번호가 틀렸습니다.');
+        return;
       }
+      
+      // 매니저 계정이 확인되면 Firebase Auth로 로그인
+      // 각 매니저 계정마다 고유한 이메일 생성
+      const email = `${userId}@manager.workschedule.local`;
+      const firebasePassword = 'workschedule_manager_2024'; // 모든 매니저 공통 Firebase 비밀번호
+      
+      try {
+        // 기존 Firebase Auth 계정으로 로그인 시도
+        await signInWithEmailAndPassword(auth, email, firebasePassword);
+      } catch (authError) {
+        console.log('Firebase 계정이 없어서 생성합니다...');
+        // Firebase Auth 계정이 없으면 생성 후 로그인
+        await createUserWithEmailAndPassword(auth, email, firebasePassword);
+      }
+      
     } catch (error) {
       console.error('인증 오류:', error);
-      alert('로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.');
+      alert('로그인에 실패했습니다. 관리자에게 문의하세요.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -42,7 +62,7 @@ export default function AuthForm() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            {isLogin ? '로그인' : '회원가입'}
+            로그인
           </h2>
           <p className="text-sm text-gray-600">
             근무 스케줄 관리 시스템
@@ -99,23 +119,13 @@ export default function AuthForm() {
             
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium text-base"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLogin ? '로그인' : '회원가입'}
+              {loading ? '로그인 중...' : '로그인'}
             </button>
           </form>
           
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              {isLogin ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'}
-            </p>
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="mt-2 text-blue-600 hover:text-blue-500 font-medium text-sm"
-            >
-              {isLogin ? '회원가입하기' : '로그인하기'}
-            </button>
-          </div>
         </div>
       </div>
     </div>
