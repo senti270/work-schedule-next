@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import EmployeeManagement from './EmployeeManagement';
 import ScheduleManagement from './ScheduleManagement';
 import BranchManagement from './BranchManagement';
@@ -22,6 +22,15 @@ interface Branch {
   managerId?: string; // managerEmail 대신 managerId 사용
 }
 
+interface Comment {
+  id: string;
+  content: string;
+  authorId: string;
+  authorName: string; // 지점명 또는 "관리자"
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export default function Dashboard({ user }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
   const [activeSubTab, setActiveSubTab] = useState('');
@@ -31,9 +40,14 @@ export default function Dashboard({ user }: DashboardProps) {
     managerId?: string;
   } | null>(null);
   const [isManager, setIsManager] = useState(false);
+  
+  // 코멘트 관련 상태
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState('');
 
   useEffect(() => {
     checkManagerRole();
+    loadComments();
   }, [user]);
 
   const checkManagerRole = async () => {
@@ -69,6 +83,67 @@ export default function Dashboard({ user }: DashboardProps) {
     } catch (error) {
       console.error('매니저 권한 확인 중 오류:', error);
       setIsManager(false);
+    }
+  };
+
+  const loadComments = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'comments'));
+      const commentsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        content: doc.data().content,
+        authorId: doc.data().authorId || '',
+        authorName: doc.data().authorName || '알 수 없음',
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date()
+      })) as Comment[];
+      
+      // 최신순으로 정렬
+      commentsData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      setComments(commentsData);
+    } catch (error) {
+      console.error('코멘트 로드 중 오류:', error);
+    }
+  };
+
+  const addComment = async () => {
+    if (!newComment.trim()) {
+      alert('코멘트 내용을 입력해주세요.');
+      return;
+    }
+
+    try {
+      // 작성자 정보 설정
+      const userId = user.email === 'drawing555@naver.com' ? 'drawing555' : user.email;
+      const authorName = isManager && userBranch ? userBranch.name : '관리자';
+      
+      await addDoc(collection(db, 'comments'), {
+        content: newComment.trim(),
+        authorId: userId,
+        authorName: authorName,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      setNewComment('');
+      await loadComments();
+    } catch (error) {
+      console.error('코멘트 추가 중 오류:', error);
+      alert('코멘트 추가 중 오류가 발생했습니다.');
+    }
+  };
+
+  const deleteComment = async (commentId: string) => {
+    if (!confirm('이 코멘트를 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'comments', commentId));
+      await loadComments();
+    } catch (error) {
+      console.error('코멘트 삭제 중 오류:', error);
+      alert('코멘트 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -244,6 +319,68 @@ export default function Dashboard({ user }: DashboardProps) {
                     <h4 className="font-medium text-orange-900">보고서</h4>
                     <p className="text-orange-600 text-sm">근무 현황을 확인합니다</p>
                   </button>
+                </div>
+                
+                {/* 코멘트 섹션 */}
+                <div className="mt-8 bg-white shadow rounded-lg overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <h3 className="text-lg font-medium text-gray-900">코멘트</h3>
+                    <p className="text-sm text-gray-600 mt-1">중요한 공지사항이나 메모를 남겨보세요</p>
+                  </div>
+                  
+                  {/* 코멘트 입력 */}
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="space-y-4">
+                      <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="코멘트를 입력하세요..."
+                        className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      />
+                      <div className="flex justify-end">
+                        <button
+                          onClick={addComment}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          코멘트 추가
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* 코멘트 목록 */}
+                  <div className="divide-y divide-gray-200">
+                    {comments.length > 0 ? (
+                      comments.map((comment) => (
+                        <div key={comment.id} className="p-6">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <span className="text-xs font-medium text-blue-600">
+                                  {comment.authorName}
+                                </span>
+                                <span className="text-xs text-gray-400">•</span>
+                                <span className="text-xs text-gray-500">
+                                  {comment.createdAt.toLocaleString('ko-KR')}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-800 whitespace-pre-wrap">{comment.content}</p>
+                            </div>
+                            <button
+                              onClick={() => deleteComment(comment.id)}
+                              className="ml-4 text-red-600 hover:text-red-800 text-sm"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-6 text-center text-gray-500">
+                        아직 코멘트가 없습니다.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

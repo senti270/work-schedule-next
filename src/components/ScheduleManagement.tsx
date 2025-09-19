@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import WeeklyScheduleView from './WeeklyScheduleView';
 import ScheduleInputNew from './ScheduleInputNew';
-import ScheduleManagementOld from './ScheduleManagementOld';
 
 interface Schedule {
   id: string;
@@ -363,26 +361,6 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
             스케줄 입력
           </button>
           <button
-            onClick={() => setActiveTab('schedule-input-old')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'schedule-input-old'
-                ? 'border-gray-400 text-gray-500'
-                : 'border-transparent text-gray-400 hover:text-gray-500 hover:border-gray-300'
-            }`}
-          >
-            스케줄 입력(구)
-          </button>
-          <button
-            onClick={() => setActiveTab('weekly-view')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'weekly-view'
-                ? 'border-gray-400 text-gray-500'
-                : 'border-transparent text-gray-400 hover:text-gray-500 hover:border-gray-300'
-            }`}
-          >
-            주간보기(구)
-          </button>
-          <button
             onClick={() => setActiveTab('calendar')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'calendar'
@@ -398,10 +376,6 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
       {/* 탭 내용 */}
       {activeTab === 'schedule-input' && (
         <ScheduleInputNew selectedBranchId={selectedBranchId} />
-      )}
-
-      {activeTab === 'schedule-input-old' && (
-        <ScheduleManagementOld />
       )}
 
       {activeTab === 'calendar' && (
@@ -547,10 +521,6 @@ export default function ScheduleManagement({ }: ScheduleManagementProps) {
         </>
       )}
 
-
-      {activeTab === 'weekly-view' && (
-        <WeeklyScheduleView selectedBranchId={selectedBranchId} />
-      )}
 
       {showForm && activeTab === 'calendar' && (
         <div className="bg-white p-6 rounded-lg shadow">

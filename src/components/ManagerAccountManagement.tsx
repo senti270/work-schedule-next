@@ -118,7 +118,7 @@ export default function ManagerAccountManagement({ userBranch, isManager }: Mana
     setLoading(true);
     try {
       const selectedBranch = branches.find(branch => branch.id === formData.branchId);
-      const branchName = selectedBranch ? selectedBranch.name : '';
+      const branchName = formData.branchId === 'master' ? '마스터' : (selectedBranch ? selectedBranch.name : '');
 
       if (editingAccount) {
         // 수정
@@ -131,7 +131,7 @@ export default function ManagerAccountManagement({ userBranch, isManager }: Mana
           isActive: formData.isActive,
           updatedAt: new Date()
         });
-        alert('매니저 계정이 수정되었습니다.');
+        alert('계정이 수정되었습니다.');
       } else {
         // 추가
         const accountData = {
@@ -145,7 +145,7 @@ export default function ManagerAccountManagement({ userBranch, isManager }: Mana
         };
         
         await addDoc(collection(db, 'managerAccounts'), accountData);
-        alert('매니저 계정이 추가되었습니다.');
+        alert('계정이 추가되었습니다.');
       }
 
       // 폼 초기화
@@ -285,6 +285,7 @@ export default function ManagerAccountManagement({ userBranch, isManager }: Mana
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">지점을 선택하세요</option>
+                  <option value="master">마스터 계정</option>
                   {branches.map(branch => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}

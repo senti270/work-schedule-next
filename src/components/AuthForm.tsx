@@ -6,13 +6,16 @@ import { auth } from '@/lib/firebase';
 
 export default function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
+  const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // 아이디를 이메일 형식으로 변환 (Firebase Auth 호환성)
+      const email = userId.includes('@') ? userId : `${userId}@workschedule.local`;
+      
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
@@ -20,6 +23,7 @@ export default function AuthForm() {
       }
     } catch (error) {
       console.error('인증 오류:', error);
+      alert('로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.');
     }
   };
 
@@ -39,13 +43,13 @@ export default function AuthForm() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                이메일
+                아이디
               </label>
               <input
-                type="email"
-                placeholder="이메일을 입력하세요"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                placeholder="아이디를 입력하세요"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
                 required
               />

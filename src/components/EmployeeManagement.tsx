@@ -9,7 +9,6 @@ import { db, storage } from '@/lib/firebase';
 interface Employee {
   id: string;
   name: string;
-  userId?: string; // 이메일 대신 사용자 ID
   phone?: string;
   residentNumber?: string;
   hireDate?: Date;
@@ -113,7 +112,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    userId: '', // 이메일 대신 사용자 ID
     phone: '',
     residentNumber: '',
     hireDate: '',
@@ -586,7 +584,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         
         const employeeData: Record<string, unknown> = {
           name: formData.name,
-          userId: formData.userId || '',
           phone: formData.phone || '',
           residentNumber: formData.residentNumber || '',
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
@@ -625,7 +622,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       // 폼 초기화
       setFormData({
         name: '',
-        userId: '',
         phone: '',
         residentNumber: '',
         hireDate: '',
@@ -706,7 +702,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     setEditingEmployee(employee);
     setFormData({
       name: employee.name || '',
-      userId: employee.userId || '',
       phone: employee.phone || '',
       residentNumber: employee.residentNumber || '',
       hireDate: employee.hireDate ? employee.hireDate.toISOString().split('T')[0] : '',
@@ -785,7 +780,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const resetForm = () => {
     setFormData({
       name: '',
-      userId: '',
       phone: '',
       residentNumber: '',
       hireDate: '',
@@ -1049,7 +1043,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         const searchLower = searchTerm.toLowerCase();
         return (
           emp.name.toLowerCase().includes(searchLower) ||
-          emp.userId?.toLowerCase().includes(searchLower) ||
           emp.phone?.includes(searchTerm) ||
           emp.residentNumber?.includes(searchTerm) ||
           emp.memo?.toLowerCase().includes(searchLower) ||
@@ -1151,7 +1144,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="직원명, 아이디, 전화번호, 주민번호, 메모 검색..."
+                  placeholder="직원명, 전화번호, 주민번호, 메모 검색..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -1218,7 +1211,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </button>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  전화번호 / 아이디
+                  전화번호
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   지점 / 고용형태
@@ -1254,10 +1247,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    <div className="space-y-1">
-                      <div>{employee.phone || '-'}</div>
-                      <div className="text-xs text-gray-400">{employee.userId || '-'}</div>
-                    </div>
+                    {employee.phone || '-'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     <div className="space-y-1">
@@ -1358,19 +1348,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="직원 이름"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                아이디
-                              </label>
-                              <input
-                                type="text"
-                                value={formData.userId}
-                                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="사용자 아이디"
                               />
                             </div>
                             
@@ -1737,19 +1714,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          아이디
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.userId}
-                          onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="사용자 아이디"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           전화번호
                         </label>
                         <input
@@ -1959,19 +1923,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="직원 이름"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      아이디
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.userId}
-                      onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="사용자 아이디"
                     />
                   </div>
                   
