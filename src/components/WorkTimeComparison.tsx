@@ -59,7 +59,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [employees, setEmployees] = useState<{id: string; name: string; branchId: string}[]>([]);
+  const [employees, setEmployees] = useState<{id: string; name: string; branchId: string; type?: string}[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
   const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, status: '검토전' | '검토중' | '검토완료'}[]>([]);
   
@@ -198,7 +198,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           employeesData.push({
             id: doc.id,
             name: doc.data().name || '',
-            branchId: doc.data().branchId || ''
+            branchId: doc.data().branchId || '',
+            type: doc.data().type || ''
           });
         }
       }
@@ -999,6 +1000,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       직원명
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      고용형태
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       검토여부
                     </th>
                   </tr>
@@ -1024,6 +1028,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {employee.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {employee.type || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(() => {
