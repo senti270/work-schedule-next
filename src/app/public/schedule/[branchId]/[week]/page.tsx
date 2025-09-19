@@ -392,6 +392,23 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
           </div>
         </div>
 
+        {/* 주간 비고 */}
+        {weeklyNote && weeklyNote.note && (
+          <div className="mt-6 bg-white shadow rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">주간 비고</h3>
+            </div>
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{weeklyNote.note}</p>
+                <div className="mt-3 text-xs text-gray-500">
+                  마지막 수정: {weeklyNote.updatedAt.toLocaleString('ko-KR')}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 사람별 주간 집계 */}
         {weeklySummaries.length > 0 && (
           <div className="mt-6 bg-white shadow rounded-lg overflow-hidden">
@@ -574,23 +591,6 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                   </div>
                 );
               })()}
-            </div>
-          </div>
-        )}
-
-        {/* 주간 비고 */}
-        {weeklyNote && weeklyNote.note && (
-          <div className="mt-6 bg-white shadow rounded-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">주간 비고</h3>
-            </div>
-            <div className="p-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{weeklyNote.note}</p>
-                <div className="mt-3 text-xs text-gray-500">
-                  마지막 수정: {weeklyNote.updatedAt.toLocaleString('ko-KR')}
-                </div>
-              </div>
             </div>
           </div>
         )}
