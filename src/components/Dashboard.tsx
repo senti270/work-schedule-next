@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { signOut } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, storage } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import EmployeeManagement from './EmployeeManagement';
 import ScheduleManagement from './ScheduleManagement';
 import BranchManagement from './BranchManagement';
@@ -32,6 +33,13 @@ interface Comment {
   isPinned?: boolean; // 상단고정
   isCompleted?: boolean; // 완료 처리
   branchTags?: string[]; // 태그된 지점 ID들
+  attachments?: Array<{
+    fileName: string;
+    fileUrl: string;
+    fileType: string;
+    fileSize: number;
+    isBase64?: boolean;
+  }>; // 첨부 파일들
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +78,10 @@ export default function Dashboard({ user }: DashboardProps) {
   
   // 지점 목록
   const [branches, setBranches] = useState<Branch[]>([]);
+  
+  // 파일 업로드 관련 상태
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   useEffect(() => {
     checkManagerRole();
@@ -206,6 +218,7 @@ export default function Dashboard({ user }: DashboardProps) {
         isPinned: doc.data().isPinned || false,
         isCompleted: doc.data().isCompleted || false,
         branchTags: doc.data().branchTags || [], // 코멘트에 태그된 지점들
+        attachments: doc.data().attachments || [], // 첨부 파일들
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date()
       })) as Comment[];
@@ -228,12 +241,15 @@ export default function Dashboard({ user }: DashboardProps) {
   };
 
   const addComment = async () => {
-    if (!newComment.trim()) {
-      alert('코멘트 내용을 입력해주세요.');
+    if (!newComment.trim() && selectedFiles.length === 0) {
+      alert('코멘트 내용을 입력하거나 파일을 첨부해주세요.');
       return;
     }
 
     try {
+      // 파일이 있으면 먼저 업로드
+      const uploadedFiles = selectedFiles.length > 0 ? await handleFileUpload(selectedFiles) : [];
+      console.log('업로드된 파일들:', uploadedFiles);
       // 작성자 정보 설정
       let userId = '';
       let authorName = '';
@@ -293,11 +309,13 @@ export default function Dashboard({ user }: DashboardProps) {
         isImportant: commentOptions.isImportant,
         isPinned: commentOptions.isPinned,
         branchTags: commentOptions.selectedBranches, // 선택된 지점들을 태그로 저장
+        attachments: uploadedFiles, // 업로드된 파일들
         createdAt: new Date(),
         updatedAt: new Date()
       });
       
       setNewComment('');
+      setSelectedFiles([]);
       setCommentOptions({
         adminConfirmRequest: false,
         isImportant: false,
@@ -359,6 +377,92 @@ export default function Dashboard({ user }: DashboardProps) {
     } catch (error) {
       console.error('코멘트 삭제 중 오류:', error);
       alert('코멘트 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 파일 업로드 함수
+  const handleFileUpload = async (files: File[]) => {
+    if (files.length === 0) return [];
+    
+    setUploadingFiles(true);
+    const uploadedFiles = [];
+    
+    try {
+      for (const file of files) {
+        // 파일 크기 및 형식 검증
+        const maxSize = 3 * 1024 * 1024; // 3MB
+        if (file.size > maxSize) {
+          alert(`${file.name}: 파일 크기는 3MB를 초과할 수 없습니다.`);
+          continue;
+        }
+        
+        const allowedTypes = [
+          'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+          'application/pdf', 'application/msword', 
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain'
+        ];
+        
+        if (!allowedTypes.includes(file.type)) {
+          alert(`${file.name}: 지원되는 파일 형식이 아닙니다. (이미지, PDF, DOC, DOCX, TXT만 가능)`);
+          continue;
+        }
+        
+        // CORS 문제로 인해 Base64 방식을 우선 사용
+        if (file.size < 3 * 1024 * 1024) { // 3MB 미만은 Base64로 처리
+          try {
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve, reject) => {
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            
+            const base64Data = await base64Promise;
+            
+            uploadedFiles.push({
+              fileName: file.name,
+              fileUrl: base64Data,
+              fileType: file.type,
+              fileSize: file.size,
+              isBase64: true
+            });
+            
+            console.log(`${file.name}: Base64 변환 완료`);
+          } catch (base64Error) {
+            console.error(`${file.name} Base64 변환 실패:`, base64Error);
+            alert(`${file.name}: 파일 처리에 실패했습니다.`);
+          }
+        } else {
+          // 3MB 이상은 Firebase Storage 시도 (실패할 가능성 높음)
+          try {
+            const timestamp = Date.now();
+            const fileExtension = file.name.split('.').pop();
+            const fileName = `comments/${timestamp}_${Math.random().toString(36).substring(7)}.${fileExtension}`;
+            
+            const storageRef = ref(storage, fileName);
+            const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            
+            uploadedFiles.push({
+              fileName: file.name,
+              fileUrl: downloadURL,
+              fileType: file.type,
+              fileSize: file.size,
+              isBase64: false
+            });
+            
+            console.log(`${file.name}: Firebase Storage 업로드 완료`);
+          } catch (uploadError) {
+            console.error(`${file.name} Storage 업로드 실패:`, uploadError);
+            alert(`${file.name}: 파일이 너무 큽니다. 3MB 이하로 줄여주세요.`);
+          }
+        }
+      }
+      
+      return uploadedFiles;
+    } finally {
+      setUploadingFiles(false);
     }
   };
 
@@ -571,6 +675,58 @@ export default function Dashboard({ user }: DashboardProps) {
                         className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       />
                       
+                      {/* 파일 첨부 */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          📎 파일 첨부 (최대 5개, 각 3MB 이하)
+                        </label>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,.pdf,.doc,.docx,.txt"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            if (files.length > 5) {
+                              alert('최대 5개의 파일만 첨부할 수 있습니다.');
+                              e.target.value = '';
+                              return;
+                            }
+                            
+                            // 파일 크기 검증
+                            const oversizedFiles = files.filter(f => f.size > 3 * 1024 * 1024);
+                            if (oversizedFiles.length > 0) {
+                              alert(`다음 파일들이 3MB를 초과합니다: ${oversizedFiles.map(f => f.name).join(', ')}`);
+                              e.target.value = '';
+                              return;
+                            }
+                            
+                            setSelectedFiles(files);
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        
+                        {/* 선택된 파일 목록 */}
+                        {selectedFiles.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {selectedFiles.map((file, index) => (
+                              <div key={index} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
+                                <span className="text-gray-700">
+                                  📄 {file.name} ({(file.size / 1024 / 1024).toFixed(2)}MB)
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+                                  }}
+                                  className="text-red-600 hover:text-red-800 ml-2"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
                       {/* 코멘트 옵션 체크박스 */}
                       <div className="flex flex-wrap gap-4 text-sm">
                         <label className="flex items-center">
@@ -635,9 +791,10 @@ export default function Dashboard({ user }: DashboardProps) {
                       <div className="flex justify-end">
                         <button
                           onClick={addComment}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={uploadingFiles}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          코멘트 추가
+                          {uploadingFiles ? '업로드중...' : selectedFiles.length > 0 ? `코멘트 추가 (${selectedFiles.length}개 파일)` : '코멘트 추가'}
                         </button>
                       </div>
                     </div>
@@ -798,6 +955,57 @@ export default function Dashboard({ user }: DashboardProps) {
                                 <p className={`text-sm whitespace-pre-wrap ${comment.isCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                                   {comment.content}
                                 </p>
+                                
+                                {/* 첨부파일 표시 */}
+                                {comment.attachments && comment.attachments.length > 0 && (
+                                  <div className="mt-3 space-y-2">
+                                    <div className="flex flex-wrap gap-2">
+                                      {comment.attachments.map((attachment, index) => (
+                                        <div key={index} className="relative">
+                                          {attachment.fileType.startsWith('image/') ? (
+                                            // 이미지 파일: 섬네일 표시
+                                            <div className="relative group">
+                                              <img
+                                                src={attachment.fileUrl}
+                                                alt={attachment.fileName}
+                                                className="w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80"
+                                                onClick={() => {
+                                                  // 클릭 시 원본 크기로 새 창에서 열기
+                                                  window.open(attachment.fileUrl, '_blank');
+                                                }}
+                                              />
+                                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded transition-all duration-200 flex items-center justify-center">
+                                                <span className="text-white text-xs opacity-0 group-hover:opacity-100">🔍</span>
+                                              </div>
+                                              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs p-1 rounded-b truncate">
+                                                {attachment.fileName}
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            // 일반 파일: 다운로드 링크
+                                            <a
+                                              href={attachment.fileUrl}
+                                              download={attachment.fileName}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded border hover:bg-gray-200 transition-colors"
+                                            >
+                                              <span className="mr-1">
+                                                {attachment.fileType.includes('pdf') ? '📄' :
+                                                 attachment.fileType.includes('word') ? '📝' :
+                                                 attachment.fileType.includes('text') ? '📃' : '📎'}
+                                              </span>
+                                              {attachment.fileName}
+                                              <span className="ml-1 text-gray-500">
+                                                ({(attachment.fileSize / 1024 / 1024).toFixed(1)}MB)
+                                              </span>
+                                            </a>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                               
                               <div className="flex space-x-2 ml-4">
