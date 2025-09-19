@@ -1250,7 +1250,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     setSelectedFile(null);
   };
 
-  // 파일 업로드
+  // 파일 업로드 (CORS 문제 해결을 위해 Base64 우선 사용)
   const handleFileUpload = async (file: File, contractId: string) => {
     try {
       setUploadingFile(true);
@@ -1276,87 +1276,73 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         return;
       }
       
-      // 파일명 생성 (직원ID_계약ID_타임스탬프.확장자)
-      const timestamp = Date.now();
-      const fileExtension = file.name.split('.').pop();
-      const fileName = `contracts/${contractId}_${timestamp}.${fileExtension}`;
-      
-      // Firebase Storage에 업로드 (CORS 문제 해결을 위한 개선)
-      const storageRef = ref(storage, fileName);
-      
       console.log('파일 업로드 시작:', {
-        fileName,
+        fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
         contractId
       });
       
-      // 간단한 메타데이터로 CORS 문제 최소화
-      const metadata = {
-        contentType: file.type
-      };
-      
-      // 업로드 시도 (CORS 에러 대응)
-      console.log('Firebase Storage 업로드 시도...');
-      let downloadURL;
-      
-      try {
-        const snapshot = await uploadBytes(storageRef, file, metadata);
-        console.log('업로드 완료:', snapshot);
+      // CORS 문제 회피를 위해 Base64 방식을 우선 사용
+      if (file.size < 3 * 1024 * 1024) { // 3MB 미만은 Base64로 처리
+        console.log('Base64 방식으로 파일 저장 시도...');
         
-        console.log('다운로드 URL 생성 시도...');
-        downloadURL = await getDownloadURL(snapshot.ref);
-        console.log('다운로드 URL 생성 완료:', downloadURL);
-        
-        // Firestore에 파일 정보 업데이트
-        const contractRef = doc(db, 'employmentContracts', contractId);
-        await updateDoc(contractRef, {
-          contractFile: downloadURL,
-          contractFileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          isBase64: false,
-          updatedAt: new Date()
-        });
-        
-      } catch (uploadError) {
-        console.error('Firebase Storage 업로드 실패:', uploadError);
-        
-        // CORS 에러인 경우 Base64 대안 방법 시도
-        const errorMessage = uploadError instanceof Error ? uploadError.message : String(uploadError);
-        if (errorMessage.includes('CORS') || errorMessage.includes('blocked')) {
-          console.log('CORS 에러 감지, Base64 저장 방식으로 대안 시도...');
+        try {
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
           
-          // 파일을 Base64로 변환하여 Firestore에 직접 저장
-          if (file.size < 2 * 1024 * 1024) { // 2MB 미만
-            const reader = new FileReader();
-            const base64Promise = new Promise((resolve, reject) => {
-              reader.onload = () => resolve(reader.result);
-              reader.onerror = reject;
-              reader.readAsDataURL(file);
-            });
-            
-            const base64Data = await base64Promise as string;
-            console.log('Base64 변환 완료, 크기:', base64Data.length);
-            
-            // Firestore에 Base64 데이터 저장
-            const contractRef = doc(db, 'employmentContracts', contractId);
-            await updateDoc(contractRef, {
-              contractFile: base64Data,
-              contractFileName: file.name,
-              fileType: file.type,
-              fileSize: file.size,
-              isBase64: true,
-              updatedAt: new Date()
-            });
-            
-            console.log('Base64 데이터 Firestore 저장 완료');
-            downloadURL = base64Data;
-          } else {
-            throw new Error('CORS 문제로 인해 파일 업로드에 실패했습니다. 파일 크기를 2MB 이하로 줄여주세요.');
-          }
-        } else {
-          throw uploadError;
+          const base64Data = await base64Promise;
+          console.log('Base64 변환 완료, 크기:', base64Data.length);
+          
+          // Firestore에 Base64 데이터 저장
+          const contractRef = doc(db, 'employmentContracts', contractId);
+          await updateDoc(contractRef, {
+            contractFile: base64Data,
+            contractFileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            isBase64: true,
+            updatedAt: new Date()
+          });
+          
+          console.log('Base64 방식으로 파일 저장 완료');
+        } catch (base64Error) {
+          console.error('Base64 변환 실패:', base64Error);
+          throw new Error('파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+        }
+      } else {
+        // 3MB 이상은 Firebase Storage 시도 (CORS 에러 가능성 높음)
+        console.log('대용량 파일, Firebase Storage 시도...');
+        
+        try {
+          const timestamp = Date.now();
+          const fileExtension = file.name.split('.').pop();
+          const fileName = `contracts/${contractId}_${timestamp}.${fileExtension}`;
+          const storageRef = ref(storage, fileName);
+          
+          const metadata = { contentType: file.type };
+          const snapshot = await uploadBytes(storageRef, file, metadata);
+          const downloadURL = await getDownloadURL(snapshot.ref);
+          
+          // Firestore에 파일 정보 업데이트
+          const contractRef = doc(db, 'employmentContracts', contractId);
+          await updateDoc(contractRef, {
+            contractFile: downloadURL,
+            contractFileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            isBase64: false,
+            updatedAt: new Date()
+          });
+          
+          console.log('Firebase Storage 방식으로 파일 저장 완료');
+        } catch (storageError) {
+          console.error('Firebase Storage 실패:', storageError);
+          throw new Error('파일이 너무 큽니다. 3MB 이하로 줄여주세요.');
         }
       }
       
@@ -1373,19 +1359,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       // 구체적인 에러 메시지 제공
       let errorMessage = '파일 업로드 중 오류가 발생했습니다.';
       if (error instanceof Error) {
-        if (error.message.includes('storage/unauthorized')) {
-          errorMessage = '파일 업로드 권한이 없습니다. 관리자에게 문의하세요.';
-        } else if (error.message.includes('storage/canceled')) {
-          errorMessage = '파일 업로드가 취소되었습니다.';
-        } else if (error.message.includes('storage/unknown')) {
-          errorMessage = '알 수 없는 오류가 발생했습니다. 다시 시도해주세요.';
-        } else if (error.message.includes('storage/invalid-format')) {
-          errorMessage = '지원하지 않는 파일 형식입니다.';
-        } else if (error.message.includes('storage/object-not-found')) {
-          errorMessage = '파일을 찾을 수 없습니다.';
-        } else if (error.message.includes('storage/quota-exceeded')) {
-          errorMessage = '저장 공간이 부족합니다.';
-        }
+        errorMessage = error.message;
       }
       
       alert(errorMessage);
@@ -2997,7 +2971,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
               </button>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
               {/* 재직증명서 섹션 */}
               <div className="bg-gray-50 p-6 rounded-lg">
                 <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
