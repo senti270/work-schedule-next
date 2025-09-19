@@ -1384,39 +1384,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
-                                지점 (복수 선택 가능) *
-                              </label>
-                              <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
-                                {branches
-                                  .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-                                  .map(branch => (
-                                  <label key={branch.id} className="flex items-center mb-2">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedBranches.includes(branch.id)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedBranches([...selectedBranches, branch.id]);
-                                        } else {
-                                          setSelectedBranches(selectedBranches.filter(id => id !== branch.id));
-                                        }
-                                      }}
-                                      className="mr-2"
-                                      disabled={isManager}
-                                    />
-                                    <span className="text-sm">{branch.name}</span>
-                                  </label>
-                                ))}
-                              </div>
-                              {isManager && (
-                                <p className="text-sm text-gray-500 mt-1">
-                                  매니저 권한으로 {userBranch?.name} 지점에 자동 설정됩니다.
-                                </p>
-                              )}
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
                                 주민등록번호
                               </label>
                               <input
@@ -1427,7 +1394,44 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 placeholder="주민등록번호"
                               />
                             </div>
-                            
+                          </div>
+                          
+                          {/* 지점 선택 (전체 너비) */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              지점 (복수 선택 가능) *
+                            </label>
+                            <div className="max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
+                              {branches
+                                .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+                                .map(branch => (
+                                <label key={branch.id} className="flex items-center mb-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedBranches.includes(branch.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedBranches([...selectedBranches, branch.id]);
+                                      } else {
+                                        setSelectedBranches(selectedBranches.filter(id => id !== branch.id));
+                                      }
+                                    }}
+                                    className="mr-2"
+                                    disabled={isManager}
+                                  />
+                                  <span className="text-sm">{branch.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                            {isManager && (
+                              <p className="text-sm text-gray-500 mt-1">
+                                매니저 권한으로 {userBranch?.name} 지점에 자동 설정됩니다.
+                              </p>
+                            )}
+                          </div>
+                          
+                          {/* 나머지 필드들 */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
                                 입사일
@@ -1455,26 +1459,26 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 <option value="외국인 사업소득자">외국인 사업소득자</option>
                               </select>
                             </div>
-                            
-                            {/* 근로소득자 주간 근무시간 필드 */}
-                            {(formData.type === '근로소득자' || (editingEmployee && editingEmployee.type === '근로소득자')) && (
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  주간 근무시간 (시간)
-                                </label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="60"
-                                  value={formData.weeklyWorkHours}
-                                  onChange={(e) => setFormData({ ...formData, weeklyWorkHours: parseInt(e.target.value) || 40 })}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="40"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">근로소득자의 주간 근무시간을 입력하세요 (기본값: 40시간)</p>
-                              </div>
-                            )}
                           </div>
+                          
+                          {/* 근로소득자 주간 근무시간 필드 */}
+                          {(formData.type === '근로소득자' || (editingEmployee && editingEmployee.type === '근로소득자')) && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                주간 근무시간 (시간)
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="60"
+                                value={formData.weeklyWorkHours}
+                                onChange={(e) => setFormData({ ...formData, weeklyWorkHours: parseInt(e.target.value) || 40 })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="40"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">근로소득자의 주간 근무시간을 입력하세요 (기본값: 40시간)</p>
+                            </div>
+                          )}
                           
                           {/* 수습기간 관리 */}
                           <div className="border-t border-gray-200 pt-4">
