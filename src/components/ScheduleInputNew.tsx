@@ -587,8 +587,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     return { hasOverlap: false };
   };
 
-  // 시간 계산 함수 (정확한 시간 계산)
-  const calculateTotalHours = (startTime: string, endTime: string, breakTime: string) => {
+  // 시간 계산 함수 (여러 시간대 지원)
+  const calculateTotalHours = (startTime: string, endTime: string, breakTime: string, timeSlots?: Array<{startTime: string; endTime: string; breakTime: number}>) => {
     if (!startTime || !endTime) return 0;
     
     // 시간을 분 단위로 변환
@@ -597,42 +597,87 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       return hours * 60 + minutes;
     };
     
-    const startMinutes = timeToMinutes(startTime);
-    const endMinutes = timeToMinutes(endTime);
-    const breakMinutes = (parseFloat(breakTime) || 0) * 60; // 휴게시간은 시간 단위로 입력되므로 분으로 변환
+    let totalHours = 0;
     
-    const totalMinutes = endMinutes - startMinutes - breakMinutes;
-    const totalHours = totalMinutes / 60; // 분을 시간으로 변환
+    if (timeSlots && timeSlots.length > 0) {
+      // 여러 시간대가 있는 경우
+      console.log('여러 시간대 계산:', timeSlots);
+      
+      for (const slot of timeSlots) {
+        const slotStartMinutes = timeToMinutes(slot.startTime);
+        const slotEndMinutes = timeToMinutes(slot.endTime);
+        const slotBreakMinutes = (slot.breakTime || 0) * 60;
+        
+        const slotTotalMinutes = slotEndMinutes - slotStartMinutes - slotBreakMinutes;
+        const slotHours = slotTotalMinutes / 60;
+        
+        console.log(`시간대 ${slot.startTime}-${slot.endTime}(${slot.breakTime}):`, {
+          slotStartMinutes,
+          slotEndMinutes,
+          slotBreakMinutes,
+          slotTotalMinutes,
+          slotHours
+        });
+        
+        totalHours += Math.max(0, slotHours);
+      }
+    } else {
+      // 단일 시간대인 경우 (기존 로직)
+      const startMinutes = timeToMinutes(startTime);
+      const endMinutes = timeToMinutes(endTime);
+      const breakMinutes = (parseFloat(breakTime) || 0) * 60;
+      
+      const totalMinutes = endMinutes - startMinutes - breakMinutes;
+      totalHours = totalMinutes / 60;
+      
+      console.log('단일 시간대 계산:', {
+        startTime,
+        endTime,
+        breakTime,
+        startMinutes,
+        endMinutes,
+        breakMinutes,
+        totalMinutes,
+        totalHours
+      });
+    }
     
-    // 디버깅용 로그
-    console.log('시간 계산:', {
-      startTime,
-      endTime,
-      breakTime,
-      startMinutes,
-      endMinutes,
-      breakMinutes,
-      totalMinutes,
-      totalHours
-    });
-    
+    console.log('최종 총 근무시간:', totalHours);
     return Math.max(0, totalHours);
   };
 
-  // 스케줄 입력 파싱 함수
+  // 스케줄 입력 파싱 함수 (여러 시간대 지원)
   const parseScheduleInput = (input: string) => {
     console.log('=== 스케줄 파싱 시작 ===');
     console.log('입력값:', input);
     
-    // 입력 형식: "10-22(2)" 또는 "18.5-23" -> 시작시간: 10 또는 18.5, 종료시간: 22 또는 23, 휴식시간: 2
-    const match = input.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(?:\((\d+(?:\.\d+)?)\))?$/);
-    if (!match) {
-      console.log('파싱 실패: 정규식 매치 안됨');
-      return null;
-    }
+    // 쉼표로 여러 시간대 분리
+    const timeParts = input.split(',').map(part => part.trim());
+    console.log('분리된 시간대들:', timeParts);
     
-    const [, startTimeStr, endTimeStr, breakTime = '0'] = match;
-    console.log('파싱된 값:', { startTimeStr, endTimeStr, breakTime });
+    const schedules = [];
+    let totalBreakTime = 0;
+    
+    for (let i = 0; i < timeParts.length; i++) {
+      const part = timeParts[i];
+      // 입력 형식: "10-22(2)" 또는 "18.5-23" -> 시작시간: 10 또는 18.5, 종료시간: 22 또는 23, 휴식시간: 2
+      const match = part.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(?:\((\d+(?:\.\d+)?)\))?$/);
+      if (!match) {
+        console.log(`파싱 실패: ${part} 정규식 매치 안됨`);
+        return null;
+      }
+      
+      const [, startTimeStr, endTimeStr, breakTime = '0'] = match;
+      console.log(`시간대 ${i + 1} 파싱:`, { startTimeStr, endTimeStr, breakTime });
+      
+      schedules.push({
+        startTimeStr,
+        endTimeStr,
+        breakTime: parseFloat(breakTime)
+      });
+      
+      totalBreakTime += parseFloat(breakTime);
+    }
     
     // 소수점 시간을 시:분 형태로 변환
     const parseTime = (timeStr: string) => {
@@ -644,10 +689,19 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       return result;
     };
     
+    // 첫 번째 시간대의 시작시간과 마지막 시간대의 종료시간을 사용
+    const firstSchedule = schedules[0];
+    const lastSchedule = schedules[schedules.length - 1];
+    
     const result = {
-      startTime: parseTime(startTimeStr),
-      endTime: parseTime(endTimeStr),
-      breakTime: breakTime
+      startTime: parseTime(firstSchedule.startTimeStr),
+      endTime: parseTime(lastSchedule.endTimeStr),
+      breakTime: totalBreakTime.toString(),
+      timeSlots: schedules.map(s => ({
+        startTime: parseTime(s.startTimeStr),
+        endTime: parseTime(s.endTimeStr),
+        breakTime: s.breakTime
+      }))
     };
     
     console.log('최종 파싱 결과:', result);
@@ -782,7 +836,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         const branch = branches.find(branch => branch.id === selectedBranchId);
         
         if (employee && branch) {
-          const totalHours = calculateTotalHours(parsed.startTime, parsed.endTime, parsed.breakTime);
+          const totalHours = calculateTotalHours(parsed.startTime, parsed.endTime, parsed.breakTime, parsed.timeSlots);
           const existingSchedule = getScheduleForDate(employeeId, date);
           
           // 시간 겹침 검증
@@ -1313,7 +1367,10 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="text-sm font-medium text-blue-800 mb-2">입력 형식 안내</h4>
         <p className="text-sm text-blue-700">
-          휴게시간 있는 경우: 시작시간-종료시간(휴식시간) &nbsp;&nbsp; ex) 10-22(2), 18.5-23(1)
+          단일 시간대: 시작시간-종료시간(휴식시간) &nbsp;&nbsp; ex) 10-22(2), 18.5-23(1)
+        </p>
+        <p className="text-sm text-blue-700">
+          여러 시간대: 쉼표로 구분 &nbsp;&nbsp; ex) 10-13, 19-23(0.5)
         </p>
         <p className="text-sm text-blue-700">
           휴게시간 없는 경우: 시작시간-종료시간 &nbsp;&nbsp; ex) 18-23, 18.5-23
