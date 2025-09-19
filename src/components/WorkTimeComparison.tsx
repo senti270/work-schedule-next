@@ -433,9 +433,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       if (actualRecord) {
         // 휴게시간과 실근무시간 계산
         const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
-        const actualWorkHours = actualRecord.totalHours; // 실제 근무시간 (이미 휴게시간 제외된 순 근무시간)
+        const actualWorkHours = Math.max(0, actualRecord.totalHours - breakTime); // 실제 순 근무시간 (실제근무시간 - 휴게시간)
         
-        // 차이 계산: 스케줄시간 - 실제근무시간
+        // 차이 계산: 스케줄시간 - 실제순근무시간
         const difference = schedule.totalHours - actualWorkHours;
         let status: 'time_match' | 'review_required' | 'review_completed' = 'time_match';
         
