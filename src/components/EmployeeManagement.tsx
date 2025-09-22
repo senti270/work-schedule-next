@@ -2982,63 +2982,16 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <div className="space-y-2">
-                                {contract.contractFile ? (
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-green-600 text-xs">✓ {contract.contractFileName || '계약서 파일'}</span>
-                                    <button
-                                      onClick={() => handleFileDownload(contract)}
-                                      className="text-blue-600 hover:text-blue-900 text-xs"
-                                    >
-                                      다운로드
-                                    </button>
-                                    <button
-                                      onClick={() => handleFileDelete(contract)}
-                                      className="text-red-600 hover:text-red-900 text-xs"
-                                    >
-                                      삭제
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className="space-y-1">
-                                    <input
-                                      type="file"
-                                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                          // 파일 크기 및 형식 검증
-                                          const maxSize = 10 * 1024 * 1024; // 10MB
-                                          if (file.size > maxSize) {
-                                            alert('파일 크기는 10MB를 초과할 수 없습니다.');
-                                            e.target.value = ''; // 파일 선택 취소
-                                            return;
-                                          }
-                                          
-                                          const allowedTypes = [
-                                            'application/pdf', 
-                                            'application/msword', 
-                                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                                            'image/jpeg', 
-                                            'image/jpg',
-                                            'image/png'
-                                          ];
-                                          
-                                          if (!allowedTypes.includes(file.type)) {
-                                            alert('지원되는 파일 형식: PDF, DOC, DOCX, JPG, PNG');
-                                            e.target.value = ''; // 파일 선택 취소
-                                            return;
-                                          }
-                                          
-                                          setSelectedFile(file);
-                                        }
-                                      }}
-                                      className="text-xs w-full"
-                                      id={`file-${contract.id}`}
-                                    />
-                                  </div>
-                                )}
-                              </div>
+                              {contract.contractFile ? (
+                                <button
+                                  onClick={() => handleFileDownload(contract)}
+                                  className="text-blue-600 hover:text-blue-900 text-sm"
+                                >
+                                  근로계약서 다운로드
+                                </button>
+                              ) : (
+                                <span className="text-gray-400 text-sm">파일 없음</span>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               <div className="flex space-x-2">
