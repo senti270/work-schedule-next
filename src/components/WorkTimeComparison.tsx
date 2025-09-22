@@ -1089,26 +1089,53 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {employees.map((employee) => (
-                    <tr 
-                      key={employee.id} 
-                      className={`hover:bg-gray-50 cursor-pointer ${
-                        selectedEmployeeId === employee.id ? 'bg-blue-50' : ''
-                      }`}
-                      onClick={() => setSelectedEmployeeId(employee.id)}
-                    >
+                  {employees.map((employee) => {
+                    const hasContractInfo = employee.employmentType && employee.salaryType;
+                    return (
+                      <tr 
+                        key={employee.id} 
+                        className={`${
+                          hasContractInfo 
+                            ? `hover:bg-gray-50 cursor-pointer ${selectedEmployeeId === employee.id ? 'bg-blue-50' : ''}`
+                            : 'bg-gray-100 cursor-not-allowed opacity-60'
+                        }`}
+                        onClick={() => {
+                          if (hasContractInfo) {
+                            setSelectedEmployeeId(employee.id);
+                          } else {
+                            alert('근로계약 정보가 없습니다.\n직원관리 > 근로계약관리에서 계약정보를 입력해주세요.');
+                          }
+                        }}
+                      >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <input
                           type="radio"
                           name="employee"
                           value={employee.id}
                           checked={selectedEmployeeId === employee.id}
-                          onChange={() => setSelectedEmployeeId(employee.id)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                          onChange={() => {
+                            if (hasContractInfo) {
+                              setSelectedEmployeeId(employee.id);
+                            }
+                          }}
+                          disabled={!hasContractInfo}
+                          className={`h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 ${
+                            !hasContractInfo ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {employee.name}
+                        <div className="flex items-center space-x-2">
+                          <span>{employee.name}</span>
+                          {!hasContractInfo && (
+                            <span 
+                              className="text-red-500 text-xs"
+                              title="근로계약정보 입력 필요"
+                            >
+                              ⚠️
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {(() => {
@@ -1124,6 +1151,15 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(() => {
+                          // 근로계약 히스토리가 없는 경우
+                          if (!employee.employmentType || !employee.salaryType) {
+                            return (
+                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full text-red-600 bg-red-50">
+                                근로계약 정보 필요
+                              </span>
+                            );
+                          }
+                          
                           const empStatus = employeeReviewStatus.find(status => status.employeeId === employee.id)?.status || '검토전';
                           const getStatusColor = (status: string) => {
                             switch (status) {
@@ -1141,7 +1177,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         })()}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
