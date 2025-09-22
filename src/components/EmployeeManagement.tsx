@@ -3036,15 +3036,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                       className="text-xs w-full"
                                       id={`file-${contract.id}`}
                                     />
-                                    {selectedFile && (
-                                      <button
-                                        onClick={() => handleFileUpload(selectedFile, contract.id)}
-                                        disabled={uploadingFile}
-                                        className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
-                                      >
-                                        {uploadingFile ? '업로드중...' : '업로드'}
-                                      </button>
-                                    )}
                                   </div>
                                 )}
                               </div>
