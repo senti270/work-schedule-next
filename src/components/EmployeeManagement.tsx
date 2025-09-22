@@ -488,7 +488,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           <p style="margin: 10px 0; font-size: 16px; color: black;"><strong>입사일:</strong> ${employee.hireDate ? employee.hireDate.toLocaleDateString('ko-KR') : '정보 없음'}</p>
           <p style="margin: 10px 0; font-size: 16px; color: black;"><strong>퇴사일:</strong> ${employee.resignationDate ? employee.resignationDate.toLocaleDateString('ko-KR') : '재직중'}</p>
           <p style="margin: 10px 0; font-size: 16px; color: black;"><strong>지점:</strong> ${branchInfo.name}</p>
-          <p style="margin: 10px 0; font-size: 16px; color: black;"><strong>직급:</strong> ${employee.type || '정보 없음'}</p>
         </div>
         
         <div style="margin: 40px 0; text-align: center;">
@@ -845,14 +844,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         residentNumber: '',
         hireDate: '',
         resignationDate: '',
-        type: '',
         // 급여관리용 은행 정보
         bankName: '',
         bankCode: '',
         accountNumber: '',
         accountHolder: '',
-        // 정직원 주간 근무시간
-        weeklyWorkHours: 40,
         // 수습기간 관리
         probationStartDate: '',
         probationEndDate: '',
@@ -1074,13 +1070,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         return {
           id: doc.id,
           employeeId: data.employeeId,
-          contractType: data.contractType || '',
           startDate: data.startDate?.toDate ? data.startDate.toDate() : new Date(),
-          endDate: data.endDate?.toDate ? data.endDate.toDate() : undefined,
-          salary: data.salary || 0,
-          workingHours: data.workingHours || '',
-          position: data.position || '',
-          notes: data.notes || '',
+          employmentType: data.employmentType || data.contractType || '사업소득자', // 기존 contractType을 employmentType으로 매핑
+          salaryType: data.salaryType || 'hourly', // 기본값 시급
+          salaryAmount: data.salaryAmount || data.salary || 0, // 기존 salary를 salaryAmount로 매핑
+          weeklyWorkHours: data.weeklyWorkHours,
           contractFile: data.contractFile || '',
           contractFileName: data.contractFileName || '',
           fileType: data.fileType || '',
@@ -1759,7 +1753,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                           </div>
                         ) : '-'}
                       </div>
-                      <div className="text-xs text-gray-400">{employee.type || '-'}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
@@ -1907,45 +1900,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               />
                             </div>
                             
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                고용 형태
-                              </label>
-                              <select
-                                value={formData.type}
-                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                              >
-                                <option value="">고용형태를 선택하세요</option>
-                                <option value="근로소득자">근로소득자</option>
-                                <option value="사업소득자">사업소득자</option>
-                                <option value="일용직">일용직</option>
-                                <option value="외국인 사업소득자">외국인 사업소득자</option>
-                              </select>
-                            </div>
                             
-                            {/* 주간 근무시간 필드 (근로소득자, 사업소득자) */}
-                            {(formData.type === '근로소득자' || formData.type === '사업소득자' || 
-                              (editingEmployee && (editingEmployee.type === '근로소득자' || editingEmployee.type === '사업소득자'))) && (
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  주간 근무시간 (시간)
-                                </label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="60"
-                                  value={formData.weeklyWorkHours}
-                                  onChange={(e) => setFormData({ ...formData, weeklyWorkHours: parseInt(e.target.value) || 40 })}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="40"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {formData.type === '근로소득자' ? '근로소득자' : '사업소득자'}의 주간 근무시간을 입력하세요 (기본값: 40시간)
-                                </p>
-                              </div>
-                            )}
                           </div>
                           
                           {/* 수습기간 관리 */}
@@ -2271,23 +2226,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         />
                       </div>
                       
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          고용 형태
-                        </label>
-                        <select
-                          value={formData.type}
-                          onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        >
-                          <option value="">고용형태를 선택하세요</option>
-                          <option value="근로소득자">근로소득자</option>
-                          <option value="사업소득자">사업소득자</option>
-                          <option value="일용직">일용직</option>
-                          <option value="외국인 사업소득자">외국인 사업소득자</option>
-                        </select>
-                      </div>
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2300,27 +2238,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         />
                       </div>
                       
-                      {/* 주간 근무시간 필드 (근로소득자, 사업소득자) */}
-                      {(formData.type === '근로소득자' || formData.type === '사업소득자' || 
-                        (editingEmployee && (editingEmployee.type === '근로소득자' || editingEmployee.type === '사업소득자'))) && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            주간 근무시간 (시간)
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="60"
-                            value={formData.weeklyWorkHours}
-                            onChange={(e) => setFormData({ ...formData, weeklyWorkHours: parseInt(e.target.value) || 40 })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="40"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            {formData.type === '근로소득자' ? '근로소득자' : '사업소득자'}의 주간 근무시간을 입력하세요 (기본값: 40시간)
-                          </p>
-                        </div>
-                      )}
                       
                       {/* 메모 필드 */}
                       <div>
@@ -2546,45 +2463,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       />
                     </div>
                     
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        고용 형태
-                      </label>
-                      <select
-                        value={formData.type}
-                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      >
-                        <option value="">고용형태를 선택하세요</option>
-                        <option value="근로소득자">근로소득자</option>
-                        <option value="사업소득자">사업소득자</option>
-                        <option value="일용직">일용직</option>
-                        <option value="외국인 사업소득자">외국인 사업소득자</option>
-                      </select>
-                    </div>
                   </div>
                   
-                  {/* 주간 근무시간 필드 (근로소득자, 사업소득자) */}
-                  {(formData.type === '근로소득자' || formData.type === '사업소득자') && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        주간 근무시간 (시간)
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="60"
-                        value={formData.weeklyWorkHours}
-                        onChange={(e) => setFormData({ ...formData, weeklyWorkHours: parseInt(e.target.value) || 40 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="40"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formData.type === '근로소득자' ? '근로소득자' : '사업소득자'}의 주간 근무시간을 입력하세요 (기본값: 40시간)
-                      </p>
-                    </div>
-                  )}
                 </div>
                 
                 {/* 수습기간 관리 */}
@@ -2836,9 +2716,32 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       >
-                        <option value="hourly">시급</option>
-                        <option value="monthly">월급</option>
+                        {/* 근로소득자, 사업소득자는 월급만 */}
+                        {(contractFormData.employmentType === '근로소득자' || contractFormData.employmentType === '사업소득자') && (
+                          <option value="monthly">월급</option>
+                        )}
+                        {/* 아르바이트, 일용직, 외국인 사업소득자, 아르바이트 사대보험은 시급만 */}
+                        {(['아르바이트', '일용직', '외국인 사업소득자', '아르바이트 사대보험'].includes(contractFormData.employmentType)) && (
+                          <option value="hourly">시급</option>
+                        )}
+                        {/* 고용형태가 선택되지 않은 경우 둘 다 표시 */}
+                        {!contractFormData.employmentType && (
+                          <>
+                            <option value="hourly">시급</option>
+                            <option value="monthly">월급</option>
+                          </>
+                        )}
                       </select>
+                      {contractFormData.employmentType && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {contractFormData.employmentType === '근로소득자' && '4대보험 + 월급여'}
+                          {contractFormData.employmentType === '사업소득자' && '3.3% 세금 + 월급여'}
+                          {contractFormData.employmentType === '아르바이트' && '3.3% 세금 + 시급'}
+                          {contractFormData.employmentType === '일용직' && '세금 없음 + 시급'}
+                          {contractFormData.employmentType === '외국인 사업소득자' && '3.3% 세금 + 시급'}
+                          {contractFormData.employmentType === '아르바이트 사대보험' && '4대보험 + 시급'}
+                        </p>
+                      )}
                     </div>
                     
                     <div>
