@@ -980,9 +980,14 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">근무시간 비교</h1>
+    <div className="bg-white shadow rounded-lg">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-lg font-medium text-gray-900">근무시간 비교</h3>
+        <p className="text-sm text-gray-600 mt-1">매월 초 한번씩 전달의 스케쥴과 실제근무 시간을 비교합니다</p>
+      </div>
+      
+      <div className="p-6">
+        <div className="mb-6">
         
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <div className="flex items-start">
@@ -1035,7 +1040,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                   className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
                     selectedBranchId === branch.id
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   {branch.name}
@@ -1618,6 +1623,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
