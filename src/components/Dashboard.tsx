@@ -12,6 +12,7 @@ import BranchManagement from './BranchManagement';
 import ReportManagement from './ReportManagement';
 import WorkTimeComparison from './WorkTimeComparison';
 import ManagerAccountManagement from './ManagerAccountManagement';
+import PayrollCalculation from './PayrollCalculation';
 
 interface DashboardProps {
   user: User;
@@ -1345,6 +1346,16 @@ export default function Dashboard({ user }: DashboardProps) {
                     >
                       근무시간 비교
                     </button>
+                    <button
+                      onClick={() => handleSubTabChange('payroll-calculation')}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                        activeSubTab === 'payroll-calculation'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      급여계산작업
+                    </button>
                     {!isManager && (
                       <>
                         <button
@@ -1380,6 +1391,10 @@ export default function Dashboard({ user }: DashboardProps) {
                     <WorkTimeComparison userBranch={userBranch} isManager={isManager} />
                   </div>
                 </div>
+              )}
+
+              {activeSubTab === 'payroll-calculation' && (
+                <PayrollCalculation userBranch={userBranch} isManager={isManager} />
               )}
               
               {activeSubTab === 'tax-file' && (
@@ -1450,6 +1465,13 @@ export default function Dashboard({ user }: DashboardProps) {
                       >
                         <h4 className="font-medium text-blue-900">근무시간 비교</h4>
                         <p className="text-blue-600 text-sm">스케줄과 실제 근무시간을 비교합니다</p>
+                      </button>
+                      <button
+                        onClick={() => handleSubTabChange('payroll-calculation')}
+                        className="bg-orange-50 p-4 rounded-lg hover:bg-orange-100 transition-colors duration-200 cursor-pointer text-left w-full"
+                      >
+                        <h4 className="font-medium text-orange-900">급여계산작업</h4>
+                        <p className="text-orange-600 text-sm">급여 계산을 위한 직원 현황을 확인합니다</p>
                       </button>
                       {!isManager && (
                         <>
