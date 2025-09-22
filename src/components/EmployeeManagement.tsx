@@ -3378,8 +3378,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                           }}
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                         />
-                        {selectedFile && (
-                        )}
                       </div>
                       {selectedFile && (
                         <p className="text-xs text-gray-600 mt-1">
