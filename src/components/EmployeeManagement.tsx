@@ -1216,9 +1216,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
   // 근로계약 추가/수정
   const handleContractSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    console.log('handleContractSubmit 호출됨');
     
-    if (!selectedEmployee) return;
+    const currentEmployee = showDocumentModal.employee;
+    if (!currentEmployee) {
+      console.log('currentEmployee가 없음');
+      alert('직원을 선택해주세요.');
+      return;
+    }
     
     if (!contractFormData.startDate) {
       alert('기준일을 입력해주세요.');
@@ -1246,7 +1251,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       setUploadingFile(true);
       
       const contractData = {
-        employeeId: selectedEmployee.id,
+        employeeId: currentEmployee.id,
         startDate: new Date(contractFormData.startDate),
         employmentType: contractFormData.employmentType,
         salaryType: contractFormData.salaryType,
@@ -1278,7 +1283,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         await handleFileUpload(selectedFile, contractId);
       }
       
-      await loadContracts(selectedEmployee.id);
+      await loadContracts(currentEmployee.id);
       resetContractForm();
       alert('근로계약이 성공적으로 저장되었습니다.');
     } catch (error) {
@@ -3357,7 +3362,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     </button>
                     <button
                       type="button"
-                      onClick={handleContractSubmit}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleContractSubmit(e);
+                      }}
                       disabled={uploadingFile}
                       className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-medium disabled:opacity-50"
                     >
