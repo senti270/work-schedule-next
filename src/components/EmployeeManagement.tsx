@@ -1207,6 +1207,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       return;
     }
     
+    if (!contractFormData.employmentType) {
+      alert('고용형태를 선택해주세요.');
+      return;
+    }
+    
     if (!contractFormData.salaryAmount || parseFloat(contractFormData.salaryAmount) <= 0) {
       alert('금액을 입력해주세요.');
       return;
@@ -1216,8 +1221,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       const contractData = {
         employeeId: selectedEmployee.id,
         startDate: new Date(contractFormData.startDate),
+        employmentType: contractFormData.employmentType,
         salaryType: contractFormData.salaryType,
         salaryAmount: parseFloat(contractFormData.salaryAmount),
+        weeklyWorkHours: contractFormData.weeklyWorkHours ? parseFloat(contractFormData.weeklyWorkHours) : undefined,
         contractFile: contractFormData.contractFile,
         updatedAt: new Date()
       };
@@ -1246,8 +1253,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     setEditingContract(contract);
     setContractFormData({
       startDate: contract.startDate.toISOString().split('T')[0],
+      employmentType: contract.employmentType || '',
       salaryType: contract.salaryType || 'hourly',
       salaryAmount: contract.salaryAmount ? contract.salaryAmount.toString() : '',
+      weeklyWorkHours: contract.weeklyWorkHours ? contract.weeklyWorkHours.toString() : '',
       contractFile: contract.contractFile || ''
     });
   };
@@ -2919,6 +2928,15 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             기준일
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            고용형태
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            급여정보
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            주간근무시간
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             파일
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -2942,6 +2960,22 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                   weekday: 'short'
                                 })}
                               </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {contract.employmentType || '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <div className="space-y-1">
+                                <div className="font-medium">
+                                  {contract.salaryType === 'hourly' ? '시급' : '월급'}
+                                </div>
+                                <div className="text-xs">
+                                  {contract.salaryAmount ? `${contract.salaryAmount.toLocaleString()}원` : '-'}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {contract.weeklyWorkHours ? `${contract.weeklyWorkHours}시간` : '-'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="space-y-2">
@@ -3092,10 +3126,16 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               기준일
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              파일명
+                              고용형태
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              파일크기
+                              급여정보
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              주간근무시간
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              파일정보
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               작업
@@ -3109,10 +3149,30 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 {contract.startDate.toLocaleDateString('ko-KR')}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {contract.contractFileName || '파일명 없음'}
+                                {contract.employmentType || '-'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {contract.fileSize ? `${(contract.fileSize / 1024 / 1024).toFixed(1)}MB` : '-'}
+                                <div className="space-y-1">
+                                  <div className="font-medium">
+                                    {contract.salaryType === 'hourly' ? '시급' : '월급'}
+                                  </div>
+                                  <div className="text-xs">
+                                    {contract.salaryAmount ? `${contract.salaryAmount.toLocaleString()}원` : '-'}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {contract.weeklyWorkHours ? `${contract.weeklyWorkHours}시간` : '-'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <div className="space-y-1">
+                                  <div className="text-xs">
+                                    {contract.contractFileName || '파일명 없음'}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    {contract.fileSize ? `${(contract.fileSize / 1024 / 1024).toFixed(1)}MB` : '-'}
+                                  </div>
+                                </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                 {contract.contractFile && (
