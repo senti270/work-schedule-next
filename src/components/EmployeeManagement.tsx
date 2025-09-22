@@ -3379,43 +3379,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                         />
                         {selectedFile && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!contractFormData.startDate) {
-                                alert('기준일을 먼저 입력해주세요.');
-                                return;
-                              }
-                              
-                              try {
-                                // 계약서 레코드 생성
-                                const contractData = {
-                                  employeeId: showDocumentModal.employee!.id,
-                                  startDate: new Date(contractFormData.startDate),
-                                  contractFile: '',
-                                  contractFileName: '',
-                                  createdAt: new Date(),
-                                  updatedAt: new Date()
-                                };
-                                
-                                const docRef = await addDoc(collection(db, 'employmentContracts'), contractData);
-                                console.log('계약서 레코드 생성 완료:', docRef.id);
-                                
-                                // 파일 업로드
-                                await handleFileUpload(selectedFile, docRef.id);
-                                
-                                // 폼 리셋
-                                resetContractForm();
-                              } catch (error) {
-                                console.error('계약서 추가 중 오류:', error);
-                                alert('계약서 추가 중 오류가 발생했습니다.');
-                              }
-                            }}
-                            disabled={uploadingFile}
-                            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium disabled:opacity-50 text-sm"
-                          >
-                            {uploadingFile ? '업로드중...' : '업로드'}
-                          </button>
                         )}
                       </div>
                       {selectedFile && (
