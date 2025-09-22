@@ -1243,6 +1243,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
     
     try {
+      setUploadingFile(true);
+      
       const contractData = {
         employeeId: selectedEmployee.id,
         startDate: new Date(contractFormData.startDate),
@@ -1255,22 +1257,35 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         updatedAt: new Date()
       };
       
+      let contractId: string;
+      
       if (editingContract) {
         // 수정
         const contractRef = doc(db, 'employmentContracts', editingContract.id);
         await updateDoc(contractRef, contractData);
+        contractId = editingContract.id;
       } else {
         // 추가
-        await addDoc(collection(db, 'employmentContracts'), {
+        const docRef = await addDoc(collection(db, 'employmentContracts'), {
           ...contractData,
           createdAt: new Date()
         });
+        contractId = docRef.id;
+      }
+      
+      // 파일이 선택된 경우 업로드
+      if (selectedFile) {
+        await handleFileUpload(selectedFile, contractId);
       }
       
       await loadContracts(selectedEmployee.id);
       resetContractForm();
+      alert('근로계약이 성공적으로 저장되었습니다.');
     } catch (error) {
       console.error('근로계약 저장 중 오류:', error);
+      alert('근로계약 저장에 실패했습니다.');
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -1320,7 +1335,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   // 파일 업로드 (CORS 문제 해결을 위해 Base64 우선 사용)
   const handleFileUpload = async (file: File, contractId: string) => {
     try {
-      setUploadingFile(true);
       
       // 파일 크기 및 형식 검증
       const maxSize = 1 * 1024 * 1024; // 1MB
@@ -1449,8 +1463,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       }
       
       alert(errorMessage);
-    } finally {
-      setUploadingFile(false);
     }
   };
 
