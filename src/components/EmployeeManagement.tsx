@@ -66,7 +66,7 @@ interface EmploymentContract {
   id: string;
   employeeId: string;
   startDate: Date; // 기준일
-  employmentType: string; // 고용형태 ('근로소득자', '사업소득자', '일용직', '외국인 사업소득자')
+  employmentType: string; // 고용형태 ('근로소득자', '사업소득자', '일용직', '외국인 사업소득자', '아르바이트', '아르바이트 사대보험')
   salaryType: 'hourly' | 'monthly'; // 시급/월급 선택
   salaryAmount: number; // 금액
   weeklyWorkHours?: number; // 주간근무시간
@@ -2806,6 +2806,76 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       />
                     </div>
                     
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        고용형태 *
+                      </label>
+                      <select
+                        value={contractFormData.employmentType}
+                        onChange={(e) => setContractFormData({ ...contractFormData, employmentType: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="">고용형태를 선택하세요</option>
+                        <option value="근로소득자">근로소득자</option>
+                        <option value="사업소득자">사업소득자</option>
+                        <option value="일용직">일용직</option>
+                        <option value="외국인 사업소득자">외국인 사업소득자</option>
+                        <option value="아르바이트">아르바이트</option>
+                        <option value="아르바이트 사대보험">아르바이트 사대보험</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        급여 형태 *
+                      </label>
+                      <select
+                        value={contractFormData.salaryType}
+                        onChange={(e) => setContractFormData({ ...contractFormData, salaryType: e.target.value as 'hourly' | 'monthly' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="hourly">시급</option>
+                        <option value="monthly">월급</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        금액 *
+                      </label>
+                      <input
+                        type="number"
+                        value={contractFormData.salaryAmount}
+                        onChange={(e) => setContractFormData({ ...contractFormData, salaryAmount: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={contractFormData.salaryType === 'hourly' ? '시급을 입력하세요' : '월급을 입력하세요'}
+                        min="0"
+                        required
+                      />
+                    </div>
+                    
+                    {(contractFormData.employmentType === '근로소득자' || contractFormData.employmentType === '아르바이트 사대보험') && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          주간근무시간
+                        </label>
+                        <input
+                          type="number"
+                          value={contractFormData.weeklyWorkHours}
+                          onChange={(e) => setContractFormData({ ...contractFormData, weeklyWorkHours: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="40"
+                          min="1"
+                          max="60"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          주간 근무시간을 입력하세요 (기본값: 40시간)
+                        </p>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         파일 선택
