@@ -1381,26 +1381,15 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         (input as HTMLInputElement).value = '';
       });
       
-      // 업로드 완료 후 모달 새로고침
-      if (selectedEmployee) {
-        console.log('업로드 완료, 모달 새로고침 시작');
-        
-        // 현재 선택된 직원 정보 저장
-        const currentEmployee = selectedEmployee;
-        
-        // 모달 닫기
-        setShowDocumentModal({ show: false, employee: null });
-        
-        // 잠시 후 모달 다시 열기 (새로고침 효과)
-        setTimeout(() => {
-          setShowDocumentModal({ show: true, employee: currentEmployee });
-          loadContracts(currentEmployee.id);
-        }, 100);
-        
-        console.log('모달 새로고침 완료');
-      }
-      
       alert('파일이 성공적으로 업로드되었습니다.');
+      
+      // alert 확인 후 히스토리 리로드
+      if (selectedEmployee) {
+        console.log('업로드 완료, 히스토리 리로드 시작');
+        await loadContracts(selectedEmployee.id);
+        setContractsKey(prev => prev + 1);
+        console.log('히스토리 리로드 완료');
+      }
     } catch (error) {
       console.error('파일 업로드 중 오류:', error);
       
