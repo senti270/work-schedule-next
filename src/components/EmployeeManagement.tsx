@@ -3194,6 +3194,99 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                        고용형태 *
+                      </label>
+                      <select
+                        value={contractFormData.employmentType}
+                        onChange={(e) => setContractFormData({ ...contractFormData, employmentType: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="">고용형태를 선택하세요</option>
+                        <option value="근로소득자">근로소득자</option>
+                        <option value="사업소득자">사업소득자</option>
+                        <option value="일용직">일용직</option>
+                        <option value="외국인 사업소득자">외국인 사업소득자</option>
+                        <option value="아르바이트">아르바이트</option>
+                        <option value="아르바이트 사대보험">아르바이트 사대보험</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        급여 형태 *
+                      </label>
+                      <select
+                        value={contractFormData.salaryType}
+                        onChange={(e) => setContractFormData({ ...contractFormData, salaryType: e.target.value as 'hourly' | 'monthly' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        {/* 근로소득자, 사업소득자는 월급만 */}
+                        {(contractFormData.employmentType === '근로소득자' || contractFormData.employmentType === '사업소득자') && (
+                          <option value="monthly">월급</option>
+                        )}
+                        {/* 아르바이트, 일용직, 외국인 사업소득자, 아르바이트 사대보험은 시급만 */}
+                        {(['아르바이트', '일용직', '외국인 사업소득자', '아르바이트 사대보험'].includes(contractFormData.employmentType)) && (
+                          <option value="hourly">시급</option>
+                        )}
+                        {/* 고용형태가 선택되지 않은 경우 둘 다 표시 */}
+                        {!contractFormData.employmentType && (
+                          <>
+                            <option value="hourly">시급</option>
+                            <option value="monthly">월급</option>
+                          </>
+                        )}
+                      </select>
+                      {contractFormData.employmentType && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {contractFormData.employmentType === '근로소득자' && '4대보험 + 월급여'}
+                          {contractFormData.employmentType === '사업소득자' && '3.3% 세금 + 월급여'}
+                          {contractFormData.employmentType === '아르바이트' && '3.3% 세금 + 시급'}
+                          {contractFormData.employmentType === '일용직' && '세금 없음 + 시급'}
+                          {contractFormData.employmentType === '외국인 사업소득자' && '3.3% 세금 + 시급'}
+                          {contractFormData.employmentType === '아르바이트 사대보험' && '4대보험 + 시급'}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        금액 *
+                      </label>
+                      <input
+                        type="number"
+                        value={contractFormData.salaryAmount}
+                        onChange={(e) => setContractFormData({ ...contractFormData, salaryAmount: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={contractFormData.salaryType === 'hourly' ? '시급을 입력하세요' : '월급을 입력하세요'}
+                        min="0"
+                        required
+                      />
+                    </div>
+                    
+                    {(contractFormData.employmentType === '근로소득자' || contractFormData.employmentType === '아르바이트 사대보험') && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          주간근무시간
+                        </label>
+                        <input
+                          type="number"
+                          value={contractFormData.weeklyWorkHours}
+                          onChange={(e) => setContractFormData({ ...contractFormData, weeklyWorkHours: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="40"
+                          min="1"
+                          max="60"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          주간 근무시간을 입력하세요 (기본값: 40시간)
+                        </p>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         파일 선택
                       </label>
                       <div className="flex gap-2">
