@@ -3,6 +3,7 @@
 import { useState, useEffect, use, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { isRedDay } from '@/lib/holidays';
 
 interface Schedule {
   id: string;
@@ -338,10 +339,13 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                 <tr>
                   {weekDates.map((date, index) => {
                     const dayOfWeek = DAYS_OF_WEEK[index];
+                    const redDayInfo = isRedDay(date);
                     return (
-                      <th key={index} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th key={index} className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                        redDayInfo.isRed ? 'text-red-600' : 'text-gray-500'
+                      }`}>
                         <div>{date.getMonth() + 1}/{date.getDate()}</div>
-                        <div className="text-xs text-gray-400">{dayOfWeek.label}</div>
+                        <div className="text-xs">{dayOfWeek.label}</div>
                       </th>
                     );
                   })}
@@ -423,11 +427,17 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       이름
                     </th>
-                    {DAYS_OF_WEEK.map((day) => (
-                      <th key={day.key} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        {day.label}
-                      </th>
-                    ))}
+                    {DAYS_OF_WEEK.map((day, index) => {
+                      const date = weekDates[index];
+                      const redDayInfo = isRedDay(date);
+                      return (
+                        <th key={day.key} className={`px-2 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                          redDayInfo.isRed ? 'text-red-600' : 'text-gray-500'
+                        }`}>
+                          {day.label}
+                        </th>
+                      );
+                    })}
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       총계
                     </th>
@@ -521,16 +531,19 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                     {/* 요일 헤더 */}
                     <div className="flex">
                       <div className="w-16 text-sm font-medium text-gray-700 text-center">시간</div>
-                      {weekDates.map((date, index) => (
-                        <div key={index} className="flex-1 text-center">
-                          <div className="text-sm font-medium text-gray-700">
-                            {date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                      {weekDates.map((date, index) => {
+                        const redDayInfo = isRedDay(date);
+                        return (
+                          <div key={index} className="flex-1 text-center">
+                            <div className={`text-sm font-medium ${redDayInfo.isRed ? 'text-red-600' : 'text-gray-700'}`}>
+                              {date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                            </div>
+                            <div className={`text-xs ${redDayInfo.isRed ? 'text-red-500' : 'text-gray-500'}`}>
+                              {['월', '화', '수', '목', '금', '토', '일'][index]}
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {['월', '화', '수', '목', '금', '토', '일'][index]}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     
                     {/* 시간대별 히트맵 */}
