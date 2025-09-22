@@ -68,14 +68,12 @@ interface BankCode {
 interface EmploymentContract {
   id: string;
   employeeId: string;
-  contractType: string; // '근로소득자', '사업소득자', '일용직', '외국인 사업소득자'
-  startDate: Date;
-  endDate?: Date; // 계약직의 경우 종료일
-  salary?: number;
-  workingHours?: string;
-  position?: string;
-  notes?: string;
-  contractFile?: string; // 계약서 파일 URL
+  startDate: Date; // 기준일
+  employmentType: string; // 고용형태 ('근로소득자', '사업소득자', '일용직', '외국인 사업소득자')
+  salaryType: 'hourly' | 'monthly'; // 시급/월급 선택
+  salaryAmount: number; // 금액
+  weeklyWorkHours?: number; // 주간근무시간
+  contractFile?: string; // 계약 파일 URL
   contractFileName?: string; // 원본 파일명
   fileType?: string; // 파일 타입
   fileSize?: number; // 파일 크기
@@ -111,6 +109,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [contractFormData, setContractFormData] = useState({
     startDate: '',
+    employmentType: '',
+    salaryType: 'hourly' as 'hourly' | 'monthly',
+    salaryAmount: '',
+    weeklyWorkHours: '',
     contractFile: ''
   });
   const [editingContract, setEditingContract] = useState<EmploymentContract | null>(null);
@@ -842,7 +844,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         await createEmployeeBranches(docRef.id, selectedBranches);
         
         // 직원 추가 성공 안내
-        alert(`직원이 성공적으로 추가되었습니다!\n\n⚠️ 안내: 직원 추가 후, 해당 직원의 근로계약서를 직원 목록의 문서관리에서 추가해주세요!`);
+        alert(`직원이 성공적으로 추가되었습니다!\n\n⚠️ 안내: 직원 추가 후, 해당 직원의 근로계약을 직원 목록의 근로계약관리에서 추가해주세요!`);
       }
 
       // 폼 초기화
@@ -1209,16 +1211,28 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
   };
 
-  // 근로계약서 추가/수정
+  // 근로계약 추가/수정
   const handleContractSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!selectedEmployee) return;
     
+    if (!contractFormData.startDate) {
+      alert('기준일을 입력해주세요.');
+      return;
+    }
+    
+    if (!contractFormData.salaryAmount || parseFloat(contractFormData.salaryAmount) <= 0) {
+      alert('금액을 입력해주세요.');
+      return;
+    }
+    
     try {
       const contractData = {
         employeeId: selectedEmployee.id,
         startDate: new Date(contractFormData.startDate),
+        salaryType: contractFormData.salaryType,
+        salaryAmount: parseFloat(contractFormData.salaryAmount),
         contractFile: contractFormData.contractFile,
         updatedAt: new Date()
       };
@@ -1238,15 +1252,17 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       await loadContracts(selectedEmployee.id);
       resetContractForm();
     } catch (error) {
-      console.error('근로계약서 저장 중 오류:', error);
+      console.error('근로계약 저장 중 오류:', error);
     }
   };
 
-  // 근로계약서 수정
+  // 근로계약 수정
   const handleContractEdit = (contract: EmploymentContract) => {
     setEditingContract(contract);
     setContractFormData({
       startDate: contract.startDate.toISOString().split('T')[0],
+      salaryType: contract.salaryType || 'hourly',
+      salaryAmount: contract.salaryAmount ? contract.salaryAmount.toString() : '',
       contractFile: contract.contractFile || ''
     });
   };
@@ -1265,10 +1281,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
   };
 
-  // 근로계약서 폼 리셋
+  // 근로계약 폼 리셋
   const resetContractForm = () => {
     setContractFormData({
       startDate: '',
+      employmentType: '',
+      salaryType: 'hourly' as 'hourly' | 'monthly',
+      salaryAmount: '',
+      weeklyWorkHours: '',
       contractFile: ''
     });
     setEditingContract(null);
@@ -1780,7 +1800,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       }}
                       className="text-blue-600 hover:text-blue-900 text-xs"
                     >
-                      문서관리
+                      근로계약관리
                     </button>
                   </td>
                 </tr>
@@ -3034,13 +3054,13 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         </div>
       )}
 
-      {/* 문서관리 모달 */}
+      {/* 근로계약관리 모달 */}
       {showDocumentModal.show && showDocumentModal.employee && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-semibold text-gray-900">
-                {showDocumentModal.employee.name} - 문서관리
+                {showDocumentModal.employee.name} - 근로계약관리
               </h3>
               <button
                 onClick={() => setShowDocumentModal({ show: false, employee: null })}
