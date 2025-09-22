@@ -232,7 +232,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           {/* 월 선택 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              비교할 월
+              월 선택
             </label>
             <input
               type="month"

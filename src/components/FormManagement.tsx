@@ -46,7 +46,8 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     formName: '',
-    fileName: ''
+    fileName: '',
+    branchId: ''
   });
 
   useEffect(() => {
@@ -122,7 +123,7 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedBranchId) {
+    if (!formData.branchId) {
       alert('지점을 선택해주세요.');
       return;
     }
@@ -140,7 +141,7 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
     try {
       setUploadingFile(true);
       
-      const selectedBranch = branches.find(b => b.id === selectedBranchId);
+      const selectedBranch = branches.find(b => b.id === formData.branchId);
       const authorName = isManager ? selectedBranch?.name || '매니저' : '관리자';
       
       let fileUrl = '';
@@ -197,7 +198,7 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
       }
       
       const formDocumentData = {
-        branchId: selectedBranchId,
+        branchId: formData.branchId,
         branchName: selectedBranch?.name || '',
         formName: formData.formName.trim(),
         fileName: fileName || editingForm?.fileName || '',
@@ -237,7 +238,8 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
     setEditingForm(form);
     setFormData({
       formName: form.formName,
-      fileName: form.fileName
+      fileName: form.fileName,
+      branchId: form.branchId
     });
     setShowAddForm(true);
   };
@@ -299,7 +301,8 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
   const resetForm = () => {
     setFormData({
       formName: '',
-      fileName: ''
+      fileName: '',
+      branchId: ''
     });
     setEditingForm(null);
     setSelectedFile(null);
@@ -480,6 +483,26 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
                     placeholder="서식명을 입력하세요"
                     required
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    지점 선택 *
+                  </label>
+                  <select
+                    value={formData.branchId}
+                    onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">지점을 선택하세요</option>
+                    <option value="all">전지점용</option>
+                    {branches.map(branch => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

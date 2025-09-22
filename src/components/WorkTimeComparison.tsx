@@ -59,7 +59,14 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [employees, setEmployees] = useState<{id: string; name: string; branchId: string; type?: string}[]>([]);
+  const [employees, setEmployees] = useState<{
+    id: string; 
+    name: string; 
+    branchId: string; 
+    type?: string;
+    employmentType?: string;
+    salaryType?: string;
+  }[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
   const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, status: '검토전' | '검토중' | '검토완료'}[]>([]);
   
@@ -195,11 +202,42 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         const employeeDoc = await getDocs(query(collection(db, 'employees'), where('__name__', '==', employeeId)));
         if (!employeeDoc.empty) {
           const doc = employeeDoc.docs[0];
+          
+          // 최신 근로계약 정보 가져오기
+          const contractsQuery = query(
+            collection(db, 'employmentContracts'),
+            where('employeeId', '==', employeeId)
+          );
+          const contractsSnapshot = await getDocs(contractsQuery);
+          
+          let employmentType = '';
+          let salaryType = '';
+          
+          if (!contractsSnapshot.empty) {
+            // 최신 계약서 찾기 (기준일 기준으로 정렬)
+            const contracts = contractsSnapshot.docs.map(doc => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                startDate: data.startDate?.toDate() || new Date(),
+                employmentType: data.employmentType || '',
+                salaryType: data.salaryType || ''
+              };
+            });
+            contracts.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+            
+            const latestContract = contracts[0];
+            employmentType = latestContract.employmentType || '';
+            salaryType = latestContract.salaryType || '';
+          }
+          
           employeesData.push({
             id: doc.id,
             name: doc.data().name || '',
             branchId: doc.data().branchId || '',
-            type: doc.data().type || ''
+            type: doc.data().type || '',
+            employmentType: employmentType,
+            salaryType: salaryType
           });
         }
       }
@@ -981,33 +1019,36 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           <label className="block text-sm font-medium text-gray-700 mb-2">
             지점 선택 <span className="text-red-500">*</span>
           </label>
-          <select
-            value={selectedBranchId}
-            onChange={(e) => {
-              setSelectedBranchId(e.target.value);
-              setSelectedEmployeeId(''); // 지점 변경 시 직원 선택 초기화
-            }}
-            disabled={isManager} // 매니저는 지점 선택 불가
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          >
-            <option value="">전체 지점</option>
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </select>
-          {isManager && (
-            <p className="text-xs text-gray-500 mt-1">
-              매니저는 해당 지점만 접근 가능합니다
-            </p>
+          {isManager ? (
+            <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-700">
+              {userBranch?.name || '지점 정보 없음'}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {branches.map((branch) => (
+                <button
+                  key={branch.id}
+                  onClick={() => {
+                    setSelectedBranchId(branch.id);
+                    setSelectedEmployeeId(''); // 지점 변경 시 직원 선택 초기화
+                  }}
+                  className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
+                    selectedBranchId === branch.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {branch.name}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
         {/* 월 선택 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            비교할 월 선택 <span className="text-red-500">*</span>
+            월 선택 <span className="text-red-500">*</span>
           </label>
           <input
             type="month"
@@ -1070,7 +1111,16 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         {employee.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {employee.type || '-'}
+                        {(() => {
+                          if (employee.employmentType && employee.salaryType) {
+                            const salaryTypeText = employee.salaryType === 'hourly' ? '시급' : '월급';
+                            return `${employee.employmentType}(${salaryTypeText})`;
+                          } else if (employee.employmentType) {
+                            return employee.employmentType;
+                          } else {
+                            return '-';
+                          }
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(() => {
