@@ -70,6 +70,7 @@ interface EmploymentContract {
   salaryType: 'hourly' | 'monthly'; // 시급/월급 선택
   salaryAmount: number; // 금액
   weeklyWorkHours?: number; // 주간근무시간
+  includeHolidayAllowance?: boolean; // 주휴수당 포함 여부 (시급인 경우만)
   contractFile?: string; // 계약 파일 URL
   contractFileName?: string; // 원본 파일명
   fileType?: string; // 파일 타입
@@ -110,6 +111,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     salaryType: 'hourly' as 'hourly' | 'monthly',
     salaryAmount: '',
     weeklyWorkHours: '',
+    includeHolidayAllowance: false,
     contractFile: ''
   });
   const [editingContract, setEditingContract] = useState<EmploymentContract | null>(null);
@@ -1075,6 +1077,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           salaryType: data.salaryType || 'hourly', // 기본값 시급
           salaryAmount: data.salaryAmount || data.salary || 0, // 기존 salary를 salaryAmount로 매핑
           weeklyWorkHours: data.weeklyWorkHours,
+          includeHolidayAllowance: data.includeHolidayAllowance || false,
           contractFile: data.contractFile || '',
           contractFileName: data.contractFileName || '',
           fileType: data.fileType || '',
@@ -1190,6 +1193,27 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
   };
 
+  // 기준일 중복 체크
+  const checkDuplicateStartDate = async (startDate: string, excludeId?: string): Promise<boolean> => {
+    try {
+      const contractsRef = collection(db, 'employmentContracts');
+      const q = query(contractsRef, where('employeeId', '==', selectedEmployee!.id));
+      const querySnapshot = await getDocs(q);
+      
+      const targetDate = new Date(startDate);
+      const duplicateExists = querySnapshot.docs.some(doc => {
+        if (excludeId && doc.id === excludeId) return false; // 수정 시 자기 자신 제외
+        const docDate = doc.data().startDate?.toDate();
+        return docDate && docDate.toDateString() === targetDate.toDateString();
+      });
+      
+      return duplicateExists;
+    } catch (error) {
+      console.error('기준일 중복 체크 중 오류:', error);
+      return false;
+    }
+  };
+
   // 근로계약 추가/수정
   const handleContractSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1198,6 +1222,13 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     
     if (!contractFormData.startDate) {
       alert('기준일을 입력해주세요.');
+      return;
+    }
+    
+    // 기준일 중복 체크
+    const isDuplicate = await checkDuplicateStartDate(contractFormData.startDate, editingContract?.id);
+    if (isDuplicate) {
+      alert('이미 동일한 기준일의 근로계약이 존재합니다.\n다른 기준일을 선택해주세요.');
       return;
     }
     
@@ -1219,6 +1250,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         salaryType: contractFormData.salaryType,
         salaryAmount: parseFloat(contractFormData.salaryAmount),
         weeklyWorkHours: contractFormData.weeklyWorkHours ? parseFloat(contractFormData.weeklyWorkHours) : undefined,
+        includeHolidayAllowance: contractFormData.salaryType === 'hourly' ? contractFormData.includeHolidayAllowance : undefined,
         contractFile: contractFormData.contractFile,
         updatedAt: new Date()
       };
@@ -1251,6 +1283,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       salaryType: contract.salaryType || 'hourly',
       salaryAmount: contract.salaryAmount ? contract.salaryAmount.toString() : '',
       weeklyWorkHours: contract.weeklyWorkHours ? contract.weeklyWorkHours.toString() : '',
+      includeHolidayAllowance: contract.includeHolidayAllowance || false,
       contractFile: contract.contractFile || ''
     });
   };
@@ -1277,6 +1310,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       salaryType: 'hourly' as 'hourly' | 'monthly',
       salaryAmount: '',
       weeklyWorkHours: '',
+      includeHolidayAllowance: false,
       contractFile: ''
     });
     setEditingContract(null);
@@ -2758,6 +2792,23 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       />
                     </div>
                     
+                    {contractFormData.salaryType === 'hourly' && (
+                      <div>
+                        <label className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={contractFormData.includeHolidayAllowance}
+                            onChange={(e) => setContractFormData({ ...contractFormData, includeHolidayAllowance: e.target.checked })}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-gray-700">주휴수당 포함</span>
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          시급에 주휴수당이 포함되어 있는지 선택하세요
+                        </p>
+                      </div>
+                    )}
+                    
                     {contractFormData.employmentType === '근로소득' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2818,45 +2869,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                           }}
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        {selectedFile && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!contractFormData.startDate) {
-                                alert('기준일을 먼저 입력해주세요.');
-                                return;
-                              }
-                              
-                              // 먼저 계약서 레코드를 생성
-                              try {
-                                const contractData = {
-                                  employeeId: selectedEmployee!.id,
-                                  startDate: new Date(contractFormData.startDate),
-                                  contractFile: '',
-                                  contractFileName: '',
-                                  createdAt: new Date(),
-                                  updatedAt: new Date()
-                                };
-                                
-                                const docRef = await addDoc(collection(db, 'employmentContracts'), contractData);
-                                console.log('계약서 레코드 생성 완료:', docRef.id);
-                                
-                                // 파일 업로드
-                                await handleFileUpload(selectedFile, docRef.id);
-                                
-                                // 폼 리셋
-                                resetContractForm();
-                              } catch (error) {
-                                console.error('계약서 추가 중 오류:', error);
-                                alert('계약서 추가 중 오류가 발생했습니다.');
-                              }
-                            }}
-                            disabled={uploadingFile}
-                            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-medium disabled:opacity-50"
-                          >
-                            {uploadingFile ? '업로드중...' : '업로드'}
-                          </button>
-                        )}
                       </div>
                       {selectedFile && (
                         <p className="text-xs text-gray-600 mt-1">
@@ -2873,6 +2885,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 font-medium"
                     >
                       취소
+                    </button>
+                    <button
+                      type="submit"
+                      onClick={handleContractSubmit}
+                      disabled={uploadingFile}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-medium disabled:opacity-50"
+                    >
+                      {editingContract ? '수정' : '추가'}
                     </button>
                   </div>
                 </div>
@@ -2906,7 +2926,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             급여정보
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            주간근무시간
+                            주휴수당/근무시간
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             파일
@@ -2947,7 +2967,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {contract.weeklyWorkHours ? `${contract.weeklyWorkHours}시간` : '-'}
+                              <div className="space-y-1">
+                                {contract.salaryType === 'hourly' && (
+                                  <div className="text-xs">
+                                    주휴수당: {contract.includeHolidayAllowance ? '포함' : '미포함'}
+                                  </div>
+                                )}
+                                {contract.weeklyWorkHours && (
+                                  <div className="text-xs">
+                                    주간근무: {contract.weeklyWorkHours}시간
+                                  </div>
+                                )}
+                                {!contract.weeklyWorkHours && contract.salaryType !== 'hourly' && '-'}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="space-y-2">
@@ -3147,13 +3179,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                <button
+                                  onClick={() => handleContractEdit(contract)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  수정
+                                </button>
                                 {contract.contractFile && (
                                   <button
                                     onClick={() => {
                                       console.log('다운로드 버튼 클릭:', contract);
                                       handleFileDownload(contract);
                                     }}
-                                    className="text-blue-600 hover:text-blue-900"
+                                    className="text-green-600 hover:text-green-900"
                                   >
                                     다운로드
                                   </button>
@@ -3262,6 +3300,23 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         required
                       />
                     </div>
+                    
+                    {contractFormData.salaryType === 'hourly' && (
+                      <div>
+                        <label className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={contractFormData.includeHolidayAllowance}
+                            onChange={(e) => setContractFormData({ ...contractFormData, includeHolidayAllowance: e.target.checked })}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-gray-700">주휴수당 포함</span>
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          시급에 주휴수당이 포함되어 있는지 선택하세요
+                        </p>
+                      </div>
+                    )}
                     
                     {contractFormData.employmentType === '근로소득' && (
                       <div>
