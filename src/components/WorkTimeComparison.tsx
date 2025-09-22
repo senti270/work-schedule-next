@@ -413,11 +413,34 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     }
 
     if (!actualWorkData.trim()) {
-      // 실제근무 데이터가 없으면 기존 데이터가 있는지 확인
-      // 기존 데이터가 없으면 비교 결과 초기화
-      if (comparisonResults.length === 0) {
-        setComparisonResults([]);
-      }
+      // 실제근무 데이터가 없어도 스케줄 데이터만으로 리스트 표시
+      console.log('실제근무 데이터 없음, 스케줄 데이터만으로 리스트 생성');
+      
+      const scheduleOnlyComparisons: WorkTimeComparison[] = [];
+      
+      schedules
+        .filter(schedule => schedule.employeeId === selectedEmployeeId)
+        .forEach(schedule => {
+          const scheduleDate = schedule.date.toISOString().split('T')[0];
+          const breakTime = parseFloat(schedule.breakTime) || 0;
+          
+          scheduleOnlyComparisons.push({
+            employeeName: schedule.employeeName,
+            date: scheduleDate,
+            scheduledHours: schedule.totalHours,
+            actualHours: 0, // 실제근무 데이터 없음
+            difference: -schedule.totalHours, // 스케줄 시간만큼 마이너스
+            status: 'review_required',
+            scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
+            actualTimeRange: '데이터 없음',
+            isModified: false,
+            breakTime: breakTime,
+            actualWorkHours: 0
+          });
+        });
+      
+      console.log('스케줄만으로 생성된 비교 결과:', scheduleOnlyComparisons);
+      setComparisonResults(scheduleOnlyComparisons);
       return;
     }
 
@@ -1323,38 +1346,74 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(result.status === 'review_required' || result.status === 'review_completed') && (
-                          <button
-                            onClick={() => {
-                              const currentHours = Math.floor(result.actualHours);
-                              const currentMinutes = Math.round((result.actualHours - currentHours) * 60);
-                              const currentTimeStr = `${currentHours}:${currentMinutes.toString().padStart(2, '0')}`;
-                              
-                              const newTimeStr = prompt('수정할 실제 근무시간을 입력하세요 (시간:분 형식, 예: 3:11):', currentTimeStr);
-                              
-                              if (newTimeStr) {
-                                let newHours = 0;
-                                if (newTimeStr.includes(':')) {
-                                  const parts = newTimeStr.split(':');
-                                  const hours = parseInt(parts[0]);
-                                  const minutes = parseInt(parts[1]);
-                                  if (!isNaN(hours) && !isNaN(minutes)) {
-                                    newHours = hours + (minutes / 60);
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => {
+                                const currentHours = Math.floor(result.actualHours);
+                                const currentMinutes = Math.round((result.actualHours - currentHours) * 60);
+                                const currentTimeStr = `${currentHours}:${currentMinutes.toString().padStart(2, '0')}`;
+                                
+                                const newTimeStr = prompt('수정할 실제 근무시간을 입력하세요 (시간:분 형식, 예: 3:11):', currentTimeStr);
+                                
+                                if (newTimeStr) {
+                                  let newHours = 0;
+                                  if (newTimeStr.includes(':')) {
+                                    const parts = newTimeStr.split(':');
+                                    const hours = parseInt(parts[0]);
+                                    const minutes = parseInt(parts[1]);
+                                    if (!isNaN(hours) && !isNaN(minutes)) {
+                                      newHours = hours + (minutes / 60);
+                                    }
+                                  } else {
+                                    const numericValue = parseFloat(newTimeStr);
+                                    if (!isNaN(numericValue)) {
+                                      newHours = numericValue;
+                                    }
                                   }
-                                } else {
-                                  const numericValue = parseFloat(newTimeStr);
-                                  if (!isNaN(numericValue)) {
-                                    newHours = numericValue;
+                                  
+                                  if (newHours > 0) {
+                                    const updatedResults = [...comparisonResults];
+                                    updatedResults[index] = {
+                                      ...result,
+                                      actualHours: newHours,
+                                      difference: newHours - result.scheduledHours,
+                                      status: 'review_completed',
+                                      isModified: true
+                                    };
+                                    setComparisonResults(updatedResults);
+                                    
+                                    setEmployeeReviewStatus(prev => 
+                                      prev.map(status => 
+                                        status.employeeId === selectedEmployeeId 
+                                          ? { ...status, status: '검토중' }
+                                          : status
+                                      )
+                                    );
+                                    
+                                    // DB에 저장
+                                    saveModifiedData(updatedResults[index]);
                                   }
                                 }
-                                
-                                if (newHours > 0) {
+                              }}
+                              className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
+                            >
+                              수정
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm('스케줄 시간을 실제 근무시간으로 복사하시겠습니까?')) {
                                   const updatedResults = [...comparisonResults];
+                                  const breakTime = result.breakTime || 0;
+                                  const actualWorkHours = Math.max(0, result.scheduledHours - breakTime);
+                                  
                                   updatedResults[index] = {
                                     ...result,
-                                    actualHours: newHours,
-                                    difference: newHours - result.scheduledHours,
+                                    actualHours: result.scheduledHours,
+                                    actualWorkHours: actualWorkHours,
+                                    difference: 0, // 스케줄과 동일하므로 차이 0
                                     status: 'review_completed',
-                                    isModified: true
+                                    isModified: true,
+                                    actualTimeRange: result.scheduledTimeRange
                                   };
                                   setComparisonResults(updatedResults);
                                   
@@ -1369,12 +1428,12 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                   // DB에 저장
                                   saveModifiedData(updatedResults[index]);
                                 }
-                              }
-                            }}
-                            className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
-                          >
-                            수정
-                          </button>
+                              }}
+                              className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
+                            >
+                              스케줄시간복사
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
