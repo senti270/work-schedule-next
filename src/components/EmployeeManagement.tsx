@@ -11,6 +11,7 @@ interface Employee {
   id: string;
   name: string;
   phone?: string;
+  email?: string;
   residentNumber?: string;
   hireDate?: Date;
   resignationDate?: Date;
@@ -120,6 +121,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
+    email: '',
     residentNumber: '',
     hireDate: '',
     resignationDate: '',
@@ -843,6 +845,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       setFormData({
         name: '',
         phone: '',
+        email: '',
         residentNumber: '',
         hireDate: '',
         resignationDate: '',
@@ -920,6 +923,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     setFormData({
       name: employee.name || '',
       phone: employee.phone || '',
+      email: employee.email || '',
       residentNumber: employee.residentNumber || '',
       hireDate: employee.hireDate ? employee.hireDate.toISOString().split('T')[0] : '',
       // 급여관리용 은행 정보
@@ -995,6 +999,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     setFormData({
       name: '',
       phone: '',
+      email: '',
       residentNumber: '',
       hireDate: '',
       resignationDate: '',
@@ -1196,8 +1201,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   // 기준일 중복 체크
   const checkDuplicateStartDate = async (startDate: string, excludeId?: string): Promise<boolean> => {
     try {
+      const currentEmployee = showDocumentModal.employee;
+      if (!currentEmployee) {
+        console.error('직원 정보가 없습니다.');
+        return false;
+      }
+      
       const contractsRef = collection(db, 'employmentContracts');
-      const q = query(contractsRef, where('employeeId', '==', selectedEmployee!.id));
+      const q = query(contractsRef, where('employeeId', '==', currentEmployee.id));
       const querySnapshot = await getDocs(q);
       
       const targetDate = new Date(startDate);
@@ -1250,17 +1261,25 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     try {
       setUploadingFile(true);
       
-      const contractData = {
+      const contractData: Record<string, unknown> = {
         employeeId: currentEmployee.id,
         startDate: new Date(contractFormData.startDate),
         employmentType: contractFormData.employmentType,
         salaryType: contractFormData.salaryType,
         salaryAmount: parseFloat(contractFormData.salaryAmount),
-        weeklyWorkHours: contractFormData.weeklyWorkHours ? parseFloat(contractFormData.weeklyWorkHours) : undefined,
-        includeHolidayAllowance: contractFormData.salaryType === 'hourly' ? contractFormData.includeHolidayAllowance : undefined,
         contractFile: contractFormData.contractFile,
         updatedAt: new Date()
       };
+      
+      // weeklyWorkHours는 근로소득인 경우에만 추가
+      if (contractFormData.employmentType === '근로소득' && contractFormData.weeklyWorkHours) {
+        contractData.weeklyWorkHours = parseFloat(contractFormData.weeklyWorkHours);
+      }
+      
+      // includeHolidayAllowance는 시급인 경우에만 추가
+      if (contractFormData.salaryType === 'hourly') {
+        contractData.includeHolidayAllowance = contractFormData.includeHolidayAllowance;
+      }
       
       let contractId: string;
       
