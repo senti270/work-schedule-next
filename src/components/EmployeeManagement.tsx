@@ -14,7 +14,6 @@ interface Employee {
   residentNumber?: string;
   hireDate?: Date;
   resignationDate?: Date;
-  type?: string;
   status?: 'active' | 'inactive';
   contractFile?: string; // 근로계약서 파일 URL
   // 급여관리용 은행 정보
@@ -22,8 +21,6 @@ interface Employee {
   bankCode?: string;
   accountNumber?: string;
   accountHolder?: string; // 예금주명
-  // 정직원 주간 근무시간
-  weeklyWorkHours?: number; // 주간 근무시간 (정직원만)
   // 수습기간 관리
   probationStartDate?: Date; // 수습 시작일
   probationEndDate?: Date; // 수습 종료일
@@ -124,14 +121,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     residentNumber: '',
     hireDate: '',
     resignationDate: '',
-    type: '',
     // 급여관리용 은행 정보
     bankName: '',
     bankCode: '',
     accountNumber: '',
     accountHolder: '',
-    // 정직원 주간 근무시간
-    weeklyWorkHours: 40,
     // 수습기간 관리
     probationStartDate: '',
     probationEndDate: '',
@@ -812,14 +806,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           phone: formData.phone || '',
           residentNumber: formData.residentNumber || '',
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
-          type: formData.type || '사업소득자',
           // 급여관리용 은행 정보
           bankName: formData.bankName || '',
           bankCode: formData.bankCode || '',
           accountNumber: formData.accountNumber || '',
           accountHolder: formData.accountHolder || '',
-          // 정직원 주간 근무시간
-          weeklyWorkHours: formData.weeklyWorkHours || 40,
           // 수습기간 관리
           probationPeriod: formData.probationPeriod || 3,
           isOnProbation: formData.isOnProbation || false,
@@ -933,14 +924,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       phone: employee.phone || '',
       residentNumber: employee.residentNumber || '',
       hireDate: employee.hireDate ? employee.hireDate.toISOString().split('T')[0] : '',
-      type: employee.type || '사업소득자',
       // 급여관리용 은행 정보
       bankName: employee.bankName || '',
       bankCode: employee.bankCode || '',
       accountNumber: employee.accountNumber || '',
       accountHolder: employee.accountHolder || '',
-      // 정직원 주간 근무시간
-      weeklyWorkHours: employee.weeklyWorkHours || 40,
       // 수습기간 관리
       probationStartDate: employee.probationStartDate ? employee.probationStartDate.toISOString().split('T')[0] : '',
       probationEndDate: employee.probationEndDate ? employee.probationEndDate.toISOString().split('T')[0] : '',
@@ -1012,14 +1000,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       residentNumber: '',
       hireDate: '',
       resignationDate: '',
-      type: '',
       // 급여관리용 은행 정보
       bankName: '',
       bankCode: '',
       accountNumber: '',
       accountHolder: '',
-      // 정직원 주간 근무시간
-      weeklyWorkHours: 40,
       // 수습기간 관리
       probationStartDate: '',
       probationEndDate: '',
@@ -2793,10 +2778,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
             </div>
 
             <div className="p-6">
-              {/* 근로계약서 추가/수정 폼 */}
+              {/* 근로계약 추가/수정 폼 */}
               <div className="mb-6">
                 <h3 className="text-md font-medium text-gray-900 mb-4">
-                  {editingContract ? '근로계약서 수정' : '새 근로계약서 추가'}
+                  {editingContract ? '근로계약 수정' : '새 근로계약 추가'}
                 </h3>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2915,7 +2900,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
               {/* 근로계약서 목록 */}
               <div>
                 <h3 className="text-md font-medium text-gray-900 mb-4">
-                  근로계약서 히스토리 (총 {contracts.length}개)
+                  근로계약 히스토리 (총 {contracts.length}개)
                 </h3>
                 {(() => {
                   console.log('히스토리 테이블 렌더링 체크 - contracts.length:', contracts.length);
@@ -2923,7 +2908,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   return contracts.length === 0;
                 })() ? (
                   <div className="text-center py-8 text-gray-500">
-                    등록된 근로계약서가 없습니다.
+                    등록된 근로계약이 없습니다.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -3073,41 +3058,22 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
             </div>
             
             <div className="space-y-6">
-              {/* 재직증명서 섹션 */}
-              <div className="bg-gray-50 p-6 rounded-lg">
-                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  재직증명서
-                </h4>
-                <p className="text-sm text-gray-600 mb-4">
-                  직원의 재직증명서를 PDF로 생성합니다.
-                </p>
-                <button
-                  onClick={() => generateEmploymentCertificate(showDocumentModal.employee!)}
-                  className="w-full bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 font-medium"
-                >
-                  재직증명서 생성
-                </button>
-              </div>
-
-              {/* 근로계약서 섹션 */}
+              {/* 근로계약 섹션 */}
               <div className="bg-gray-50 p-6 rounded-lg">
                 <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  근로계약서
+                  근로계약
                 </h4>
                 <p className="text-sm text-gray-600 mb-4">
-                  근로계약서 파일을 업로드하고 관리합니다.
+                  근로계약 정보와 파일을 관리합니다.
                 </p>
                 
                 {/* 근로계약서 히스토리 (먼저 표시) */}
                 <div className="mb-6">
                   <h4 className="text-md font-medium text-gray-900 mb-4">
-                    근로계약서 히스토리 (총 {contracts.length}개)
+                    근로계약 히스토리 (총 {contracts.length}개)
                   </h4>
                   {(() => {
                     console.log('히스토리 테이블 렌더링 체크 - contracts.length:', contracts.length);
@@ -3115,7 +3081,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     return contracts.length === 0;
                   })() ? (
                     <div className="text-center py-8 text-gray-500 bg-white border border-gray-200 rounded-md">
-                      등록된 근로계약서가 없습니다.
+                      등록된 근로계약이 없습니다.
                     </div>
                   ) : (
                     <div key={contractsKey} className="overflow-x-auto bg-white border border-gray-200 rounded-md">
@@ -3284,6 +3250,25 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     PDF, DOC, DOCX, JPG, PNG 파일을 업로드할 수 있습니다. (최대 1MB)
                   </p>
                 </div>
+              </div>
+
+              {/* 재직증명서 섹션 */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  재직증명서
+                </h4>
+                <p className="text-sm text-gray-600 mb-4">
+                  직원의 재직증명서를 PDF로 생성합니다.
+                </p>
+                <button
+                  onClick={() => generateEmploymentCertificate(showDocumentModal.employee!)}
+                  className="w-full bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 font-medium"
+                >
+                  재직증명서 생성
+                </button>
               </div>
             </div>
           </div>
