@@ -1336,8 +1336,15 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           
           console.log('Base64 방식으로 파일 저장 완료');
         } catch (base64Error) {
-          console.error('Base64 변환 실패:', base64Error);
-          throw new Error('파일 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+          console.error('Base64 변환 또는 Firestore 저장 실패:', base64Error);
+          console.error('에러 상세:', base64Error);
+          
+          // Firestore 문서 크기 제한 에러인지 확인
+          if (base64Error instanceof Error && base64Error.message.includes('maximum size')) {
+            throw new Error('파일이 너무 큽니다. 더 작은 파일로 시도해주세요.');
+          } else {
+            throw new Error('파일 처리 중 오류가 발생했습니다. 파일 크기를 줄이고 다시 시도해주세요.');
+          }
         }
       } else {
         // 3MB 이상은 Firebase Storage 시도 (CORS 에러 가능성 높음)
