@@ -66,7 +66,7 @@ interface EmploymentContract {
   id: string;
   employeeId: string;
   startDate: Date; // 기준일
-  employmentType: string; // 고용형태 ('근로소득자', '사업소득자', '일용직', '외국인 사업소득자', '아르바이트', '아르바이트 사대보험')
+  employmentType: string; // 고용형태 ('근로소득', '사업소득', '일용직', '외국인')
   salaryType: 'hourly' | 'monthly'; // 시급/월급 선택
   salaryAmount: number; // 금액
   weeklyWorkHours?: number; // 주간근무시간
@@ -1071,7 +1071,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           id: doc.id,
           employeeId: data.employeeId,
           startDate: data.startDate?.toDate ? data.startDate.toDate() : new Date(),
-          employmentType: data.employmentType || data.contractType || '사업소득자', // 기존 contractType을 employmentType으로 매핑
+          employmentType: data.employmentType || data.contractType || '사업소득', // 기존 contractType을 employmentType으로 매핑
           salaryType: data.salaryType || 'hourly', // 기본값 시급
           salaryAmount: data.salaryAmount || data.salary || 0, // 기존 salary를 salaryAmount로 매핑
           weeklyWorkHours: data.weeklyWorkHours,
@@ -2697,12 +2697,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         required
                       >
                         <option value="">고용형태를 선택하세요</option>
-                        <option value="근로소득자">근로소득자</option>
-                        <option value="사업소득자">사업소득자</option>
+                        <option value="근로소득">근로소득</option>
+                        <option value="사업소득">사업소득</option>
                         <option value="일용직">일용직</option>
-                        <option value="외국인 사업소득자">외국인 사업소득자</option>
-                        <option value="아르바이트">아르바이트</option>
-                        <option value="아르바이트 사대보험">아르바이트 사대보험</option>
+                        <option value="외국인">외국인</option>
                       </select>
                     </div>
                     
@@ -2716,12 +2714,15 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       >
-                        {/* 근로소득자, 사업소득자는 월급만 */}
-                        {(contractFormData.employmentType === '근로소득자' || contractFormData.employmentType === '사업소득자') && (
-                          <option value="monthly">월급</option>
+                        {/* 근로소득, 사업소득은 시급/월급 선택 가능 */}
+                        {(contractFormData.employmentType === '근로소득' || contractFormData.employmentType === '사업소득') && (
+                          <>
+                            <option value="hourly">시급</option>
+                            <option value="monthly">월급</option>
+                          </>
                         )}
-                        {/* 아르바이트, 일용직, 외국인 사업소득자, 아르바이트 사대보험은 시급만 */}
-                        {(['아르바이트', '일용직', '외국인 사업소득자', '아르바이트 사대보험'].includes(contractFormData.employmentType)) && (
+                        {/* 일용직, 외국인은 시급만 */}
+                        {(['일용직', '외국인'].includes(contractFormData.employmentType)) && (
                           <option value="hourly">시급</option>
                         )}
                         {/* 고용형태가 선택되지 않은 경우 둘 다 표시 */}
@@ -2734,12 +2735,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       </select>
                       {contractFormData.employmentType && (
                         <p className="text-xs text-gray-500 mt-1">
-                          {contractFormData.employmentType === '근로소득자' && '4대보험 + 월급여'}
-                          {contractFormData.employmentType === '사업소득자' && '3.3% 세금 + 월급여'}
-                          {contractFormData.employmentType === '아르바이트' && '3.3% 세금 + 시급'}
-                          {contractFormData.employmentType === '일용직' && '세금 없음 + 시급'}
-                          {contractFormData.employmentType === '외국인 사업소득자' && '3.3% 세금 + 시급'}
-                          {contractFormData.employmentType === '아르바이트 사대보험' && '4대보험 + 시급'}
+                          {contractFormData.employmentType === '근로소득' && '4대보험, 시급/월급 선택'}
+                          {contractFormData.employmentType === '사업소득' && '3.3% 세금, 시급/월급 선택'}
+                          {contractFormData.employmentType === '일용직' && '세금 없음, 시급만'}
+                          {contractFormData.employmentType === '외국인' && '3.3% 세금, 시급만'}
                         </p>
                       )}
                     </div>
@@ -2759,7 +2758,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       />
                     </div>
                     
-                    {(contractFormData.employmentType === '근로소득자' || contractFormData.employmentType === '아르바이트 사대보험') && (
+                    {contractFormData.employmentType === '근로소득' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           주간근무시간
@@ -3203,12 +3202,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         required
                       >
                         <option value="">고용형태를 선택하세요</option>
-                        <option value="근로소득자">근로소득자</option>
-                        <option value="사업소득자">사업소득자</option>
+                        <option value="근로소득">근로소득</option>
+                        <option value="사업소득">사업소득</option>
                         <option value="일용직">일용직</option>
-                        <option value="외국인 사업소득자">외국인 사업소득자</option>
-                        <option value="아르바이트">아르바이트</option>
-                        <option value="아르바이트 사대보험">아르바이트 사대보험</option>
+                        <option value="외국인">외국인</option>
                       </select>
                     </div>
                     
@@ -3222,12 +3219,15 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       >
-                        {/* 근로소득자, 사업소득자는 월급만 */}
-                        {(contractFormData.employmentType === '근로소득자' || contractFormData.employmentType === '사업소득자') && (
-                          <option value="monthly">월급</option>
+                        {/* 근로소득, 사업소득은 시급/월급 선택 가능 */}
+                        {(contractFormData.employmentType === '근로소득' || contractFormData.employmentType === '사업소득') && (
+                          <>
+                            <option value="hourly">시급</option>
+                            <option value="monthly">월급</option>
+                          </>
                         )}
-                        {/* 아르바이트, 일용직, 외국인 사업소득자, 아르바이트 사대보험은 시급만 */}
-                        {(['아르바이트', '일용직', '외국인 사업소득자', '아르바이트 사대보험'].includes(contractFormData.employmentType)) && (
+                        {/* 일용직, 외국인은 시급만 */}
+                        {(['일용직', '외국인'].includes(contractFormData.employmentType)) && (
                           <option value="hourly">시급</option>
                         )}
                         {/* 고용형태가 선택되지 않은 경우 둘 다 표시 */}
@@ -3240,12 +3240,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       </select>
                       {contractFormData.employmentType && (
                         <p className="text-xs text-gray-500 mt-1">
-                          {contractFormData.employmentType === '근로소득자' && '4대보험 + 월급여'}
-                          {contractFormData.employmentType === '사업소득자' && '3.3% 세금 + 월급여'}
-                          {contractFormData.employmentType === '아르바이트' && '3.3% 세금 + 시급'}
-                          {contractFormData.employmentType === '일용직' && '세금 없음 + 시급'}
-                          {contractFormData.employmentType === '외국인 사업소득자' && '3.3% 세금 + 시급'}
-                          {contractFormData.employmentType === '아르바이트 사대보험' && '4대보험 + 시급'}
+                          {contractFormData.employmentType === '근로소득' && '4대보험, 시급/월급 선택'}
+                          {contractFormData.employmentType === '사업소득' && '3.3% 세금, 시급/월급 선택'}
+                          {contractFormData.employmentType === '일용직' && '세금 없음, 시급만'}
+                          {contractFormData.employmentType === '외국인' && '3.3% 세금, 시급만'}
                         </p>
                       )}
                     </div>
@@ -3265,7 +3263,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       />
                     </div>
                     
-                    {(contractFormData.employmentType === '근로소득자' || contractFormData.employmentType === '아르바이트 사대보험') && (
+                    {contractFormData.employmentType === '근로소득' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           주간근무시간
