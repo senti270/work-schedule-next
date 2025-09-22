@@ -10,6 +10,13 @@ interface Employee {
   type?: string;
   status?: string;
   branchNames?: string[];
+  hasComparison?: boolean;
+  comparisonData?: {
+    employeeId: string;
+    branchId: string;
+    comparisonDate: Date;
+    [key: string]: unknown;
+  };
 }
 
 interface Branch {
@@ -21,7 +28,8 @@ interface PayrollCalculationProps {
   userBranch?: {
     id: string;
     name: string;
-  };
+    managerId?: string;
+  } | null;
   isManager: boolean;
 }
 
@@ -111,7 +119,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         const employeeDoc = await getDocs(query(collection(db, 'employees'), where('__name__', '==', employeeId)));
         if (!employeeDoc.empty) {
           const doc = employeeDoc.docs[0];
-          const employeeData = {
+          const employeeData: Employee = {
             id: doc.id,
             name: doc.data().name || '',
             type: doc.data().type || '',
@@ -140,7 +148,12 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       
       // 근무시간 비교 상태 확인
       const comparisonSnapshot = await getDocs(collection(db, 'workTimeComparison'));
-      const comparisonResults = new Map<string, any>();
+      const comparisonResults = new Map<string, {
+        employeeId: string;
+        branchId: string;
+        comparisonDate: Date;
+        [key: string]: unknown;
+      }>();
       
       comparisonSnapshot.docs.forEach(doc => {
         const data = doc.data();
@@ -150,7 +163,12 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
             comparisonDate >= monthStart && 
             comparisonDate <= monthEnd &&
             data.branchId === selectedBranchId) {
-          comparisonResults.set(data.employeeId, data);
+          comparisonResults.set(data.employeeId, {
+            employeeId: data.employeeId,
+            branchId: data.branchId,
+            comparisonDate: comparisonDate,
+            ...data
+          });
         }
       });
       
