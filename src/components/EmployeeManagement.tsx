@@ -3024,7 +3024,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       {/* 근로계약관리 모달 */}
       {showDocumentModal.show && showDocumentModal.employee && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[95vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-semibold text-gray-900">
                 {showDocumentModal.employee.name} - 근로계약관리
@@ -3333,6 +3333,25 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   <p className="text-xs text-gray-500">
                     PDF, DOC, DOCX, JPG, PNG 파일을 업로드할 수 있습니다. (최대 1MB)
                   </p>
+                  
+                  {/* 저장 버튼 */}
+                  <div className="flex gap-2 pt-4">
+                    <button
+                      type="button"
+                      onClick={resetContractForm}
+                      className="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 font-medium"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleContractSubmit}
+                      disabled={uploadingFile}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-medium disabled:opacity-50"
+                    >
+                      {uploadingFile ? '저장중...' : (editingContract ? '수정' : '추가')}
+                    </button>
+                  </div>
                 </div>
               </div>
 
