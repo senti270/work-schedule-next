@@ -38,7 +38,7 @@ export default function DevelopmentGuide() {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Work Schedule Next</h1>
+              <h1 className="text-3xl font-bold text-gray-900">근무시간 관리 시스템</h1>
               <p className="text-lg text-gray-600 mt-2">개발환경 가이드</p>
             </div>
             <button
@@ -58,8 +58,8 @@ export default function DevelopmentGuide() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">📋 프로젝트 개요</h2>
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-gray-700 leading-relaxed">
-                <strong>Work Schedule Next</strong>는 Next.js 기반의 근무 스케줄 관리 시스템입니다. 
-                Firebase를 백엔드로 사용하여 실시간 데이터 동기화와 역할 기반 접근 제어를 제공합니다.
+                근무시간 스케줄링, 실제 근무시간 비교, 급여계산을 통합 관리하는 시스템입니다.
+                Next.js와 Firebase를 기반으로 한 현대적인 웹 애플리케이션입니다.
               </p>
             </div>
           </section>
@@ -72,18 +72,18 @@ export default function DevelopmentGuide() {
                 <h3 className="font-semibold text-gray-900 mb-2">프론트엔드</h3>
                 <ul className="text-sm text-gray-700 space-y-1">
                   <li>• <strong>Next.js 15.5.2</strong> (App Router)</li>
-                  <li>• <strong>TypeScript</strong></li>
-                  <li>• <strong>Tailwind CSS</strong></li>
-                  <li>• <strong>React Hooks</strong></li>
+                  <li>• <strong>React 19.1.0</strong></li>
+                  <li>• <strong>TypeScript 5</strong></li>
+                  <li>• <strong>Tailwind CSS 4.1.12</strong></li>
                 </ul>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="font-semibold text-gray-900 mb-2">백엔드 & 서비스</h3>
                 <ul className="text-sm text-gray-700 space-y-1">
-                  <li>• <strong>Firebase Firestore</strong> (데이터베이스)</li>
+                  <li>• <strong>Firebase Firestore 12.2.1</strong> (데이터베이스)</li>
                   <li>• <strong>Firebase Auth</strong> (인증)</li>
                   <li>• <strong>Firebase Storage</strong> (파일 저장)</li>
-                  <li>• <strong>html2pdf.js</strong> (PDF 생성)</li>
+                  <li>• <strong>jsPDF, html2pdf.js</strong> (PDF 생성)</li>
                 </ul>
               </div>
             </div>
@@ -101,26 +101,37 @@ export default function DevelopmentGuide() {
 │   │   ├── page.tsx           # 메인 페이지
 │   │   ├── globals.css        # 전역 스타일
 │   │   ├── admin/             # 관리자 페이지
+│   │   │   ├── bank-codes/    # 은행코드 관리
+│   │   │   └── init-data/     # 초기 데이터 설정
+│   │   ├── development-guide/ # 개발가이드 페이지
 │   │   └── public/            # 공개 페이지
+│   │       └── schedule/      # 공개 스케줄 보기
 │   ├── components/            # React 컴포넌트
 │   │   ├── Dashboard.tsx      # 메인 대시보드
 │   │   ├── AuthForm.tsx       # 로그인/회원가입
-│   │   ├── ScheduleManagement.tsx    # 스케줄 관리
-│   │   ├── WeeklyScheduleView.tsx    # 주간 스케줄 보기
-│   │   ├── MultiWeekScheduleView.tsx # 다중 주간 스케줄 입력
-│   │   ├── EmployeeManagement.tsx    # 직원 관리
-│   │   ├── BranchManagement.tsx      # 지점 관리
-│   │   └── ReportManagement.tsx      # 보고서 관리
-│   ├── lib/
-│   │   └── firebase.ts        # Firebase 설정
-│   └── scripts/
-│       └── initTestData.ts    # 테스트 데이터 초기화
+│   │   ├── ScheduleInputNew.tsx # 스케줄 입력 (신규)
+│   │   ├── ScheduleManagement.tsx # 스케줄 관리
+│   │   ├── WeeklyScheduleView.tsx # 주간 스케줄 보기
+│   │   ├── MultiWeekScheduleView.tsx # 다주간 스케줄 입력
+│   │   ├── EmployeeManagement.tsx # 직원 관리
+│   │   ├── WorkTimeComparison.tsx # 근무시간 비교
+│   │   ├── PayrollCalculation.tsx # 급여계산
+│   │   ├── BranchManagement.tsx # 지점 관리
+│   │   ├── ReportManagement.tsx # 보고서 관리
+│   │   ├── FormManagement.tsx # 양식 관리
+│   │   └── ManagerAccountManagement.tsx # 관리자 계정 관리
+│   ├── lib/                   # 라이브러리
+│   │   ├── firebase.ts        # Firebase 설정
+│   │   └── holidays.ts        # 휴일 관리
+│   └── scripts/               # 스크립트
+│       ├── initTestData.ts    # 테스트 데이터 초기화
+│       ├── initBankCodes.ts   # 은행코드 초기화
+│       └── addBankCodes.ts    # 은행코드 추가
 ├── public/                    # 정적 파일
 ├── package.json              # 의존성 관리
 ├── next.config.ts            # Next.js 설정
 ├── tsconfig.json             # TypeScript 설정
-├── tailwind.config.js        # Tailwind CSS 설정
-└── .gitignore               # Git 무시 파일`}
+└── tailwind.config.js        # Tailwind CSS 설정`}
               </pre>
             </div>
           </section>
@@ -147,20 +158,38 @@ export default function DevelopmentGuide() {
                     <li>• 공유 기능: 읽기 전용 공개 링크</li>
                   </ul>
                 </div>
-              </div>
-              <div className="space-y-4">
                 <div className="bg-purple-50 p-4 rounded-lg">
                   <h3 className="font-semibold text-purple-900 mb-2">👥 직원 관리</h3>
                   <ul className="text-sm text-purple-800 space-y-1">
                     <li>• 직원 CRUD (생성, 읽기, 수정, 삭제)</li>
                     <li>• 재직/퇴사 상태 관리</li>
-                    <li>• 재직증명서 PDF 자동 생성</li>
                     <li>• 근로계약서 히스토리 관리</li>
+                    <li>• 고용형태별 급여 계산</li>
                   </ul>
                 </div>
+              </div>
+              <div className="space-y-4">
                 <div className="bg-orange-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-orange-900 mb-2">🏢 지점 & 보고서</h3>
+                  <h3 className="font-semibold text-orange-900 mb-2">⏰ 근무시간 비교</h3>
                   <ul className="text-sm text-orange-800 space-y-1">
+                    <li>• 스케줄 vs 실제 근무시간 비교</li>
+                    <li>• 실근무시간 직접 편집</li>
+                    <li>• 검토 상태 관리 (검토전/검토중/검토완료)</li>
+                    <li>• 지점별 독립적 데이터 관리</li>
+                  </ul>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-red-900 mb-2">💰 급여계산</h3>
+                  <ul className="text-sm text-red-800 space-y-1">
+                    <li>• 다지점 근무시간 통합 계산</li>
+                    <li>• 해당 월 유효 시급으로 계산</li>
+                    <li>• 급여확정 시 모든 금액값 DB 저장</li>
+                    <li>• 급여메모 통합 관리</li>
+                  </ul>
+                </div>
+                <div className="bg-indigo-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-indigo-900 mb-2">🏢 지점 & 보고서</h3>
+                  <ul className="text-sm text-indigo-800 space-y-1">
                     <li>• 지점 CRUD 및 매니저 할당</li>
                     <li>• 회사 정보 관리</li>
                     <li>• 직원별/지점별/전체 보고서</li>
@@ -194,60 +223,150 @@ export default function DevelopmentGuide() {
                     <h4 className="font-medium text-gray-800 mb-1">employmentContracts</h4>
                     <p className="text-gray-600">근로계약서 히스토리, 파일 정보</p>
                   </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">actualWorkRecords</h4>
+                    <p className="text-gray-600">실제 근무 기록, 비교 데이터</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">employeeReviewStatus</h4>
+                    <p className="text-gray-600">직원별 검토 상태 관리</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">employeeMemos</h4>
+                    <p className="text-gray-600">직원별 급여메모 (통합 관리)</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">payrollRecords</h4>
+                    <p className="text-gray-600">급여확정 기록 (변경 불가)</p>
+                  </div>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* 개발 워크플로우 */}
+          {/* 고용형태별 급여 계산 */}
           <section className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">🔄 개발 워크플로우</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">💼 고용형태별 급여 계산</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-blue-900 mb-2">로컬 개발</h3>
+                <h3 className="font-semibold text-blue-900 mb-2">근로소득</h3>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• npm run dev</li>
-                  <li>• npm run build</li>
-                  <li>• npm run lint</li>
+                  <li>• 4대보험 적용</li>
+                  <li>• 시급/월급 선택 가능</li>
+                  <li>• 주간근무시간 기본값: 40시간</li>
                 </ul>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-green-900 mb-2">배포 프로세스</h3>
+                <h3 className="font-semibold text-green-900 mb-2">사업소득</h3>
                 <ul className="text-sm text-green-800 space-y-1">
-                  <li>• GitHub 저장소</li>
-                  <li>• Vercel 자동 배포</li>
-                  <li>• Firebase 백엔드</li>
+                  <li>• 3.3% 세금 적용</li>
+                  <li>• 시급/월급 선택 가능</li>
+                  <li>• 주간근무시간 기본값: 40시간</li>
                 </ul>
               </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-purple-900 mb-2">품질 관리</h3>
-                <ul className="text-sm text-purple-800 space-y-1">
-                  <li>• TypeScript 타입 안전성</li>
-                  <li>• ESLint 코드 검사</li>
-                  <li>• Prettier 코드 포맷팅</li>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-yellow-900 mb-2">일용직</h3>
+                <ul className="text-sm text-yellow-800 space-y-1">
+                  <li>• 세금 없음</li>
+                  <li>• 시급만 적용</li>
+                  <li>• 단순 계산</li>
+                </ul>
+              </div>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-red-900 mb-2">외국인</h3>
+                <ul className="text-sm text-red-800 space-y-1">
+                  <li>• 3.3% 세금 적용</li>
+                  <li>• 시급만 적용</li>
+                  <li>• 실지급금액 = 월급여 × 0.967</li>
                 </ul>
               </div>
             </div>
           </section>
 
-          {/* 보안 및 권한 */}
+          {/* 데이터 흐름 */}
           <section className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">🔒 보안 및 권한</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">🔄 데이터 흐름</h2>
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-2">1. 스케줄 입력 → 근무시간 비교</h3>
+                <ol className="text-sm text-gray-700 space-y-1 ml-4">
+                  <li>1. 스케줄 입력</li>
+                  <li>2. 실제 근무 데이터 입력 (POS 데이터 파싱)</li>
+                  <li>3. 근무시간 비교 실행</li>
+                  <li>4. 차이점 확인 및 수정</li>
+                  <li>5. 검토완료 상태로 변경</li>
+                </ol>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-2">2. 근무시간 비교 → 급여계산</h3>
+                <ol className="text-sm text-gray-700 space-y-1 ml-4">
+                  <li>1. 모든 지점의 검토완료 확인</li>
+                  <li>2. 직원 선택 (검토완료된 직원만)</li>
+                  <li>3. 해당 월에 유효한 시급으로 계산</li>
+                  <li>4. 지점별 근무시간 합산</li>
+                  <li>5. 급여확정 (모든 금액값 DB 저장)</li>
+                </ol>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-2">3. 급여메모 관리</h3>
+                <ol className="text-sm text-gray-700 space-y-1 ml-4">
+                  <li>1. 급여계산작업 또는 근무시간비교에서 메모 입력</li>
+                  <li>2. 실시간 로컬 상태 업데이트</li>
+                  <li>3. 포커스 해제 시 DB 저장</li>
+                  <li>4. 모든 화면에서 동일한 메모 표시</li>
+                </ol>
+              </div>
+            </div>
+          </section>
+
+          {/* 주의사항 */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">🚨 주의사항</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-red-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-red-900 mb-2">역할 기반 접근 제어</h3>
+                <h3 className="font-semibold text-red-900 mb-2">데이터 무결성</h3>
                 <ul className="text-sm text-red-800 space-y-1">
-                  <li>• <strong>관리자</strong>: 모든 기능 접근</li>
-                  <li>• <strong>매니저</strong>: 할당된 지점만 관리</li>
-                  <li>• <strong>공개</strong>: 읽기 전용 스케줄 보기</li>
+                  <li>• 급여확정 후 변경 불가</li>
+                  <li>• 시급 변경 영향 없음</li>
+                  <li>• 계약서 기간 확인 필수</li>
                 </ul>
               </div>
               <div className="bg-yellow-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-yellow-900 mb-2">데이터 보안</h3>
+                <h3 className="font-semibold text-yellow-900 mb-2">한글 입력 처리</h3>
                 <ul className="text-sm text-yellow-800 space-y-1">
-                  <li>• Firebase 보안 규칙</li>
-                  <li>• 클라이언트 사이드 검증</li>
-                  <li>• 서버 사이드 권한 확인</li>
+                  <li>• onBlur 저장으로 조합 중복 방지</li>
+                  <li>• onChange로 실시간 표시</li>
+                </ul>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-blue-900 mb-2">지점별 분리</h3>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• 독립적 데이터 관리</li>
+                  <li>• 상태 독립 관리</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* 개발 환경 설정 */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">🛠️ 개발 환경 설정</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-2">실행 명령어</h3>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  <li>• <code>npm install</code> - 의존성 설치</li>
+                  <li>• <code>npm run dev</code> - 개발 서버 실행 (Turbopack)</li>
+                  <li>• <code>npm run build</code> - 프로덕션 빌드</li>
+                  <li>• <code>npm run start</code> - 프로덕션 서버 실행</li>
+                  <li>• <code>npm run lint</code> - ESLint 실행</li>
+                </ul>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-2">초기 데이터 설정</h3>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  <li>• <code>npm run init-test-data</code> - 테스트 데이터 초기화</li>
+                  <li>• <code>npm run init-bank-codes</code> - 은행코드 초기화</li>
                 </ul>
               </div>
             </div>
@@ -258,59 +377,21 @@ export default function DevelopmentGuide() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">⚡ 성능 최적화</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-indigo-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-indigo-900 mb-2">코드 분할</h3>
+                <h3 className="font-semibold text-indigo-900 mb-2">데이터 로딩</h3>
                 <ul className="text-sm text-indigo-800 space-y-1">
-                  <li>• Next.js 자동 코드 분할</li>
-                  <li>• 동적 import 사용</li>
-                  <li>• 컴포넌트 지연 로딩</li>
+                  <li>• 지점별 필터링</li>
+                  <li>• 월별 필터링</li>
+                  <li>• 중복 데이터 정리</li>
                 </ul>
               </div>
               <div className="bg-teal-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-teal-900 mb-2">데이터 최적화</h3>
+                <h3 className="font-semibold text-teal-900 mb-2">사용자 경험</h3>
                 <ul className="text-sm text-teal-800 space-y-1">
-                  <li>• Firebase 쿼리 최적화</li>
-                  <li>• 클라이언트 사이드 필터링</li>
-                  <li>• 실시간 업데이트 최소화</li>
+                  <li>• 실시간 저장</li>
+                  <li>• 명확한 상태 표시</li>
+                  <li>• 조건부 활성화</li>
                 </ul>
               </div>
-            </div>
-          </section>
-
-          {/* 배포 환경 */}
-          <section className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">🚀 배포 환경</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-2">Vercel 설정</h3>
-                <ul className="text-sm text-gray-700 space-y-1">
-                  <li>• 자동 GitHub 연동</li>
-                  <li>• 환경 변수 관리</li>
-                  <li>• 도메인 설정</li>
-                  <li>• SSL 인증서 자동 적용</li>
-                </ul>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-2">Firebase 설정</h3>
-                <ul className="text-sm text-gray-700 space-y-1">
-                  <li>• 프로덕션 데이터베이스</li>
-                  <li>• 보안 규칙 설정</li>
-                  <li>• 스토리지 버킷 구성</li>
-                </ul>
-              </div>
-            </div>
-          </section>
-
-          {/* 테스트 데이터 */}
-          <section className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">🧪 테스트 데이터</h2>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-2">샘플 데이터</h3>
-              <ul className="text-sm text-gray-700 space-y-1">
-                <li>• <strong>지점</strong>: 청담장어마켓 송파점</li>
-                <li>• <strong>직원</strong>: 6명 (이진영, 유은서, 권정희 등)</li>
-                <li>• <strong>스케줄</strong>: 2025년 9월 8일 주간 샘플 데이터</li>
-                <li>• <strong>초기화</strong>: /admin/init-data 페이지에서 실행 가능</li>
-              </ul>
             </div>
           </section>
 
@@ -319,7 +400,7 @@ export default function DevelopmentGuide() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">📝 마무리</h2>
             <div className="bg-blue-50 p-6 rounded-lg">
               <p className="text-gray-700 leading-relaxed mb-4">
-                <strong>Work Schedule Next</strong>는 현대적인 웹 기술을 활용하여 
+                <strong>근무시간 관리 시스템</strong>은 현대적인 웹 기술을 활용하여 
                 직관적이고 효율적인 근무 스케줄 관리 시스템을 제공합니다.
               </p>
               <p className="text-gray-700 leading-relaxed">
@@ -332,8 +413,9 @@ export default function DevelopmentGuide() {
           {/* 푸터 */}
           <footer className="border-t pt-6 mt-8">
             <div className="text-center text-sm text-gray-500">
-              <p>Work Schedule Next - 개발환경 가이드</p>
+              <p>근무시간 관리 시스템 - 개발환경 가이드</p>
               <p>생성일: {new Date().toLocaleDateString('ko-KR')}</p>
+              <p>버전: 1.0 | 마지막 업데이트: 2025년 1월</p>
             </div>
           </footer>
         </div>
@@ -341,4 +423,3 @@ export default function DevelopmentGuide() {
     </div>
   );
 }
-

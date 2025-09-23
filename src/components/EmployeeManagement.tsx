@@ -1254,7 +1254,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       return;
     }
     
-    if (!contractFormData.salaryAmount || parseFloat(contractFormData.salaryAmount) <= 0) {
+    const salaryAmount = unformatNumber(contractFormData.salaryAmount);
+    if (!salaryAmount || parseFloat(salaryAmount) <= 0) {
       alert('금액을 입력해주세요.');
       return;
     }
@@ -1272,9 +1273,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         updatedAt: new Date()
       };
       
-      // weeklyWorkHours는 근로소득인 경우에만 추가
-      if (contractFormData.employmentType === '근로소득' && contractFormData.weeklyWorkHours) {
-        contractData.weeklyWorkHours = parseFloat(contractFormData.weeklyWorkHours);
+      // weeklyWorkHours는 근로소득, 사업소득인 경우에 추가 (기본값 40)
+      if (contractFormData.employmentType === '근로소득' || contractFormData.employmentType === '사업소득') {
+        contractData.weeklyWorkHours = contractFormData.weeklyWorkHours ? parseFloat(contractFormData.weeklyWorkHours) : 40;
       }
       
       // includeHolidayAllowance는 시급인 경우에만 추가
@@ -1305,7 +1306,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       
       await loadContracts(currentEmployee.id);
       resetContractForm();
-      alert('근로계약이 성공적으로 저장되었습니다.');
     } catch (error) {
       console.error('근로계약 저장 중 오류:', error);
       alert('근로계약 저장에 실패했습니다.');
@@ -1343,8 +1343,20 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
   };
 
+  // 숫자 포맷팅 함수 (쉼표 추가)
+  const formatNumber = (value: string) => {
+    const number = value.replace(/[^\d]/g, '');
+    return number.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
+  // 숫자 포맷팅 해제 함수 (쉼표 제거)
+  const unformatNumber = (value: string) => {
+    return value.replace(/,/g, '');
+  };
+
   // 근로계약 폼 리셋
   const resetContractForm = () => {
+    console.log('resetContractForm 호출됨');
     setContractFormData({
       startDate: '',
       employmentType: '',
@@ -1357,6 +1369,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     setEditingContract(null);
     setShowAddContractForm(false);
     setSelectedFile(null);
+    console.log('resetContractForm 완료 - showAddContractForm: false, editingContract: null');
   };
 
   // 파일 업로드 (CORS 문제 해결을 위해 Base64 우선 사용)
@@ -1545,7 +1558,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       return;
     }
     
-    if (confirm('정말로 이 파일을 삭제하시겠습니까?')) {
+    if (confirm('이 근로계약정보를 삭제하시겠습니까?')) {
       try {
         // Base64 데이터가 아닌 경우에만 Firebase Storage에서 삭제
         if (!contract.contractFile.startsWith('data:')) {
@@ -1556,18 +1569,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           console.log('Base64 데이터 삭제 (Storage 삭제 불필요)');
         }
         
-        // Firestore에서 파일 정보 삭제
-        const contractRef = doc(db, 'employmentContracts', contract.id);
-        await updateDoc(contractRef, {
-          contractFile: '',
-          contractFileName: '',
-          fileType: '',
-          fileSize: 0,
-          isBase64: false,
-          updatedAt: new Date()
-        });
-        
-        console.log('Firestore 업데이트 완료');
+        // Firestore에서 전체 계약서 레코드 삭제
+        await deleteDoc(doc(db, 'employmentContracts', contract.id));
+        console.log('계약서 레코드 삭제 완료');
         
         // 즉시 상태에서 삭제된 계약서 제거
         const updatedContracts = contracts.filter(c => c.id !== contract.id);
@@ -1575,7 +1579,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         setContractsKey(prev => prev + 1); // 강제 리렌더링
         console.log('파일 삭제 후 즉시 상태 업데이트 완료, 남은 계약서 수:', updatedContracts.length);
         
-        alert('파일이 성공적으로 삭제되었습니다.');
+        alert('근로계약이 성공적으로 삭제되었습니다.');
       } catch (error) {
         console.error('파일 삭제 중 오류:', error);
         alert('파일 삭제 중 오류가 발생했습니다.');
@@ -1857,6 +1861,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       onClick={() => {
                         setShowDocumentModal({ show: true, employee });
                         loadContracts(employee.id);
+                        resetContractForm();
                       }}
                       className="text-blue-600 hover:text-blue-900 text-xs"
                     >
@@ -2741,7 +2746,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
             <div className="p-6">
               {/* 근로계약 추가/수정 폼 */}
-              {(showAddContractForm || editingContract) && (
+              {(() => {
+                console.log('조건부 렌더링 체크 - showAddContractForm:', showAddContractForm, 'editingContract:', editingContract);
+                return (showAddContractForm || editingContract);
+              })() && (
               <div className="mb-6">
                 <h3 className="text-md font-medium text-gray-900 mb-4">
                   {editingContract ? '근로계약 수정' : '새 근로계약 추가'}
@@ -2822,12 +2830,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         금액 *
                       </label>
                       <input
-                        type="number"
-                        value={contractFormData.salaryAmount}
-                        onChange={(e) => setContractFormData({ ...contractFormData, salaryAmount: e.target.value })}
+                        type="text"
+                        value={formatNumber(contractFormData.salaryAmount)}
+                        onChange={(e) => {
+                          const unformattedValue = unformatNumber(e.target.value);
+                          setContractFormData({ ...contractFormData, salaryAmount: unformattedValue });
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder={contractFormData.salaryType === 'hourly' ? '시급을 입력하세요' : '월급을 입력하세요'}
-                        min="0"
                         required
                       />
                     </div>
@@ -2849,7 +2859,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       </div>
                     )}
                     
-                    {contractFormData.employmentType === '근로소득' && (
+                    {(contractFormData.employmentType === '근로소득' || contractFormData.employmentType === '사업소득') && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           주간근무시간
@@ -2870,9 +2880,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     )}
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        파일 선택
-                      </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          근로계약서 파일 선택
+                        </label>
                       <div className="flex gap-2">
                         <input
                           type="file"
@@ -3113,12 +3123,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   })() ? (
                     <div className="text-center py-8 text-gray-500 bg-white border border-gray-200 rounded-md">
                       <p className="mb-4">등록된 근로계약이 없습니다.</p>
-                      <button
-                        onClick={() => setShowAddContractForm(true)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-medium"
-                      >
-                        첫 번째 근로계약 추가하기
-                      </button>
                     </div>
                   ) : (
                     <div key={contractsKey} className="overflow-x-auto bg-white border border-gray-200 rounded-md">
@@ -3138,7 +3142,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               주간근무시간
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              파일정보
+                              근로계약서
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               작업
@@ -3172,6 +3176,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                   <button
                                     onClick={() => handleFileDownload(contract)}
                                     className="text-blue-600 hover:text-blue-900 text-xs"
+                                    title={contract.contractFileName || '파일 다운로드'}
                                   >
                                     근로계약 다운로드
                                   </button>
@@ -3186,17 +3191,6 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 >
                                   수정
                                 </button>
-                                {contract.contractFile && (
-                                  <button
-                                    onClick={() => {
-                                      console.log('다운로드 버튼 클릭:', contract);
-                                      handleFileDownload(contract);
-                                    }}
-                                    className="text-green-600 hover:text-green-900"
-                                  >
-                                    다운로드
-                                  </button>
-                                )}
                                 <button
                                   onClick={() => {
                                     console.log('삭제 버튼 클릭:', contract);
@@ -3216,6 +3210,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                 </div>
                 
                 {/* 새 계약서 추가 */}
+                {(showAddContractForm || editingContract) && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -3292,12 +3287,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         금액 *
                       </label>
                       <input
-                        type="number"
-                        value={contractFormData.salaryAmount}
-                        onChange={(e) => setContractFormData({ ...contractFormData, salaryAmount: e.target.value })}
+                        type="text"
+                        value={formatNumber(contractFormData.salaryAmount)}
+                        onChange={(e) => {
+                          const unformattedValue = unformatNumber(e.target.value);
+                          setContractFormData({ ...contractFormData, salaryAmount: unformattedValue });
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder={contractFormData.salaryType === 'hourly' ? '시급을 입력하세요' : '월급을 입력하세요'}
-                        min="0"
                         required
                       />
                     </div>
@@ -3319,7 +3316,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       </div>
                     )}
                     
-                    {contractFormData.employmentType === '근로소득' && (
+                    {(contractFormData.employmentType === '근로소득' || contractFormData.employmentType === '사업소득') && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           주간근무시간
@@ -3340,9 +3337,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     )}
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        파일 선택
-                      </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          근로계약서 파일 선택
+                        </label>
                       <div className="flex gap-2">
                         <input
                           type="file"
@@ -3413,6 +3410,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     </button>
                   </div>
                 </div>
+                )}
               </div>
 
               {/* 재직증명서 섹션 */}
