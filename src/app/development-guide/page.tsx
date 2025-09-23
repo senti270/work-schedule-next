@@ -244,44 +244,6 @@ export default function DevelopmentGuide() {
             </div>
           </section>
 
-          {/* 고용형태별 급여 계산 */}
-          <section className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">💼 고용형태별 급여 계산</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-blue-900 mb-2">근로소득</h3>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• 4대보험 적용</li>
-                  <li>• 시급/월급 선택 가능</li>
-                  <li>• 주간근무시간 기본값: 40시간</li>
-                </ul>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-green-900 mb-2">사업소득</h3>
-                <ul className="text-sm text-green-800 space-y-1">
-                  <li>• 3.3% 세금 적용</li>
-                  <li>• 시급/월급 선택 가능</li>
-                  <li>• 주간근무시간 기본값: 40시간</li>
-                </ul>
-              </div>
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-yellow-900 mb-2">일용직</h3>
-                <ul className="text-sm text-yellow-800 space-y-1">
-                  <li>• 세금 없음</li>
-                  <li>• 시급만 적용</li>
-                  <li>• 단순 계산</li>
-                </ul>
-              </div>
-              <div className="bg-red-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-red-900 mb-2">외국인</h3>
-                <ul className="text-sm text-red-800 space-y-1">
-                  <li>• 3.3% 세금 적용</li>
-                  <li>• 시급만 적용</li>
-                  <li>• 실지급금액 = 월급여 × 0.967</li>
-                </ul>
-              </div>
-            </div>
-          </section>
 
           {/* 데이터 흐름 */}
           <section className="mb-8">
