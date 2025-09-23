@@ -17,6 +17,10 @@ interface Employee {
     comparisonDate: Date;
     [key: string]: unknown;
   };
+  // 근로계약 정보
+  employmentType?: string;
+  salaryType?: 'hourly' | 'monthly';
+  weeklyWorkHours?: number;
 }
 
 interface Branch {
@@ -126,6 +130,25 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
             status: doc.data().status || 'active',
             branchNames: [] // 지점명은 별도로 로드
           };
+          
+          // 근로계약 정보 로드 (최신 계약)
+          const contractsSnapshot = await getDocs(
+            query(collection(db, 'employmentContracts'), where('employeeId', '==', doc.id))
+          );
+          
+          if (!contractsSnapshot.empty) {
+            // 최신 계약서 찾기 (startDate 기준)
+            const latestContract = contractsSnapshot.docs.reduce((latest, current) => {
+              const latestDate = latest.data().startDate?.toDate();
+              const currentDate = current.data().startDate?.toDate();
+              return (!latestDate || (currentDate && currentDate > latestDate)) ? current : latest;
+            });
+            
+            const contractData = latestContract.data();
+            employeeData.employmentType = contractData.employmentType;
+            employeeData.salaryType = contractData.salaryType;
+            employeeData.weeklyWorkHours = contractData.weeklyWorkHours;
+          }
           
           // 직원-지점 관계 로드
           const employeeBranchesSnapshot = await getDocs(
@@ -275,10 +298,13 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                         고용형태
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        근무시간 비교 상태
+                        시급/월급
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        급여계산 상태
+                        주간근무시간
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        상태
                       </th>
                     </tr>
                   </thead>
@@ -289,27 +315,26 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                           {employee.name}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {employee.type || '-'}
+                          {employee.employmentType || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {employee.salaryType === 'hourly' ? '시급' : employee.salaryType === 'monthly' ? '월급' : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {employee.weeklyWorkHours ? `${employee.weeklyWorkHours}시간` : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {employee.hasComparison ? (
+                          {!employee.employmentType ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              ⚠️ 비교작업필요
+                            </span>
+                          ) : employee.hasComparison ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              ✓ 비교 완료
+                              ✓ 근무시간 작업완료
                             </span>
                           ) : (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                               🔄 근무시간 작업중
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {employee.hasComparison ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              📊 계산 대기
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                              ⏳ 비교 작업 필요
                             </span>
                           )}
                         </td>
