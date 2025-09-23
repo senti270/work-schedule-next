@@ -406,9 +406,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         
         // 급여 계산 근거 (감사용)
         calculationBasis: {
-          employmentType: employee.employmentType,
-          salaryType: employee.salaryType,
-          weeklyWorkHours: employee.weeklyWorkHours,
+          employmentType: employee.employmentType || '',
+          salaryType: employee.salaryType || '',
+          weeklyWorkHours: employee.weeklyWorkHours || 40, // 기본값 40시간
           taxRate: employee.employmentType === '외국인' ? 0.033 : 0, // 3.3% 세금
           calculationDate: new Date()
         },
