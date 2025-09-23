@@ -53,6 +53,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     actualPayment: number;
   } | null>(null);
   const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: string}>({});
+  const [payrollConfirmedEmployees, setPayrollConfirmedEmployees] = useState<string[]>([]);
   const [branchWorkHours, setBranchWorkHours] = useState<{
     branchId: string;
     branchName: string;
@@ -216,6 +217,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       
       console.log('급여계산 직원 목록:', employeesWithStatus);
       setEmployees(employeesWithStatus);
+      
+      // 급여확정된 직원 로드
+      await loadPayrollConfirmedEmployees();
       
       // 직원별 메모 로드
       await loadEmployeeMemos();
@@ -459,6 +463,26 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
   };
 
   // 직원별 메모 로드
+  const loadPayrollConfirmedEmployees = async () => {
+    try {
+      if (!selectedMonth || !selectedBranchId) return;
+      
+      const payrollQuery = query(
+        collection(db, 'payrollRecords'),
+        where('month', '==', selectedMonth),
+        where('branchId', '==', selectedBranchId)
+      );
+      const payrollSnapshot = await getDocs(payrollQuery);
+      
+      const confirmedEmployeeIds = payrollSnapshot.docs.map(doc => doc.data().employeeId);
+      setPayrollConfirmedEmployees(confirmedEmployeeIds);
+      
+      console.log('급여확정된 직원들:', confirmedEmployeeIds);
+    } catch (error) {
+      console.error('급여확정 직원 로드 실패:', error);
+    }
+  };
+
   const loadEmployeeMemos = async () => {
     try {
       if (!selectedMonth) return;
@@ -523,28 +547,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   };
 
-  // 급여확정된 직원 목록 로드
-  const loadPayrollConfirmedEmployees = async () => {
-    try {
-      if (!selectedMonth) return;
-      
-      const payrollQuery = query(
-        collection(db, 'payrollRecords'),
-        where('month', '==', selectedMonth),
-        where('branchId', '==', selectedBranchId)
-      );
-      const payrollSnapshot = await getDocs(payrollQuery);
-      
-      const confirmedEmployeeIds = payrollSnapshot.docs.map(doc => doc.data().employeeId);
-      console.log('급여확정된 직원 목록:', confirmedEmployeeIds);
-      
-      // 직원 목록 다시 로드하여 상태 업데이트
-      await loadEmployees();
-      
-    } catch (error) {
-      console.error('급여확정 직원 목록 로드 실패:', error);
-    }
-  };
 
   const selectedBranch = branches.find(b => b.id === selectedBranchId);
 
@@ -680,6 +682,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                           {!employee.employmentType ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                               ⚠️ 비교작업필요
+                            </span>
+                          ) : payrollConfirmedEmployees.includes(employee.id) ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              ✅ 급여확정
                             </span>
                           ) : employee.reviewStatus === '검토완료' ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">

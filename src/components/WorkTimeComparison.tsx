@@ -1679,7 +1679,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
-                {isPayrollConfirmed(selectedEmployeeId) ? '급여확정완료' : '검토완료'}
+                검토완료
               </button>
             </div>
             
@@ -1964,12 +1964,6 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                           </div>
                         )}
                         
-                        {/* 급여확정된 경우 안내 메시지 */}
-                        {isPayrollConfirmed(selectedEmployeeId) && (
-                          <span className="text-red-600 text-xs font-medium">
-                            급여확정완료
-                          </span>
-                        )}
                       </td>
                     </tr>
                   );
