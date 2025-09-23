@@ -52,7 +52,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     monthlySalary: number;
     actualPayment: number;
   } | null>(null);
-  const [payrollMemo, setPayrollMemo] = useState<string>('');
   const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: string}>({});
   const [branchWorkHours, setBranchWorkHours] = useState<{
     branchId: string;
@@ -211,7 +210,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         return {
           ...emp,
           hasComparison: isReviewCompleted,
-          reviewStatus: reviewStatus
+          reviewStatus: reviewStatus as '검토전' | '검토중' | '검토완료'
         };
       });
       

@@ -69,7 +69,6 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   }[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
   const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, status: '검토전' | '검토중' | '검토완료'}[]>([]);
-  const [monthlyMemo, setMonthlyMemo] = useState<string>('');
   const [payrollConfirmedEmployees, setPayrollConfirmedEmployees] = useState<string[]>([]);
   const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: string}>({});
   
@@ -101,6 +100,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     if ((selectedBranchId || (isManager && userBranch)) && selectedMonth) {
       loadEmployees();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranchId, isManager, userBranch, selectedMonth]);
 
   // 지점이나 직원이 변경될 때 스케줄 다시 로드
@@ -108,6 +108,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     if (selectedMonth) {
       loadSchedules(selectedMonth);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranchId, selectedEmployeeId, selectedMonth]);
 
   // 직원이 변경될 때 실제근무데이터 초기화 및 기존 데이터 로드
@@ -130,6 +131,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       // 직원이 선택되지 않았으면 비교 결과 초기화
       setComparisonResults([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEmployeeId, selectedMonth]);
 
   const loadBranches = async () => {
@@ -251,7 +253,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       const allRecordsSnapshot = await getDocs(allRecordsQuery);
       
       // 직원별, 날짜별로 그룹화
-      const groupedRecords = new Map<string, any[]>();
+      const groupedRecords = new Map<string, Array<{id: string; employeeId: string; date: string; [key: string]: unknown}>>();
       
       allRecordsSnapshot.docs.forEach(doc => {
         const data = doc.data();
@@ -260,7 +262,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         if (!groupedRecords.has(key)) {
           groupedRecords.set(key, []);
         }
-        groupedRecords.get(key)!.push({ id: doc.id, ...data });
+        groupedRecords.get(key)!.push({ id: doc.id, employeeId: data.employeeId, date: data.date, ...data });
       });
       
       // 중복 데이터 정리
@@ -271,8 +273,10 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           
           // 가장 최근에 수정된 레코드를 제외하고 나머지 삭제
           const sortedRecords = records.sort((a, b) => {
-            const aTime = a.modifiedAt?.toDate?.() || a.createdAt?.toDate?.() || new Date(0);
-            const bTime = b.modifiedAt?.toDate?.() || b.createdAt?.toDate?.() || new Date(0);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const aTime = (a.modifiedAt as any)?.toDate?.() || (a.createdAt as any)?.toDate?.() || new Date(0);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const bTime = (b.modifiedAt as any)?.toDate?.() || (b.createdAt as any)?.toDate?.() || new Date(0);
             return bTime.getTime() - aTime.getTime();
           });
           

@@ -318,12 +318,12 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
           스케줄 관리
         </h3>
         {activeTab === 'calendar' && (
-          <button
-            onClick={handleAddClick}
-            className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700"
-          >
-            스케줄 추가
-          </button>
+        <button
+          onClick={handleAddClick}
+          className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700"
+        >
+          스케줄 추가
+        </button>
         )}
       </div>
 
@@ -386,8 +386,8 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
             달력보기
           </button>
         </nav>
-      </div>
-
+          </div>
+          
       {/* 탭 내용 */}
       {activeTab === 'schedule-input' && (
         <ScheduleInputNew selectedBranchId={selectedBranchId} />
@@ -398,59 +398,59 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
           {/* 년월 선택 및 네비게이션 */}
           <div className="bg-white p-4 rounded-lg shadow border">
             <div className="flex items-center justify-center">
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={goToPreviousMonth}
-                  className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  ← 이전달
-                </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={goToPreviousMonth}
+              className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              ← 이전달
+            </button>
                 <span className="text-lg font-medium px-4">
-                  {selectedMonth.getFullYear()}년 {selectedMonth.getMonth() + 1}월
-                </span>
-                <button
-                  onClick={goToNextMonth}
-                  className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  다음달 →
-                </button>
-              </div>
-            </div>
+              {selectedMonth.getFullYear()}년 {selectedMonth.getMonth() + 1}월
+            </span>
+            <button
+              onClick={goToNextMonth}
+              className="p-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              다음달 →
+            </button>
           </div>
+        </div>
+      </div>
 
-          {/* 달력 그리드 - 요일 헤더 없이 날짜만 표시 */}
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="grid grid-cols-7 gap-px bg-gray-200">
-              {/* 달력 날짜들 - 요일 표시 없이 날짜만 */}
-              {generateCalendarGrid().map((week, weekIndex) => (
-                week.map((day, dayIndex) => (
-                  <div
-                    key={`${weekIndex}-${dayIndex}`}
-                    className={`min-h-[120px] p-2 ${
-                      day.isCurrentMonth ? 'bg-white' : 'bg-gray-50'
-                    } ${day.isToday ? 'ring-2 ring-blue-500' : ''}`}
-                  >
-                    {/* 날짜만 표시 - 요일 없음 */}
-                    <div className={`text-sm font-medium ${
+      {/* 달력 그리드 - 요일 헤더 없이 날짜만 표시 */}
+      <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="grid grid-cols-7 gap-px bg-gray-200">
+          {/* 달력 날짜들 - 요일 표시 없이 날짜만 */}
+          {generateCalendarGrid().map((week, weekIndex) => (
+            week.map((day, dayIndex) => (
+              <div
+                key={`${weekIndex}-${dayIndex}`}
+                className={`min-h-[120px] p-2 ${
+                  day.isCurrentMonth ? 'bg-white' : 'bg-gray-50'
+                } ${day.isToday ? 'ring-2 ring-blue-500' : ''}`}
+              >
+                {/* 날짜만 표시 - 요일 없음 */}
+                <div className={`text-sm font-medium ${
                       day.isCurrentMonth ? 'text-gray-900' : 'text-gray-600'
                     } ${day.isToday ? 'text-blue-600' : ''} ${
                       isRedDay(day.date).isRed ? 'text-red-600' : ''
                     }`}>
-                      {day.dayNumber}
+                  {day.dayNumber}
                       {isRedDay(day.date).isRed && (
                         <div className="text-xs text-red-500 mt-1" title={isRedDay(day.date).reason}>
                           {isRedDay(day.date).holiday ? '🎌' : ''}
                         </div>
                       )}
-                    </div>
-                    
-                    {/* 해당 날짜의 스케줄 표시 */}
-                    <div className="mt-1 space-y-1">
-                      {getSchedulesForDate(day.date).map((schedule) => (
-                        <div
-                          key={schedule.id}
+                </div>
+                
+                {/* 해당 날짜의 스케줄 표시 */}
+                <div className="mt-1 space-y-1">
+                  {getSchedulesForDate(day.date).map((schedule) => (
+                    <div
+                      key={schedule.id}
                           className="text-xs p-1 bg-blue-100 text-blue-800 rounded cursor-pointer hover:bg-blue-200"
-                          onClick={() => handleEdit(schedule)}
+                      onClick={() => handleEdit(schedule)}
                           title={`${schedule.employeeName}: ${schedule.originalInput || `${schedule.startTime}-${schedule.endTime}`}`}
                         >
                           <div className="font-medium truncate">{schedule.employeeName}</div>
@@ -496,14 +496,14 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
                               return `${startTimeDisplay}-${endTimeDisplay}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
                             })()}
                           </div>
-                        </div>
-                      ))}
                     </div>
-                  </div>
-                ))
-              ))}
-            </div>
-          </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          ))}
+        </div>
+      </div>
 
           {/* 해당월 근무내역 요약 */}
           <div className="bg-white shadow rounded-lg overflow-hidden">

@@ -658,7 +658,7 @@ export default function Dashboard({ user }: DashboardProps) {
                   <p className="text-sm text-blue-800 text-center">
                     💻 본 시스템은 PC화면에서 최적화되어있습니다
                   </p>
-                </div>
+                  </div>
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                   {!isManager && (
                     <button 
@@ -708,7 +708,7 @@ export default function Dashboard({ user }: DashboardProps) {
                     <h4 className="font-medium text-gray-900">서식관리</h4>
                     <p className="text-gray-600 text-sm">지점별 서식을 관리합니다</p>
                   </button>
-                </div>
+                  </div>
                 
                 {/* 코멘트 섹션 */}
                 <div className="mt-8 bg-white shadow rounded-lg overflow-hidden">
@@ -824,11 +824,11 @@ export default function Dashboard({ user }: DashboardProps) {
                                 >
                                   ✕
                                 </button>
-                              </div>
+                  </div>
                             ))}
-                          </div>
+                </div>
                         )}
-                      </div>
+              </div>
                       
                       {/* 코멘트 옵션 체크박스 */}
                       <div className="flex flex-wrap gap-4 text-sm">
@@ -1414,7 +1414,7 @@ export default function Dashboard({ user }: DashboardProps) {
 
               {/* 서브탭 콘텐츠 */}
               {activeSubTab === 'work-comparison' && (
-                <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="bg-white overflow-hidden shadow rounded-lg">
                   <div className="p-4 sm:p-6">
                     <WorkTimeComparison userBranch={userBranch} isManager={isManager} />
                   </div>
@@ -1430,7 +1430,7 @@ export default function Dashboard({ user }: DashboardProps) {
                   <div className="p-4 sm:p-6">
                     <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                       세무사 전송파일 생성
-                    </h3>
+                </h3>
                     <p className="text-sm text-gray-700 mb-4">
                       급여 관련 데이터를 세무사 전송용 Excel 파일로 생성합니다.
                     </p>
@@ -1447,7 +1447,7 @@ export default function Dashboard({ user }: DashboardProps) {
                         Excel 파일 다운로드 (개발 예정)
                       </button>
                     </div>
-                  </div>
+              </div>
                 </div>
               )}
 
