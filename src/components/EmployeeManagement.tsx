@@ -116,6 +116,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     contractFile: ''
   });
   const [editingContract, setEditingContract] = useState<EmploymentContract | null>(null);
+  const [showAddContractForm, setShowAddContractForm] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
@@ -1316,6 +1317,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   // 근로계약 수정
   const handleContractEdit = (contract: EmploymentContract) => {
     setEditingContract(contract);
+    setShowAddContractForm(false);
     setContractFormData({
       startDate: contract.startDate.toISOString().split('T')[0],
       employmentType: contract.employmentType || '',
@@ -1353,6 +1355,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       contractFile: ''
     });
     setEditingContract(null);
+    setShowAddContractForm(false);
     setSelectedFile(null);
   };
 
@@ -2738,6 +2741,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
             <div className="p-6">
               {/* 근로계약 추가/수정 폼 */}
+              {(showAddContractForm || editingContract) && (
               <div className="mb-6">
                 <h3 className="text-md font-medium text-gray-900 mb-4">
                   {editingContract ? '근로계약 수정' : '새 근로계약 추가'}
@@ -2933,6 +2937,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </div>
                 </div>
               </div>
+              )}
 
               {/* 근로계약서 목록 */}
               <div>
@@ -3038,7 +3043,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                   수정
                                 </button>
                                 <button
-                                  onClick={() => handleContractDelete(contract.id)}
+                                  onClick={() => handleFileDelete(contract)}
                                   className="text-red-600 hover:text-red-900"
                                 >
                                   삭제
@@ -3090,16 +3095,30 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                 
                 {/* 근로계약서 히스토리 (먼저 표시) */}
                 <div className="mb-6">
-                  <h4 className="text-md font-medium text-gray-900 mb-4">
-                    근로계약 히스토리 (총 {contracts.length}개)
-                  </h4>
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-md font-medium text-gray-900">
+                      근로계약 히스토리 (총 {contracts.length}개)
+                    </h4>
+                    <button
+                      onClick={() => setShowAddContractForm(true)}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-medium"
+                    >
+                      새 근로계약 추가
+                    </button>
+                  </div>
                   {(() => {
                     console.log('히스토리 테이블 렌더링 체크 - contracts.length:', contracts.length);
                     console.log('현재 contracts 배열:', contracts);
                     return contracts.length === 0;
                   })() ? (
                     <div className="text-center py-8 text-gray-500 bg-white border border-gray-200 rounded-md">
-                      등록된 근로계약이 없습니다.
+                      <p className="mb-4">등록된 근로계약이 없습니다.</p>
+                      <button
+                        onClick={() => setShowAddContractForm(true)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-medium"
+                      >
+                        첫 번째 근로계약 추가하기
+                      </button>
                     </div>
                   ) : (
                     <div key={contractsKey} className="overflow-x-auto bg-white border border-gray-200 rounded-md">
@@ -3149,14 +3168,16 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 {contract.weeklyWorkHours ? `${contract.weeklyWorkHours}시간` : '-'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <div className="space-y-1">
-                                  <div className="text-xs">
-                                    {contract.contractFileName || '파일명 없음'}
-                                  </div>
-                                  <div className="text-xs text-gray-400">
-                                    {contract.fileSize ? `${(contract.fileSize / 1024 / 1024).toFixed(1)}MB` : '-'}
-                                  </div>
-                                </div>
+                                {contract.contractFile ? (
+                                  <button
+                                    onClick={() => handleFileDownload(contract)}
+                                    className="text-blue-600 hover:text-blue-900 text-xs"
+                                  >
+                                    근로계약 다운로드
+                                  </button>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">파일 없음</span>
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                 <button
