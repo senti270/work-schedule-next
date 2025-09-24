@@ -1350,6 +1350,42 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           console.log('기존 실제근무 데이터 업데이트됨:', actualWorkRecord);
         }
       }
+
+      // workTimeComparisonResults 컬렉션에도 저장 (비교결과용)
+      const comparisonQuery = query(
+        collection(db, 'workTimeComparisonResults'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('date', '==', result.date),
+        where('month', '==', selectedMonth),
+        where('branchId', '==', selectedBranchId)
+      );
+      
+      const comparisonDocs = await getDocs(comparisonQuery);
+      
+      if (comparisonDocs.empty) {
+        // 새로 추가
+        await addDoc(collection(db, 'workTimeComparisonResults'), {
+          ...actualWorkRecord,
+          createdAt: new Date()
+        });
+        console.log('새로운 비교결과 데이터 저장됨:', actualWorkRecord);
+      } else {
+        // 기존 데이터 업데이트 (첫 번째 문서만)
+        const docId = comparisonDocs.docs[0].id;
+        await updateDoc(doc(db, 'workTimeComparisonResults', docId), {
+          ...actualWorkRecord,
+          createdAt: new Date()
+        });
+        console.log('기존 비교결과 데이터 업데이트됨:', actualWorkRecord);
+        
+        // 중복 데이터가 있으면 삭제
+        if (comparisonDocs.docs.length > 1) {
+          for (let i = 1; i < comparisonDocs.docs.length; i++) {
+            await deleteDoc(comparisonDocs.docs[i].ref);
+            console.log('중복 비교결과 데이터 삭제됨:', comparisonDocs.docs[i].id);
+          }
+        }
+      }
       
     } catch (error) {
       console.error('데이터 저장 실패:', error);
