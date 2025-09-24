@@ -58,6 +58,24 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
     breakTime: '0'
   });
 
+  const loadBranches = useCallback(async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'branches'));
+      const branchesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name
+      })) as Branch[];
+      setBranches(branchesData);
+      
+      // 첫 번째 지점을 기본 선택
+      if (branchesData.length > 0 && !selectedBranchId) {
+        setSelectedBranchId(branchesData[0].id);
+      }
+    } catch (error) {
+      console.error('지점 목록을 불러올 수 없습니다:', error);
+    }
+  }, [selectedBranchId]);
+
   useEffect(() => {
     console.log('ScheduleManagement 컴포넌트가 마운트되었습니다.');
     loadSchedules();
@@ -90,24 +108,6 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
       console.error('스케줄 목록을 불러올 수 없습니다:', error);
     }
   };
-
-  const loadBranches = useCallback(async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'branches'));
-      const branchesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name
-      })) as Branch[];
-      setBranches(branchesData);
-      
-      // 첫 번째 지점을 기본 선택
-      if (branchesData.length > 0 && !selectedBranchId) {
-        setSelectedBranchId(branchesData[0].id);
-      }
-    } catch (error) {
-      console.error('지점 목록을 불러올 수 없습니다:', error);
-    }
-  }, [selectedBranchId]);
 
   const loadEmployees = async () => {
     try {
