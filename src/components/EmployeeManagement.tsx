@@ -163,6 +163,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
 
   // 근로계약정보가 없는 직원 확인
   const hasNoContract = (employeeId: string) => {
+    // contracts 배열에서 해당 직원의 계약서가 있는지 확인
     return !contracts.some(contract => contract.employeeId === employeeId);
   };
 
@@ -181,6 +182,23 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       branchesSnapshot.docs.forEach(doc => {
         branchesMap.set(doc.id, doc.data().name);
       });
+      
+      // 모든 계약서 로드
+      const contractsSnapshot = await getDocs(collection(db, 'employmentContracts'));
+      const allContracts = contractsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        employeeId: doc.data().employeeId,
+        employmentType: doc.data().employmentType,
+        salaryType: doc.data().salaryType,
+        salaryAmount: doc.data().salaryAmount,
+        weeklyWorkHours: doc.data().weeklyWorkHours,
+        startDate: doc.data().startDate?.toDate ? doc.data().startDate.toDate() : new Date(),
+        endDate: doc.data().endDate?.toDate ? doc.data().endDate.toDate() : undefined,
+        contractFile: doc.data().contractFile,
+        contractFileName: doc.data().contractFileName,
+        createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date()
+      }));
+      setContracts(allContracts);
       
       // 직원-지점 관계를 Map으로 변환
       const employeeBranchesMap = new Map<string, EmployeeBranch[]>();
