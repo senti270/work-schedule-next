@@ -101,7 +101,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       loadEmployees();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranchId, isManager, userBranch, selectedMonth, loadEmployees]);
+  }, [selectedBranchId, isManager, userBranch, selectedMonth]);
 
   // 지점이나 직원이 변경될 때 스케줄 다시 로드
   useEffect(() => {
