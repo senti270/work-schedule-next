@@ -161,6 +161,11 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     console.log('editingEmployee 상태:', editingEmployee);
   }, [showForm, editingEmployee]);
 
+  // 근로계약정보가 없는 직원 확인
+  const hasNoContract = (employeeId: string) => {
+    return !contracts.some(contract => contract.employeeId === employeeId);
+  };
+
   const loadEmployees = async () => {
     console.log('직원 목록을 불러오는 중...');
     try {
@@ -1857,16 +1862,26 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <button
-                      onClick={() => {
-                        setShowDocumentModal({ show: true, employee });
-                        loadContracts(employee.id);
-                        resetContractForm();
-                      }}
-                      className="text-blue-600 hover:text-blue-900 text-xs"
-                    >
-                      근로계약관리
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setShowDocumentModal({ show: true, employee });
+                          loadContracts(employee.id);
+                          resetContractForm();
+                        }}
+                        className="text-blue-600 hover:text-blue-900 text-xs"
+                      >
+                        근로계약관리
+                      </button>
+                      {hasNoContract(employee.id) && (
+                        <span 
+                          className="text-red-500 text-sm" 
+                          title="근로계약정보가 없습니다. 근로계약을 추가해주세요."
+                        >
+                          ⚠️
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
                 {/* 수정 폼 - 해당 직원 행 바로 아래에 표시 */}
