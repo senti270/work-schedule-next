@@ -87,10 +87,17 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
     if (!selectedBranchId) return;
     
     try {
-      const formsQuery = query(
-        collection(db, 'formDocuments'),
-        where('branchId', '==', selectedBranchId)
-      );
+      let formsQuery;
+      if (selectedBranchId === 'all') {
+        // 전지점용인 경우 모든 서식 조회
+        formsQuery = query(collection(db, 'formDocuments'));
+      } else {
+        // 특정 지점인 경우 해당 지점 서식만 조회
+        formsQuery = query(
+          collection(db, 'formDocuments'),
+          where('branchId', '==', selectedBranchId)
+        );
+      }
       const querySnapshot = await getDocs(formsQuery);
       
       const formsData = querySnapshot.docs.map(doc => {
@@ -156,44 +163,27 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
         fileSize = selectedFile.size;
         fileType = selectedFile.type;
         
-        // 파일 크기 체크 (3MB)
-        if (fileSize > 3 * 1024 * 1024) {
-          alert('파일 크기가 너무 큽니다. 3MB 이하의 파일로 업로드해주세요.');
+        // 파일 크기 체크 (1MB)
+        if (fileSize > 1 * 1024 * 1024) {
+          alert('파일 크기가 너무 큽니다. 1MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (fileSize / 1024 / 1024).toFixed(1) + 'MB');
+          setUploadingFile(false);
           return;
         }
         
-        // CORS 문제 회피를 위해 Base64 우선 사용
-        if (fileSize <= 1 * 1024 * 1024) { // 1MB 이하는 Base64로 처리
-          try {
-            const reader = new FileReader();
-            const base64Promise = new Promise<string>((resolve, reject) => {
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(selectedFile);
-            });
-            
-            fileUrl = await base64Promise;
-            isBase64 = true;
-          } catch (base64Error) {
-            console.error('Base64 변환 실패:', base64Error);
-            throw new Error('파일 처리 중 오류가 발생했습니다.');
-          }
-        } else {
-          // 1MB 초과는 Firebase Storage 시도
-          try {
-            const timestamp = Date.now();
-            const fileExtension = selectedFile.name.split('.').pop();
-            const storageFileName = `forms/${selectedBranchId}_${timestamp}.${fileExtension}`;
-            const storageRef = ref(storage, storageFileName);
-            
-            const metadata = { contentType: selectedFile.type };
-            const snapshot = await uploadBytes(storageRef, selectedFile, metadata);
-            fileUrl = await getDownloadURL(snapshot.ref);
-            isBase64 = false;
-          } catch (storageError) {
-            console.error('Firebase Storage 실패:', storageError);
-            throw new Error('파일이 너무 큽니다. 1MB 이하로 줄여주세요.');
-          }
+        // 모든 파일을 Base64로 처리 (CORS 문제 회피)
+        try {
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(selectedFile);
+          });
+          
+          fileUrl = await base64Promise;
+          isBase64 = true;
+        } catch (base64Error) {
+          console.error('Base64 변환 실패:', base64Error);
+          throw new Error('파일 처리 중 오류가 발생했습니다. 파일을 다시 선택해주세요.');
         }
       }
       
@@ -332,35 +322,35 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
       </p>
 
       {/* 지점 선택 */}
-      {!isManager && (
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">지점 선택</label>
-          <div className="flex flex-wrap gap-2">
-            {branches.map(branch => (
-              <button
-                key={branch.id}
-                onClick={() => setSelectedBranchId(branch.id)}
-                className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                  selectedBranchId === branch.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {branch.name}
-              </button>
-            ))}
-          </div>
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">지점 선택</label>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setSelectedBranchId('all')}
+            className={`px-4 py-2 rounded-md font-medium transition-colors ${
+              selectedBranchId === 'all'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            전지점용
+          </button>
+          {branches.map(branch => (
+            <button
+              key={branch.id}
+              onClick={() => setSelectedBranchId(branch.id)}
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                selectedBranchId === branch.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {branch.name}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
-      {isManager && userBranch && (
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">지점</label>
-          <div className="bg-blue-50 border border-blue-200 rounded-md px-4 py-2">
-            <span className="text-blue-800 font-medium">{userBranch.name}</span>
-          </div>
-        </div>
-      )}
 
       {/* 서식 목록 */}
       {selectedBranchId && (
@@ -516,8 +506,8 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
                       const file = e.target.files?.[0];
                       if (file) {
                         // 파일 크기 체크
-                        if (file.size > 3 * 1024 * 1024) {
-                          alert('파일 크기가 너무 큽니다. 3MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
+                        if (file.size > 1 * 1024 * 1024) {
+                          alert('파일 크기가 너무 큽니다. 1MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
                           e.target.value = '';
                           return;
                         }
