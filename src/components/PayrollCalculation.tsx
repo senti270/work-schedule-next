@@ -23,6 +23,9 @@ interface Employee {
   weeklyWorkHours?: number;
   // 검토 상태
   reviewStatus?: '검토전' | '검토중' | '검토완료';
+  // 수습기간 정보
+  probationStartDate?: Date;
+  probationEndDate?: Date;
 }
 
 interface Branch {
