@@ -80,7 +80,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     }
   }, [currentWeekStart, loadSchedules, generateWeeklySummary]);
 
-  const generateWeeklySummary = (schedulesData: Schedule[]) => {
+  const generateWeeklySummary = useCallback((schedulesData: Schedule[]) => {
     const weekDates = getWeekDates(currentWeekStart);
     const summaryMap = new Map<string, WeeklySummary>();
 
@@ -120,7 +120,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     });
 
     setWeeklySummaries(Array.from(summaryMap.values()));
-  };
+  }, [currentWeekStart, selectedBranchId]);
 
   const getWeekDates = (weekStart: Date) => {
     const dates = [];

@@ -63,8 +63,7 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
     loadSchedules();
     loadEmployees();
     loadBranches();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadBranches]);
 
   // 선택된 월이 변경될 때마다 스케줄 다시 로드
   useEffect(() => {

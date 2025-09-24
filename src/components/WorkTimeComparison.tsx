@@ -414,7 +414,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     }
   };
 
-  const loadEmployees = async () => {
+  const loadEmployees = useCallback(async () => {
     try {
       // 선택된 월이 없으면 빈 배열로 설정
       if (!selectedMonth) {
@@ -549,7 +549,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     } catch (error) {
       console.error('직원 목록을 불러올 수 없습니다:', error);
     }
-  };
+  }, [selectedMonth, selectedBranchId, isManager, userBranch]);
 
   const loadSchedules = async (month: string) => {
     try {
