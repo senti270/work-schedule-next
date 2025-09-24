@@ -96,7 +96,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [editingCell, setEditingCell] = useState<{employeeId: string, date: string} | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{employeeId: string, date: Date} | null>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
   const [clickTimeout, setClickTimeout] = useState<NodeJS.Timeout | null>(null);
   
   // 드래그 상태

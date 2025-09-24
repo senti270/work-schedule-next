@@ -102,7 +102,7 @@ export default function ScheduleManagementOld({ }: ScheduleManagementProps) {
     }
   };
 
-  const loadBranches = async () => {
+  const loadBranches = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
       const branchesData = querySnapshot.docs.map(doc => ({
@@ -118,7 +118,7 @@ export default function ScheduleManagementOld({ }: ScheduleManagementProps) {
     } catch (error) {
       console.error('지점 목록을 불러올 수 없습니다:', error);
     }
-  };
+  }, [selectedBranchId]);
 
   // 년월 옵션 생성 (현재 달부터 다음 달까지)
   const generateMonthOptions = () => {

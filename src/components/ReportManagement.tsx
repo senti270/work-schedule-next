@@ -148,7 +148,7 @@ export default function ReportManagement() {
     }
   };
 
-  const generateReport = () => {
+  const generateReport = useCallback(() => {
     let filteredSchedules = [...schedules];
 
     // 기간 필터링
@@ -231,7 +231,7 @@ export default function ReportManagement() {
       averageWorkHours,
       branchBreakdown
     });
-  };
+  }, [schedules, selectedEmployee, selectedBranch, reportType, selectedMonth, selectedYear]);
 
   const formatPeriod = () => {
     if (reportType === 'monthly') {

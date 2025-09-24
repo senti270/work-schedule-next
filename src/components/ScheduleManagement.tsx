@@ -105,7 +105,7 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
     }
   };
 
-  const loadBranches = async () => {
+  const loadBranches = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
       const branchesData = querySnapshot.docs.map(doc => ({
@@ -121,7 +121,7 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
     } catch (error) {
       console.error('지점 목록을 불러올 수 없습니다:', error);
     }
-  };
+  }, [selectedBranchId]);
 
 
   // 달력 그리드 생성

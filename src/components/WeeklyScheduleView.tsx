@@ -78,7 +78,8 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     if (currentWeekStart) {
       loadSchedules();
     }
-  }, [currentWeekStart, loadSchedules, generateWeeklySummary]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWeekStart, loadSchedules]);
 
   const generateWeeklySummary = useCallback((schedulesData: Schedule[]) => {
     const weekDates = getWeekDates(currentWeekStart);
