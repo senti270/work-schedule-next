@@ -384,6 +384,48 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
   };
 
   // 급여확정 함수
+  const cancelPayroll = async () => {
+    if (!selectedEmployeeId || !selectedMonth || !selectedBranchId) return;
+    
+    try {
+      // 급여확정 기록 삭제
+      const payrollQuery = query(
+        collection(db, 'payrollRecords'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('month', '==', selectedMonth),
+        where('branchId', '==', selectedBranchId)
+      );
+      
+      const payrollSnapshot = await getDocs(payrollQuery);
+      
+      if (!payrollSnapshot.empty) {
+        for (const doc of payrollSnapshot.docs) {
+          await deleteDoc(doc.ref);
+        }
+        console.log('급여확정 기록 삭제됨');
+      }
+      
+      // 급여확정된 직원 목록에서 제거
+      setPayrollConfirmedEmployees(prev => 
+        prev.filter(id => id !== selectedEmployeeId)
+      );
+      
+      // 상태 초기화
+      setSelectedEmployeeId('');
+      setPayrollData(null);
+      setBranchWorkHours([]);
+      
+      alert('급여확정이 취소되었습니다.');
+      
+      // 직원 목록 다시 로드
+      await loadEmployees();
+      
+    } catch (error) {
+      console.error('급여확정 취소 실패:', error);
+      alert('급여확정 취소에 실패했습니다.');
+    }
+  };
+
   const confirmPayroll = async () => {
     if (!selectedEmployeeId || !payrollData) return;
     
@@ -776,10 +818,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
               </div>
             )}
             
-            {/* 급여확정 버튼 */}
+            {/* 급여확정/취소 버튼 */}
             <div className="mt-6 flex justify-end">
               {(() => {
                 const hasIncompleteBranches = branchWorkHours.some(branch => branch.reviewStatus !== '검토완료');
+                const isPayrollConfirmed = payrollConfirmedEmployees.includes(selectedEmployeeId);
                 
                 if (hasIncompleteBranches) {
                   return (
@@ -794,6 +837,17 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                         모든 지점의 근무시간 비교가 완료되어야 급여확정이 가능합니다.
                       </p>
                     </div>
+                  );
+                }
+                
+                if (isPayrollConfirmed) {
+                  return (
+                    <button
+                      onClick={cancelPayroll}
+                      className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 font-medium"
+                    >
+                      급여확정취소
+                    </button>
                   );
                 }
                 
