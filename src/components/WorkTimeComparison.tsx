@@ -2011,13 +2011,11 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                 onClick={async () => {
                                   if (confirm('스케줄 시간을 실제 근무시간으로 복사하시겠습니까?')) {
                                     const updatedResults = [...comparisonResults];
-                                    const breakTime = result.breakTime || 0;
-                                    const actualWorkHours = Math.max(0, result.scheduledHours - breakTime);
                                     
                                     updatedResults[index] = {
                                       ...result,
                                       actualHours: result.scheduledHours,
-                                      actualWorkHours: actualWorkHours,
+                                      actualWorkHours: result.scheduledHours, // 휴게시간 차감 없이 스케줄시간 그대로
                                       difference: 0, // 스케줄과 동일하므로 차이 0
                                       status: 'review_completed',
                                       isModified: true,
