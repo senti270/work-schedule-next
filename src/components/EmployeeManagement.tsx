@@ -196,7 +196,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         endDate: doc.data().endDate?.toDate ? doc.data().endDate.toDate() : undefined,
         contractFile: doc.data().contractFile,
         contractFileName: doc.data().contractFileName,
-        createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date()
+        createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date(),
+        updatedAt: doc.data().updatedAt?.toDate ? doc.data().updatedAt.toDate() : new Date()
       }));
       setContracts(allContracts);
       
