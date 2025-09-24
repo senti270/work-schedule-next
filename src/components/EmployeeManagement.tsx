@@ -1880,25 +1880,46 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setShowDocumentModal({ show: true, employee });
-                          loadContracts(employee.id);
-                          resetContractForm();
-                        }}
-                        className="text-blue-600 hover:text-blue-900 text-xs"
-                      >
-                        근로계약관리
-                      </button>
-                      {hasNoContract(employee.id) && (
-                        <span 
-                          className="text-red-500 text-sm" 
-                          title="근로계약정보가 없습니다. 근로계약을 추가해주세요."
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setShowDocumentModal({ show: true, employee });
+                            loadContracts(employee.id);
+                            resetContractForm();
+                          }}
+                          className="text-blue-600 hover:text-blue-900 text-xs"
                         >
-                          ⚠️
-                        </span>
-                      )}
+                          근로계약관리
+                        </button>
+                        {hasNoContract(employee.id) && (
+                          <span 
+                            className="text-red-500 text-sm" 
+                            title="근로계약정보가 없습니다. 근로계약을 추가해주세요."
+                          >
+                            ⚠️
+                          </span>
+                        )}
+                      </div>
+                      {!hasNoContract(employee.id) && (() => {
+                        const latestContract = contracts
+                          .filter(contract => contract.employeeId === employee.id)
+                          .sort((a, b) => b.startDate.getTime() - a.startDate.getTime())[0];
+                        
+                        if (latestContract) {
+                          return (
+                            <div className="text-xs text-gray-600">
+                              <div className="font-medium">
+                                {latestContract.employmentType}
+                              </div>
+                              <div className="text-gray-500">
+                                {latestContract.salaryType === 'hourly' ? '시급' : '월급'}: {latestContract.salaryAmount?.toLocaleString()}원
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </td>
                 </tr>
