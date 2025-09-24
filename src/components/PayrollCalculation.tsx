@@ -231,6 +231,25 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   };
 
+  // 수습기간 확인 함수
+  const checkIfOnProbation = (employee: any, month: string) => {
+    if (!employee.probationStartDate || !employee.probationEndDate) {
+      return false;
+    }
+    
+    // 선택된 월의 첫째 날과 마지막 날
+    const [year, monthNum] = month.split('-').map(Number);
+    const monthStart = new Date(year, monthNum - 1, 1);
+    const monthEnd = new Date(year, monthNum, 0);
+    
+    // 수습기간 날짜
+    const probationStart = new Date(employee.probationStartDate);
+    const probationEnd = new Date(employee.probationEndDate);
+    
+    // 수습기간이 선택된 월과 겹치는지 확인
+    return (probationStart <= monthEnd && probationEnd >= monthStart);
+  };
+
   // 급여 계산 함수
   const calculatePayroll = async (employeeId: string) => {
     if (!selectedMonth) return;
@@ -361,7 +380,17 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       if (employee.employmentType === '외국인' && employee.salaryType === 'hourly') {
         // 외국인 시급: 월급여 = 총 근무시간 * 시급, 실지급금액 = 월급여 * 0.967
         monthlySalary = totalWorkHours * hourlyWage;
-        actualPayment = monthlySalary * 0.967;
+        
+        // 수습기간 확인
+        const isOnProbation = checkIfOnProbation(employee, selectedMonth);
+        
+        if (isOnProbation) {
+          // 수습기간 중: 90% 지급 후 세금 차감
+          actualPayment = (monthlySalary * 0.9) * 0.967;
+        } else {
+          // 정규기간: 100% 지급 후 세금 차감
+          actualPayment = monthlySalary * 0.967;
+        }
       }
       
       setPayrollData({
@@ -784,6 +813,17 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
             </div>
             <div className="mt-4 text-sm text-gray-600">
               <p>※ 외국인 시급: 월급여 = 총 근무시간 × 시급, 실지급금액 = 월급여 × 0.967 (3.3% 세금 차감)</p>
+              {(() => {
+                const employee = employees.find(emp => emp.id === selectedEmployeeId);
+                if (employee && employee.employmentType === '외국인' && checkIfOnProbation(employee, selectedMonth)) {
+                  return (
+                    <p className="text-orange-600 font-medium mt-2">
+                      ⚠️ 수습기간 중: 90% 지급 (월급여 × 0.9 × 0.967)
+                    </p>
+                  );
+                }
+                return null;
+              })()}
             </div>
             
             {/* 지점별 근무시간 표시 */}
