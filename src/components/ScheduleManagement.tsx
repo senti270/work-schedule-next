@@ -91,20 +91,6 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
     }
   };
 
-  const loadEmployees = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'employees'));
-      const employeesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name,
-        branchName: doc.data().branchName
-      })) as Employee[];
-      setEmployees(employeesData);
-    } catch (error) {
-      console.error('직원 목록을 불러올 수 없습니다:', error);
-    }
-  };
-
   const loadBranches = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
@@ -122,6 +108,20 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
       console.error('지점 목록을 불러올 수 없습니다:', error);
     }
   }, [selectedBranchId]);
+
+  const loadEmployees = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'employees'));
+      const employeesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        branchName: doc.data().branchName
+      })) as Employee[];
+      setEmployees(employeesData);
+    } catch (error) {
+      console.error('직원 목록을 불러올 수 없습니다:', error);
+    }
+  };
 
 
   // 달력 그리드 생성

@@ -147,7 +147,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   };
 
   // 급여확정된 직원 목록 로드
-  const loadPayrollConfirmedEmployees = async () => {
+  const loadPayrollConfirmedEmployees = useCallback(async () => {
     try {
       if (!selectedMonth) return;
       
@@ -164,10 +164,10 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     } catch (error) {
       console.error('급여확정 직원 목록 로드 실패:', error);
     }
-  };
+  }, [selectedMonth, selectedBranchId]);
 
   // 직원별 급여메모 로드
-  const loadEmployeeMemos = async () => {
+  const loadEmployeeMemos = useCallback(async () => {
     try {
       if (!selectedMonth) return;
       
@@ -189,7 +189,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     } catch (error) {
       console.error('직원별 급여메모 로드 실패:', error);
     }
-  };
+  }, [selectedMonth]);
 
   // 직원별 급여메모 저장
   const saveEmployeeMemo = async (employeeId: string, memo: string) => {
@@ -237,7 +237,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   };
 
   // 중복 데이터 정리 함수
-  const cleanupDuplicateRecords = async () => {
+  const cleanupDuplicateRecords = useCallback(async () => {
     try {
       if (!selectedMonth) return;
       
@@ -296,7 +296,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     } catch (error) {
       console.error('중복 데이터 정리 실패:', error);
     }
-  };
+  }, [selectedMonth, selectedBranchId]);
 
   // 검토 상태를 DB에 저장
   const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '검토완료') => {
@@ -337,7 +337,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   };
 
   // 검토 상태를 DB에서 로드하고, 없는 경우 기존 비교 데이터로 상태 설정
-  const loadReviewStatus = async (employeesList: typeof employees) => {
+  const loadReviewStatus = useCallback(async (employeesList: typeof employees) => {
     try {
       if (!selectedMonth) return;
       
@@ -411,7 +411,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     } catch (error) {
       console.error('검토 상태 로드 실패:', error);
     }
-  };
+  }, [selectedMonth, selectedBranchId]);
 
   const loadEmployees = useCallback(async () => {
     try {
@@ -548,7 +548,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     } catch (error) {
       console.error('직원 목록을 불러올 수 없습니다:', error);
     }
-  }, [selectedMonth, selectedBranchId, isManager, userBranch]);
+  }, [selectedMonth, selectedBranchId, isManager, userBranch, cleanupDuplicateRecords, loadEmployeeMemos, loadPayrollConfirmedEmployees, loadReviewStatus]);
 
   const loadSchedules = async (month: string) => {
     try {
