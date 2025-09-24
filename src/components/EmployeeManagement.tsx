@@ -1806,7 +1806,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   전화번호
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  지점 / 고용형태
+                  지점
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   근무일수 / 입사일
@@ -1820,7 +1820,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   상태
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  문서
+                  근로정보/고용형태
                 </th>
               </tr>
             </thead>

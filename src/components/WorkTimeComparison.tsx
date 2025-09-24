@@ -1116,7 +1116,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
   // 기존 비교 데이터를 불러오는 함수
   // 비교결과를 DB에 저장하는 함수
-  const saveComparisonResults = async (results: any[]) => {
+  const saveComparisonResults = async (results: WorkTimeComparison[]) => {
     if (!selectedEmployeeId || !selectedMonth || !selectedBranchId) return;
     
     try {

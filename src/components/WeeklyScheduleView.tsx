@@ -72,7 +72,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     } finally {
       setLoading(false);
     }
-  }, [currentWeekStart, selectedBranchId]);
+  }, [currentWeekStart, selectedBranchId, generateWeeklySummary]);
 
   useEffect(() => {
     if (currentWeekStart) {
@@ -220,7 +220,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     try {
       await navigator.clipboard.writeText(shareUrl);
       alert('공유 링크가 클립보드에 복사되었습니다!');
-    } catch (error) {
+    } catch {
       // 클립보드 복사 실패 시 대체 방법
       const textArea = document.createElement('textarea');
       textArea.value = shareUrl;
