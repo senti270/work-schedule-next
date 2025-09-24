@@ -490,8 +490,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       
       alert('급여가 확정되었습니다.');
       
-      // 급여확정된 직원 목록 다시 로드
-      await loadPayrollConfirmedEmployees();
+      // 급여확정된 직원 목록에 추가
+      setPayrollConfirmedEmployees(prev => [...prev, selectedEmployeeId]);
       
       // 상태 초기화
       setSelectedEmployeeId('');
