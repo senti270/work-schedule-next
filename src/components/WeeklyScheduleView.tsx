@@ -78,7 +78,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     if (currentWeekStart) {
       loadSchedules();
     }
-  }, [currentWeekStart, loadSchedules]);
+  }, [currentWeekStart, loadSchedules, generateWeeklySummary]);
 
   const generateWeeklySummary = (schedulesData: Schedule[]) => {
     const weekDates = getWeekDates(currentWeekStart);

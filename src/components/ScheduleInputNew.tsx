@@ -1940,7 +1940,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                           {hour}:00
                         </div>
                         {dayData.map((count, dayIndex) => {
-                          const intensity = maxCount > 0 ? count / maxCount : 0;
                           const bgColor = count === 0 ? 'bg-gray-100' :
                                         count === 1 ? 'bg-green-200' :
                                         count === 2 ? 'bg-green-400' :
