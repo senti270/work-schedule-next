@@ -232,7 +232,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
   };
 
   // 수습기간 비율 계산 함수 (일할 계산)
-  const calculateProbationRatio = (employee: any, month: string) => {
+  const calculateProbationRatio = (employee: { probationStartDate?: Date; probationEndDate?: Date }, month: string) => {
     if (!employee.probationStartDate || !employee.probationEndDate) {
       return 0;
     }
@@ -264,7 +264,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
   };
 
   // 수습기간 확인 함수 (UI 표시용)
-  const checkIfOnProbation = (employee: any, month: string) => {
+  const checkIfOnProbation = (employee: { probationStartDate?: Date; probationEndDate?: Date }, month: string) => {
     return calculateProbationRatio(employee, month) > 0;
   };
 
