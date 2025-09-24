@@ -231,10 +231,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   };
 
-  // 수습기간 확인 함수
-  const checkIfOnProbation = (employee: any, month: string) => {
+  // 수습기간 비율 계산 함수 (일할 계산)
+  const calculateProbationRatio = (employee: any, month: string) => {
     if (!employee.probationStartDate || !employee.probationEndDate) {
-      return false;
+      return 0;
     }
     
     // 선택된 월의 첫째 날과 마지막 날
@@ -246,8 +246,26 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     const probationStart = new Date(employee.probationStartDate);
     const probationEnd = new Date(employee.probationEndDate);
     
-    // 수습기간이 선택된 월과 겹치는지 확인
-    return (probationStart <= monthEnd && probationEnd >= monthStart);
+    // 수습기간이 선택된 월과 겹치지 않으면 0
+    if (probationStart > monthEnd || probationEnd < monthStart) {
+      return 0;
+    }
+    
+    // 수습기간이 선택된 월과 겹치는 부분 계산
+    const overlapStart = new Date(Math.max(probationStart.getTime(), monthStart.getTime()));
+    const overlapEnd = new Date(Math.min(probationEnd.getTime(), monthEnd.getTime()));
+    
+    // 겹치는 일수 계산
+    const overlapDays = Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const totalDays = monthEnd.getDate(); // 해당 월의 총 일수
+    
+    // 수습기간 비율 반환 (0~1)
+    return Math.min(overlapDays / totalDays, 1);
+  };
+
+  // 수습기간 확인 함수 (UI 표시용)
+  const checkIfOnProbation = (employee: any, month: string) => {
+    return calculateProbationRatio(employee, month) > 0;
   };
 
   // 급여 계산 함수
@@ -381,12 +399,15 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         // 외국인 시급: 월급여 = 총 근무시간 * 시급, 실지급금액 = 월급여 * 0.967
         monthlySalary = totalWorkHours * hourlyWage;
         
-        // 수습기간 확인
-        const isOnProbation = checkIfOnProbation(employee, selectedMonth);
+        // 수습기간 일할 계산
+        const probationRatio = calculateProbationRatio(employee, selectedMonth);
         
-        if (isOnProbation) {
-          // 수습기간 중: 90% 지급 후 세금 차감
-          actualPayment = (monthlySalary * 0.9) * 0.967;
+        if (probationRatio > 0) {
+          // 수습기간과 정규기간이 섞인 경우: 일할 계산
+          const probationSalary = monthlySalary * probationRatio * 0.9; // 수습기간 90%
+          const regularSalary = monthlySalary * (1 - probationRatio); // 정규기간 100%
+          const totalSalary = probationSalary + regularSalary;
+          actualPayment = totalSalary * 0.967;
         } else {
           // 정규기간: 100% 지급 후 세금 차감
           actualPayment = monthlySalary * 0.967;
@@ -815,12 +836,21 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
               <p>※ 외국인 시급: 월급여 = 총 근무시간 × 시급, 실지급금액 = 월급여 × 0.967 (3.3% 세금 차감)</p>
               {(() => {
                 const employee = employees.find(emp => emp.id === selectedEmployeeId);
-                if (employee && employee.employmentType === '외국인' && checkIfOnProbation(employee, selectedMonth)) {
-                  return (
-                    <p className="text-orange-600 font-medium mt-2">
-                      ⚠️ 수습기간 중: 90% 지급 (월급여 × 0.9 × 0.967)
-                    </p>
-                  );
+                if (employee && employee.employmentType === '외국인') {
+                  const probationRatio = calculateProbationRatio(employee, selectedMonth);
+                  if (probationRatio > 0) {
+                    const probationDays = Math.round(probationRatio * new Date(new Date(selectedMonth + '-01').getFullYear(), new Date(selectedMonth + '-01').getMonth() + 1, 0).getDate());
+                    const regularDays = Math.round((1 - probationRatio) * new Date(new Date(selectedMonth + '-01').getFullYear(), new Date(selectedMonth + '-01').getMonth() + 1, 0).getDate());
+                    
+                    return (
+                      <div className="text-orange-600 font-medium mt-2">
+                        <p>⚠️ 수습기간 일할 계산:</p>
+                        <p>• 수습기간: {probationDays}일 (90% 지급)</p>
+                        <p>• 정규기간: {regularDays}일 (100% 지급)</p>
+                        <p>• 계산식: (월급여 × {probationRatio.toFixed(2)} × 0.9 + 월급여 × {(1-probationRatio).toFixed(2)}) × 0.967</p>
+                      </div>
+                    );
+                  }
                 }
                 return null;
               })()}
