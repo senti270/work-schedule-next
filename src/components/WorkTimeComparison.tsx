@@ -157,8 +157,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           // 해당월의 근로계약 정보 가져오기
           const contractsQuery = query(
             collection(db, 'employmentContracts'),
-            where('employeeId', '==', employeeId),
-            orderBy('startDate', 'desc')
+            where('employeeId', '==', employeeId)
           );
           const contractsSnapshot = await getDocs(contractsQuery);
           
@@ -235,8 +234,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     if ((selectedBranchId || (isManager && userBranch)) && selectedMonth) {
       loadEmployees();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranchId, isManager, userBranch, selectedMonth]);
+  }, [selectedBranchId, isManager, userBranch, selectedMonth, loadEmployees]);
 
   // 지점이나 직원이 변경될 때 스케줄 다시 로드
   useEffect(() => {

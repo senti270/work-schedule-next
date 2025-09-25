@@ -163,22 +163,27 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
         fileSize = selectedFile.size;
         fileType = selectedFile.type;
         
-        // 파일 크기 체크 (3MB)
-        if (fileSize > 3 * 1024 * 1024) {
-          alert('파일 크기가 너무 큽니다. 3MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (fileSize / 1024 / 1024).toFixed(1) + 'MB');
+        // 파일 크기 체크 (1MB - Base64 방식으로 임시 제한)
+        if (fileSize > 1 * 1024 * 1024) {
+          alert('파일 크기가 너무 큽니다. 1MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (fileSize / 1024 / 1024).toFixed(1) + 'MB');
           setUploadingFile(false);
           return;
         }
         
-        // Firebase Storage에 직접 업로드
+        // Base64 방식으로 임시 처리 (Storage 규칙 설정 전까지)
         try {
-          const storageRef = ref(storage, `forms/${Date.now()}_${fileName}`);
-          const uploadResult = await uploadBytes(storageRef, selectedFile);
-          fileUrl = await getDownloadURL(uploadResult.ref);
-          isBase64 = false;
-        } catch (uploadError) {
-          console.error('파일 업로드 실패:', uploadError);
-          throw new Error('파일 업로드 중 오류가 발생했습니다. 파일을 다시 선택해주세요.');
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(selectedFile);
+          });
+          
+          fileUrl = await base64Promise;
+          isBase64 = true;
+        } catch (base64Error) {
+          console.error('Base64 변환 실패:', base64Error);
+          throw new Error('파일 처리 중 오류가 발생했습니다. 파일을 다시 선택해주세요.');
         }
       }
       
@@ -501,8 +506,8 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
                       const file = e.target.files?.[0];
                       if (file) {
                         // 파일 크기 체크
-                        if (file.size > 3 * 1024 * 1024) {
-                          alert('파일 크기가 너무 큽니다. 3MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
+                        if (file.size > 1 * 1024 * 1024) {
+                          alert('파일 크기가 너무 큽니다. 1MB 이하의 파일로 업로드해주세요.\n\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB');
                           e.target.value = '';
                           return;
                         }
@@ -541,7 +546,7 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
                     </p>
                   )}
                   <p className="text-xs text-gray-500 mt-1">
-                    PDF, DOC, DOCX, XLS, XLSX, JPG, PNG 파일을 업로드할 수 있습니다. (최대 3MB)
+                    PDF, DOC, DOCX, XLS, XLSX, JPG, PNG 파일을 업로드할 수 있습니다. (최대 1MB)
                   </p>
                 </div>
 
