@@ -145,26 +145,72 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       // 스케줄이 있는 직원 ID들 추출
       const employeeIds = [...new Set(monthSchedules.map(schedule => schedule.employeeId))];
 
-      // 직원 정보 로드
+      // 직원 정보 로드 및 해당월의 근로계약 정보 가져오기
       const employeesSnapshot = await getDocs(collection(db, 'employees'));
-      const employeesData = employeesSnapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
+      const employeesData = [];
+      
+      for (const employeeId of employeeIds) {
+        const employeeDoc = employeesSnapshot.docs.find(doc => doc.id === employeeId);
+        if (employeeDoc) {
+          const data = employeeDoc.data();
+          
+          // 해당월의 근로계약 정보 가져오기
+          const contractsQuery = query(
+            collection(db, 'employmentContracts'),
+            where('employeeId', '==', employeeId),
+            orderBy('startDate', 'desc')
+          );
+          const contractsSnapshot = await getDocs(contractsQuery);
+          
+          let employmentType = '';
+          let salaryType = '';
+          let weeklyWorkHours = 40; // 기본값
+          
+          if (!contractsSnapshot.empty) {
+            // 해당월에 유효한 계약서 찾기
+            const validContracts = contractsSnapshot.docs
+              .map(doc => {
+                const contractData = doc.data();
+                return {
+                  id: doc.id,
+                  startDate: contractData.startDate?.toDate ? contractData.startDate.toDate() : new Date(),
+                  endDate: contractData.endDate?.toDate ? contractData.endDate.toDate() : undefined,
+                  employmentType: contractData.employmentType || '',
+                  salaryType: contractData.salaryType || '',
+                  weeklyWorkHours: contractData.weeklyWorkHours || 40
+                };
+              })
+              .filter(contract => {
+                // 해당월에 유효한 계약인지 확인
+                const contractStart = contract.startDate;
+                const contractEnd = contract.endDate || new Date('2099-12-31');
+                return contractStart <= endDate && contractEnd >= startDate;
+              });
+            
+            if (validContracts.length > 0) {
+              // 가장 최신 계약서 사용
+              const latestContract = validContracts[0];
+              employmentType = latestContract.employmentType;
+              salaryType = latestContract.salaryType;
+              weeklyWorkHours = latestContract.weeklyWorkHours;
+            }
+          }
+          
+          employeesData.push({
+            id: employeeId,
             name: data.name,
             branchId: data.branchId,
             branchName: data.branchName,
-            employmentType: data.employmentType,
-            salaryType: data.salaryType,
-            weeklyWorkHours: data.weeklyWorkHours,
+            employmentType: employmentType,
+            salaryType: salaryType,
+            weeklyWorkHours: weeklyWorkHours,
             probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : undefined,
             probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : undefined,
             createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
             updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
-          };
-        })
-        .filter(employee => employeeIds.includes(employee.id));
+          });
+        }
+      }
 
       setEmployees(employeesData);
       
