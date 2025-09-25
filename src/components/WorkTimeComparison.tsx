@@ -285,10 +285,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     try {
       if (!selectedMonth) return;
       
+      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
+      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
+      
       const payrollQuery = query(
         collection(db, 'payrollRecords'),
         where('month', '==', selectedMonth),
-        where('branchId', '==', selectedBranchId)
+        where('branchId', '==', branchId)
       );
       const payrollSnapshot = await getDocs(payrollQuery);
       
@@ -378,10 +381,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       console.log('중복 데이터 정리 시작...');
       
       // 해당 월, 해당 지점의 모든 actualWorkRecords 조회
+      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
+      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
+      
       const allRecordsQuery = query(
         collection(db, 'actualWorkRecords'),
         where('month', '==', selectedMonth),
-        where('branchId', '==', selectedBranchId)
+        where('branchId', '==', branchId)
       );
       const allRecordsSnapshot = await getDocs(allRecordsQuery);
       
@@ -441,7 +447,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         employeeId,
         status,
         month: selectedMonth,
-        branchId: selectedBranchId,
+        branchId: isManager && userBranch ? userBranch.id : selectedBranchId,
         updatedAt: new Date()
       };
 
@@ -477,10 +483,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       
       console.log('검토 상태 로드 시작 - 선택된 월:', selectedMonth);
       
+      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
+      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
+      
       const reviewStatusQuery = query(
         collection(db, 'employeeReviewStatus'),
         where('month', '==', selectedMonth),
-        where('branchId', '==', selectedBranchId)
+        where('branchId', '==', branchId)
       );
       const reviewStatusSnapshot = await getDocs(reviewStatusQuery);
       
@@ -509,11 +518,14 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           
           // DB에 상태가 없으면 기존 비교 데이터 확인
           try {
+            // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
+            const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
+            
             const existingDataQuery = query(
               collection(db, 'actualWorkRecords'),
               where('employeeId', '==', employee.id),
               where('month', '==', selectedMonth),
-              where('branchId', '==', selectedBranchId)
+              where('branchId', '==', branchId)
             );
             const existingDataSnapshot = await getDocs(existingDataQuery);
             
@@ -1171,12 +1183,15 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     try {
       console.log('기존 비교 데이터 로드 시작:', selectedEmployeeId, selectedMonth);
       
+      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
+      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
+      
       const querySnapshot = await getDocs(
         query(
           collection(db, 'workTimeComparisonResults'),
           where('employeeId', '==', selectedEmployeeId),
           where('month', '==', selectedMonth),
-          where('branchId', '==', selectedBranchId)
+          where('branchId', '==', branchId)
         )
       );
       
@@ -1248,11 +1263,15 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     try {
       console.log('DB 저장 시작:', selectedEmployeeId, selectedMonth, results.length, '건');
       
+      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
+      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
+      
       // 기존 데이터 삭제
       const existingQuery = query(
         collection(db, 'actualWorkRecords'),
         where('employeeId', '==', selectedEmployeeId),
-        where('month', '==', selectedMonth)
+        where('month', '==', selectedMonth),
+        where('branchId', '==', branchId)
       );
       
       const existingSnapshot = await getDocs(existingQuery);
@@ -1268,6 +1287,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           employeeName: result.employeeName,
           date: result.date,
           month: selectedMonth,
+          branchId: branchId,
           scheduledHours: result.scheduledHours,
           actualHours: result.actualHours,
           difference: result.difference,
@@ -1293,6 +1313,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   // 수정된 데이터를 DB에 저장
   const saveModifiedData = async (result: WorkTimeComparison) => {
     try {
+      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
+      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
+      
       const actualWorkRecord = {
         employeeId: selectedEmployeeId,
         employeeName: result.employeeName,
@@ -1305,7 +1328,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         status: result.status,
         isModified: true,
         modifiedAt: new Date(),
-        branchId: selectedBranchId,
+        branchId: branchId,
         month: selectedMonth,
         scheduledTimeRange: result.scheduledTimeRange,
         actualTimeRange: result.actualTimeRange
@@ -1354,7 +1377,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         where('employeeId', '==', selectedEmployeeId),
         where('date', '==', result.date),
         where('month', '==', selectedMonth),
-        where('branchId', '==', selectedBranchId)
+        where('branchId', '==', branchId)
       );
       
       const comparisonDocs = await getDocs(comparisonQuery);
