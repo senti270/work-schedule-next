@@ -1126,17 +1126,20 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   // 기존 비교 데이터를 불러오는 함수
   // 비교결과를 DB에 저장하는 함수
   const saveComparisonResults = async (results: WorkTimeComparison[]) => {
-    if (!selectedEmployeeId || !selectedMonth || !selectedBranchId) return;
+    if (!selectedEmployeeId || !selectedMonth) return;
     
     try {
       console.log('비교결과 저장 시작:', results.length, '건');
+      
+      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
+      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
       
       // 기존 비교결과 데이터 삭제
       const existingQuery = query(
         collection(db, 'workTimeComparisonResults'),
         where('employeeId', '==', selectedEmployeeId),
         where('month', '==', selectedMonth),
-        where('branchId', '==', selectedBranchId)
+        where('branchId', '==', branchId)
       );
       
       const existingSnapshot = await getDocs(existingQuery);
@@ -1153,7 +1156,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
           employeeId: selectedEmployeeId,
           employeeName: result.employeeName,
           month: selectedMonth,
-          branchId: selectedBranchId,
+          branchId: branchId,
           date: result.date,
           scheduledHours: result.scheduledHours,
           actualHours: result.actualHours,
