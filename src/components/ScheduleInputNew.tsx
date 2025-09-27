@@ -1909,7 +1909,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                         ) : (
                           <div className="space-y-1">
                             <div
-                              className={`relative px-1 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 ${
+                              className={`relative px-1 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 min-h-[24px] flex items-center ${
                                 existingSchedule ? 'bg-blue-100 text-blue-800' : 'bg-gray-50 text-gray-500'
                               } ${isLocked ? 'cursor-not-allowed opacity-50' : ''} ${
                                 dragState.isDragging && dragState.targetCell?.employeeId === employee.id && 
@@ -1928,7 +1928,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                                 '클릭하여 입력'
                               }
                             >
-                              <div className="truncate">
+                              <div className="truncate w-full">
                                 {existingSchedule 
                                   ? formatScheduleForDisplay(existingSchedule)
                                   : '클릭하여 입력'
