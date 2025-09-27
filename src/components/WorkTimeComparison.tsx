@@ -370,13 +370,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
   // 급여확정 여부 확인
   const isPayrollConfirmed = (employeeId: string) => {
-    const confirmed = payrollConfirmedEmployees.includes(employeeId);
-    console.log('급여확정 상태 확인:', {
-      employeeId,
-      confirmed,
-      payrollConfirmedEmployees
-    });
-    return confirmed;
+    return payrollConfirmedEmployees.includes(employeeId);
   };
 
   // 중복 데이터 정리 함수
@@ -1975,7 +1969,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {(result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && !(employeeReviewStatus.find(status => status.employeeId === selectedEmployeeId)?.status === '검토완료') && (
+                        {(result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && (
                           <div className="flex space-x-2">
                             {result.status === 'review_required' ? (
                               // 미확인 상태: 확인 버튼
