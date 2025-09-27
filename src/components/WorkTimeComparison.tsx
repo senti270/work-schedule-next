@@ -1724,10 +1724,20 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       <div className="mb-6">
         <button
           onClick={compareWorkTimes}
-          disabled={loading}
+          disabled={loading || (() => {
+            const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+            if (!selectedEmployee) return false;
+            const reviewStatus = employeeReviewStatus.find(status => status.employeeId === selectedEmployeeId);
+            return reviewStatus?.status === '검토완료';
+          })()}
           className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium"
         >
-          {loading ? '로딩 중...' : '근무시간 비교'}
+          {loading ? '로딩 중...' : (() => {
+            const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+            if (!selectedEmployee) return '근무시간 비교';
+            const reviewStatus = employeeReviewStatus.find(status => status.employeeId === selectedEmployeeId);
+            return reviewStatus?.status === '검토완료' ? '검토완료 (비교 불가)' : '근무시간 비교';
+          })()}
         </button>
       </div>
 
@@ -2037,13 +2047,11 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                 onClick={async () => {
                                   if (confirm('스케줄 시간을 실제 근무시간으로 복사하시겠습니까?')) {
                                     const updatedResults = [...comparisonResults];
-                                    const breakTime = result.breakTime || 0;
-                                    const actualWorkHours = Math.max(0, result.scheduledHours - breakTime);
                                     
                                     updatedResults[index] = {
                                       ...result,
                                       actualHours: result.scheduledHours,
-                                      actualWorkHours: actualWorkHours,
+                                      actualWorkHours: result.scheduledHours, // 실근무시간 = 스케줄시간 (휴게시간 중복 차감 방지)
                                       difference: 0, // 스케줄과 동일하므로 차이 0
                                       status: 'review_completed',
                                       isModified: true,
