@@ -605,16 +605,6 @@ export default function Dashboard({ user }: DashboardProps) {
             >
               스케줄 관리
             </button>
-            <button
-              onClick={() => handleTabChange('employee-payroll')}
-              className={`py-3 sm:py-4 px-2 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === 'employee-payroll'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
-              }`}
-            >
-              직원별급여처리
-            </button>
             {!isManager && (
               <button
                 onClick={() => handleTabChange('payroll')}
@@ -624,7 +614,7 @@ export default function Dashboard({ user }: DashboardProps) {
                     : 'border-transparent text-gray-700 hover:text-gray-900 hover:border-gray-300'
                 }`}
               >
-                급여작업 (백업용)
+                급여작업
               </button>
             )}
             {!isManager && (
@@ -694,20 +684,13 @@ export default function Dashboard({ user }: DashboardProps) {
                     <h4 className="font-medium text-gray-900">스케줄 관리</h4>
                     <p className="text-gray-600 text-sm">근무 스케줄을 관리합니다</p>
                   </button>
-                  <button 
-                    onClick={() => setActiveTab('employee-payroll')}
-                    className="bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer text-left w-full"
-                  >
-                    <h4 className="font-medium text-gray-900">직원별급여처리</h4>
-                    <p className="text-gray-600 text-sm">직원별로 근무시간비교 및 급여계산을 처리합니다</p>
-                  </button>
                   {!isManager && (
                     <button 
                       onClick={() => setActiveTab('payroll')}
                       className="bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer text-left w-full"
                     >
-                      <h4 className="font-medium text-gray-900">급여작업 (백업용)</h4>
-                      <p className="text-gray-600 text-sm">기존 급여 관련 작업 (백업용)</p>
+                      <h4 className="font-medium text-gray-900">급여작업</h4>
+                      <p className="text-gray-600 text-sm">급여 관련 작업을 수행합니다</p>
                     </button>
                   )}
                   {!isManager && (
@@ -1376,15 +1359,6 @@ export default function Dashboard({ user }: DashboardProps) {
             </div>
           )}
 
-          {activeTab === 'employee-payroll' && (
-            <div className="space-y-6">
-              <EmployeePayrollProcessing 
-                user={user}
-                userBranch={userBranch}
-                isManager={isManager}
-              />
-            </div>
-          )}
           
           {activeTab === 'payroll' && (
             <div className="space-y-6">
@@ -1411,6 +1385,16 @@ export default function Dashboard({ user }: DashboardProps) {
                       }`}
                     >
                       급여계산작업
+                    </button>
+                    <button
+                      onClick={() => handleSubTabChange('employee-payroll-processing')}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                        activeSubTab === 'employee-payroll-processing'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      직원별급여처리
                     </button>
                     {!isManager && (
                       <>
@@ -1451,6 +1435,14 @@ export default function Dashboard({ user }: DashboardProps) {
 
               {activeSubTab === 'payroll-calculation' && (
                 <PayrollCalculation userBranch={userBranch} isManager={isManager} />
+              )}
+
+              {activeSubTab === 'employee-payroll-processing' && (
+                <EmployeePayrollProcessing 
+                  user={user}
+                  userBranch={userBranch}
+                  isManager={isManager}
+                />
               )}
               
               {activeSubTab === 'tax-file' && (
