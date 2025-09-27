@@ -126,6 +126,47 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     return shortNames[branchName] || branchName;
   };
 
+  // 권장 휴게시간 계산 함수
+  const calculateRecommendedBreak = (input: string): number | null => {
+    // 입력 형식 파싱 (예: "10-22", "10-22(1)", "10-13,19-23" 등)
+    const timePattern = /(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/g;
+    let totalWorkHours = 0;
+    let match;
+    
+    while ((match = timePattern.exec(input)) !== null) {
+      const startTime = parseFloat(match[1]);
+      const endTime = parseFloat(match[2]);
+      const workHours = endTime - startTime;
+      totalWorkHours += workHours;
+    }
+    
+    // 4시간 이상 근로 시 권장 휴게시간 계산
+    if (totalWorkHours >= 8) return 1; // 8시간 이상 → 1시간
+    if (totalWorkHours >= 4) return 0.5; // 4시간 이상 → 30분
+    return null; // 4시간 미만 → 표시하지 않음
+  };
+
+  // 권장 휴게시간 클릭 핸들러
+  const handleRecommendedBreakClick = (inputKey: string, recommendedBreak: number) => {
+    const currentInput = scheduleInputs[inputKey] || '';
+    
+    // 이미 휴게시간이 있는지 확인
+    if (currentInput.includes('(')) {
+      // 기존 휴게시간을 권장 휴게시간으로 교체
+      const newInput = currentInput.replace(/\(\d+(?:\.\d+)?\)/, `(${recommendedBreak})`);
+      setScheduleInputs(prev => ({
+        ...prev,
+        [inputKey]: newInput
+      }));
+    } else {
+      // 휴게시간이 없으면 추가
+      setScheduleInputs(prev => ({
+        ...prev,
+        [inputKey]: `${currentInput}(${recommendedBreak})`
+      }));
+    }
+  };
+
   // 다른 지점 스케줄 조회 함수
   const loadOtherBranchSchedules = useCallback(async () => {
     try {
@@ -1812,6 +1853,22 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                               placeholder="10-22(2)"
                               autoFocus
                             />
+                            
+                            {/* 권장 휴게시간 표시 */}
+                            {(() => {
+                              const currentInput = scheduleInputs[inputKey] || '';
+                              const recommendedBreak = calculateRecommendedBreak(currentInput);
+                              return recommendedBreak !== null ? (
+                                <div 
+                                  className="text-xs text-blue-600 cursor-pointer hover:text-blue-800 hover:underline"
+                                  onClick={() => handleRecommendedBreakClick(inputKey, recommendedBreak)}
+                                  title="클릭하여 권장 휴게시간 추가"
+                                >
+                                  권장휴게시간 {recommendedBreak}
+                                </div>
+                              ) : null;
+                            })()}
+                            
                             <div className="flex space-x-1 justify-center">
                               <button
                                 onClick={() => handleCellSave(employee.id, date)}
