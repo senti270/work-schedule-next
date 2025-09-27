@@ -447,14 +447,14 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                 {weeklySummaries
                   .sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'ko'))
                   .map((summary, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
+                  <tr key={index} className={`hover:bg-gray-50 ${index < weeklySummaries.length - 1 ? 'border-b border-gray-200' : ''}`}>
                     {weekDates.map((date, dayIndex) => {
                       const daySchedules = getSchedulesForDate(date).filter(
                         schedule => schedule.employeeName === summary.employeeName
                       );
                       
                       return (
-                        <td key={dayIndex} className="px-2 py-2 text-center">
+                        <td key={dayIndex} className="px-2 py-2 text-center align-top">
                           <div className="space-y-1">
                             {daySchedules.map((schedule) => {
                               const scheduleInfo = formatScheduleDisplay(schedule);
@@ -463,14 +463,14 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                               const otherBranchSchedule = otherBranchSchedules[otherBranchKey];
                               
                               return (
-                                <div key={schedule.id} className="space-y-1">
-                                  <div className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 whitespace-nowrap">
+                                <div key={schedule.id} className="flex flex-col items-center">
+                                  <div className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 whitespace-nowrap w-full">
                                     <span className="font-medium">{scheduleInfo.name}</span> {scheduleInfo.time}
                                   </div>
                                   
                                   {/* 다른 지점 스케줄 정보 */}
                                   {otherBranchSchedule && otherBranchSchedule.length > 0 && (
-                                    <div className="text-xs text-black space-y-0.5">
+                                    <div className="text-xs text-black space-y-0.5 mt-1 w-full">
                                       {otherBranchSchedule.map((item, idx) => (
                                         <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
                                           <span className="font-medium">{item.branchName}:</span> {item.schedule}
