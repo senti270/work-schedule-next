@@ -1971,7 +1971,44 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && (
                           <div className="flex space-x-2">
-                            {result.status === 'review_required' ? (
+                            {result.status === 'review_completed' ? (
+                              // 검토완료 상태: 검토완료취소 버튼 (급여확정 전까지만 가능)
+                              <button
+                                onClick={async () => {
+                                  if (confirm('검토완료를 취소하시겠습니까?')) {
+                                    const updatedResults = [...comparisonResults];
+                                    updatedResults[index] = {
+                                      ...result,
+                                      status: 'review_required',
+                                      isModified: true
+                                    };
+                                    setComparisonResults(sortComparisonResults(updatedResults));
+                                    
+                                    setEmployeeReviewStatus(prev => {
+                                      const existingIndex = prev.findIndex(status => status.employeeId === selectedEmployeeId);
+                                      
+                                      if (existingIndex >= 0) {
+                                        // 기존 상태 업데이트
+                                        const updated = [...prev];
+                                        updated[existingIndex] = { ...updated[existingIndex], status: '검토중' as '검토전' | '검토중' | '검토완료' };
+                                        return updated;
+                                      } else {
+                                        // 새로운 상태 추가
+                                        const newStatus = { employeeId: selectedEmployeeId, status: '검토중' as '검토전' | '검토중' | '검토완료' };
+                                        return [...prev, newStatus];
+                                      }
+                                    });
+                                    
+                                    // DB에 저장
+                                    await saveModifiedData(updatedResults[index]);
+                                    await saveReviewStatus(selectedEmployeeId, '검토중');
+                                  }
+                                }}
+                                className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700"
+                              >
+                                검토완료취소
+                              </button>
+                            ) : (
                               // 미확인 상태: 확인 버튼
                               <button
                                 onClick={async () => {
@@ -2006,45 +2043,6 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                               >
                                 확인
                               </button>
-                            ) : (
-                              // 확인완료 상태: 확인취소 버튼 (급여확정 전까지만 가능)
-                              !isPayrollConfirmed(selectedEmployeeId) && (
-                                <button
-                                  onClick={async () => {
-                                    if (confirm('검토완료를 취소하시겠습니까?')) {
-                                      const updatedResults = [...comparisonResults];
-                                      updatedResults[index] = {
-                                        ...result,
-                                        status: 'review_required',
-                                        isModified: true
-                                      };
-                                      setComparisonResults(sortComparisonResults(updatedResults));
-                                      
-                                      setEmployeeReviewStatus(prev => {
-                                        const existingIndex = prev.findIndex(status => status.employeeId === selectedEmployeeId);
-                                        
-                                        if (existingIndex >= 0) {
-                                          // 기존 상태 업데이트
-                                          const updated = [...prev];
-                                          updated[existingIndex] = { ...updated[existingIndex], status: '검토중' as '검토전' | '검토중' | '검토완료' };
-                                          return updated;
-                                        } else {
-                                          // 새로운 상태 추가
-                                          const newStatus = { employeeId: selectedEmployeeId, status: '검토중' as '검토전' | '검토중' | '검토완료' };
-                                          return [...prev, newStatus];
-                                        }
-                                      });
-                                      
-                                      // DB에 저장
-                                      await saveModifiedData(updatedResults[index]);
-                                      await saveReviewStatus(selectedEmployeeId, '검토중');
-                                    }
-                                  }}
-                                  className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700"
-                                >
-                                  검토완료취소
-                                </button>
-                              )
                             )}
                             {result.status === 'review_required' && (
                               <button
