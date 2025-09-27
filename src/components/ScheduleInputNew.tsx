@@ -1907,71 +1907,71 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                             </div>
                           </div>
                         ) : (
-                          <div
-                            className={`relative px-1 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 ${
-                              existingSchedule ? 'bg-blue-100 text-blue-800' : 'bg-gray-50 text-gray-500'
-                            } ${isLocked ? 'cursor-not-allowed opacity-50' : ''} ${
-                              dragState.isDragging && dragState.targetCell?.employeeId === employee.id && 
-                              dragState.targetCell?.date.toDateString() === date.toDateString() 
-                                ? 'bg-yellow-200 border-2 border-yellow-400' : ''
-                            }`}
-                            onClick={() => handleCellClick(employee.id, date)}
-                            onDoubleClick={() => handleScheduleDelete(employee.id, date)}
-                            onMouseDown={(e) => handleMouseDown(e, employee.id, date)}
-                            onMouseEnter={() => handleMouseEnter(employee.id, date)}
-                            onMouseLeave={handleMouseLeave}
-                            onMouseOver={(e) => handleDragOver(e, employee.id, date)}
-                            onMouseUp={handleMouseUp}
-                            title={existingSchedule ? 
-                              `${formatScheduleForDisplay(existingSchedule)} - 더블클릭: 삭제` : 
-                              '클릭하여 입력'
-                            }
-                          >
-                            <div className="flex flex-col items-center">
-                              <div className="truncate w-full">
+                          <div className="space-y-1">
+                            <div
+                              className={`relative px-1 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 ${
+                                existingSchedule ? 'bg-blue-100 text-blue-800' : 'bg-gray-50 text-gray-500'
+                              } ${isLocked ? 'cursor-not-allowed opacity-50' : ''} ${
+                                dragState.isDragging && dragState.targetCell?.employeeId === employee.id && 
+                                dragState.targetCell?.date.toDateString() === date.toDateString() 
+                                  ? 'bg-yellow-200 border-2 border-yellow-400' : ''
+                              }`}
+                              onClick={() => handleCellClick(employee.id, date)}
+                              onDoubleClick={() => handleScheduleDelete(employee.id, date)}
+                              onMouseDown={(e) => handleMouseDown(e, employee.id, date)}
+                              onMouseEnter={() => handleMouseEnter(employee.id, date)}
+                              onMouseLeave={handleMouseLeave}
+                              onMouseOver={(e) => handleDragOver(e, employee.id, date)}
+                              onMouseUp={handleMouseUp}
+                              title={existingSchedule ? 
+                                `${formatScheduleForDisplay(existingSchedule)} - 더블클릭: 삭제` : 
+                                '클릭하여 입력'
+                              }
+                            >
+                              <div className="truncate">
                                 {existingSchedule 
                                   ? formatScheduleForDisplay(existingSchedule)
                                   : '클릭하여 입력'
                                 }
                               </div>
+                            
+                              {/* 드래그 아이콘 및 툴팁 */}
+                              {hoveredCell?.employeeId === employee.id && 
+                               hoveredCell?.date.toDateString() === date.toDateString() && 
+                               existingSchedule && 
+                               !isLocked && (
+                                <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                                  <div className="flex items-center space-x-1">
+                                    <span>↕️</span>
+                                    <span>드래그: 복사</span>
+                                    <span>|</span>
+                                    <span>Ctrl+드래그: 이동</span>
+                                    <span>|</span>
+                                    <span>🗑️ 더블클릭: 삭제</span>
+                                  </div>
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                                </div>
+                              )}
                               
-                              {/* 다른 지점 스케줄 정보 */}
-                              {otherBranchSchedules[`${employee.id}-${dateString}`] && otherBranchSchedules[`${employee.id}-${dateString}`].length > 0 && (
-                                <div className="mt-1 text-xs text-gray-600 space-y-0.5 w-full">
-                                  {otherBranchSchedules[`${employee.id}-${dateString}`].map((item, idx) => (
-                                    <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
-                                      <span className="font-medium">{item.branchName}:</span> {item.schedule}
-                                    </div>
-                                  ))}
+                              {/* 드래그 아이콘 */}
+                              {hoveredCell?.employeeId === employee.id && 
+                               hoveredCell?.date.toDateString() === date.toDateString() && 
+                               existingSchedule && 
+                               !isLocked && (
+                                <div className="absolute top-0 right-0 transform translate-x-0.5 -translate-y-0.5 text-gray-600 text-xs">
+                                  ↕️
                                 </div>
                               )}
                             </div>
                             
-                            {/* 드래그 아이콘 및 툴팁 */}
-                            {hoveredCell?.employeeId === employee.id && 
-                             hoveredCell?.date.toDateString() === date.toDateString() && 
-                             existingSchedule && 
-                             !isLocked && (
-                              <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
-                                <div className="flex items-center space-x-1">
-                                  <span>↕️</span>
-                                  <span>드래그: 복사</span>
-                                  <span>|</span>
-                                  <span>Ctrl+드래그: 이동</span>
-                                  <span>|</span>
-                                  <span>🗑️ 더블클릭: 삭제</span>
-                                </div>
-                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-                              </div>
-                            )}
-                            
-                            {/* 드래그 아이콘 */}
-                            {hoveredCell?.employeeId === employee.id && 
-                             hoveredCell?.date.toDateString() === date.toDateString() && 
-                             existingSchedule && 
-                             !isLocked && (
-                              <div className="absolute top-0 right-0 transform translate-x-0.5 -translate-y-0.5 text-gray-600 text-xs">
-                                ↕️
+                            {/* 다른 지점 스케줄 정보 (박스 밖으로 분리) */}
+                            {otherBranchSchedules[`${employee.id}-${dateString}`] && otherBranchSchedules[`${employee.id}-${dateString}`].length > 0 && (
+                              <div className="text-xs text-gray-600 space-y-0.5">
+                                {otherBranchSchedules[`${employee.id}-${dateString}`].map((item, idx) => (
+                                  <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
+                                    <span className="font-medium">{item.branchName}:</span> {item.schedule}
+                                  </div>
+                                ))}
                               </div>
                             )}
                           </div>
