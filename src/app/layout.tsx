@@ -29,6 +29,13 @@ export default function RootLayout({
       >
         {children}
         
+        {/* 모바일 PC 최적화 안내 메시지 (하단 고정) */}
+        <div className="fixed bottom-0 left-0 right-0 bg-blue-600 text-white text-center py-2 px-4 z-50 md:hidden">
+          <p className="text-sm font-medium">
+            💻 본 시스템은 PC화면에서 최적화되어있습니다
+          </p>
+        </div>
+        
         {/* Footer */}
         <footer className="bg-gray-50 border-t border-gray-200 mt-auto">
           <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
