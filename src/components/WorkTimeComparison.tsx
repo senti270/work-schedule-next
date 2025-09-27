@@ -1971,7 +1971,14 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && (
                           <div className="flex space-x-2">
-                            {result.status === 'review_completed' ? (
+                            {(() => {
+                              console.log('버튼 표시 조건 확인:', {
+                                resultStatus: result.status,
+                                isPayrollConfirmed: isPayrollConfirmed(selectedEmployeeId),
+                                selectedEmployeeId
+                              });
+                              return result.status === 'review_completed';
+                            })() ? (
                               // 검토완료 상태: 검토완료취소 버튼 (급여확정 전까지만 가능)
                               <button
                                 onClick={async () => {

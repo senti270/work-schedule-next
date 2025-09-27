@@ -335,6 +335,20 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     let probationWorkHours = 0;
     let regularWorkHours = 0;
 
+    console.log('calculateActualWorkHoursByPeriod 디버그:', {
+      employeeName: employee.name,
+      selectedMonth,
+      monthStart: monthStart.toDateString(),
+      monthEnd: monthEnd.toDateString(),
+      probationStart: employee.probationStartDate.toDateString(),
+      probationEnd: employee.probationEndDate.toDateString(),
+      employeeSchedulesCount: employeeSchedules.length,
+      employeeSchedules: employeeSchedules.map(s => ({
+        date: s.date.toDateString(),
+        totalHours: s.totalHours
+      }))
+    });
+
     // 각 스케줄을 확인하여 수습기간과 정규기간으로 분류
     employeeSchedules.forEach(schedule => {
       const scheduleDate = schedule.date;
