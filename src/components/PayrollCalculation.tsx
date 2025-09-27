@@ -148,7 +148,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
             name: doc.data().name || '',
             type: doc.data().type || '',
             status: doc.data().status || 'active',
-            branchNames: [] // 지점명은 별도로 로드
+            branchNames: [], // 지점명은 별도로 로드
+            // 수습기간 정보
+            probationStartDate: doc.data().probationStartDate?.toDate ? doc.data().probationStartDate.toDate() : undefined,
+            probationEndDate: doc.data().probationEndDate?.toDate ? doc.data().probationEndDate.toDate() : undefined
           };
           
           // 근로계약 정보 로드 (최신 계약)
@@ -236,7 +239,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
 
   // 수습기간 비율 계산 함수 (일할 계산)
   const calculateProbationRatio = (employee: { probationStartDate?: Date; probationEndDate?: Date }, month: string) => {
+    console.log('수습기간 계산 시작:', {
+      probationStartDate: employee.probationStartDate,
+      probationEndDate: employee.probationEndDate,
+      month
+    });
+    
     if (!employee.probationStartDate || !employee.probationEndDate) {
+      console.log('수습기간 데이터 없음');
       return 0;
     }
     
@@ -249,8 +259,16 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     const probationStart = new Date(employee.probationStartDate);
     const probationEnd = new Date(employee.probationEndDate);
     
+    console.log('날짜 비교:', {
+      monthStart: monthStart.toDateString(),
+      monthEnd: monthEnd.toDateString(),
+      probationStart: probationStart.toDateString(),
+      probationEnd: probationEnd.toDateString()
+    });
+    
     // 수습기간이 선택된 월과 겹치지 않으면 0
     if (probationStart > monthEnd || probationEnd < monthStart) {
+      console.log('수습기간이 해당 월과 겹치지 않음');
       return 0;
     }
     
@@ -262,8 +280,18 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     const overlapDays = Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const totalDays = monthEnd.getDate(); // 해당 월의 총 일수
     
+    const ratio = Math.min(overlapDays / totalDays, 1);
+    
+    console.log('수습기간 비율 계산 결과:', {
+      overlapStart: overlapStart.toDateString(),
+      overlapEnd: overlapEnd.toDateString(),
+      overlapDays,
+      totalDays,
+      ratio
+    });
+    
     // 수습기간 비율 반환 (0~1)
-    return Math.min(overlapDays / totalDays, 1);
+    return ratio;
   };
 
   // 수습기간 확인 함수 (UI 표시용)
