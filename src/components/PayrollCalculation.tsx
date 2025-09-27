@@ -4,6 +4,23 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+interface Schedule {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  branchId: string;
+  branchName: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  breakTime: string;
+  totalHours: number;
+  timeSlots?: unknown[];
+  originalInput?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface Employee {
   id: string;
   name: string;
@@ -299,6 +316,52 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     return calculateProbationRatio(employee, month) > 0;
   };
 
+  // 실제 근무시간을 수습기간과 정규기간으로 나누어 계산 (시급일 때만 사용)
+  const calculateActualWorkHoursByPeriod = (
+    employee: Employee, 
+    selectedMonth: string, 
+    employeeSchedules: Schedule[]
+  ): [number, number] => {
+    if (!employee.probationStartDate || !employee.probationEndDate) {
+      return [0, 0];
+    }
+
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0);
+
+    let probationWorkHours = 0;
+    let regularWorkHours = 0;
+
+    // 각 스케줄을 확인하여 수습기간과 정규기간으로 분류
+    employeeSchedules.forEach(schedule => {
+      const scheduleDate = schedule.date;
+      const workHours = schedule.totalHours || 0;
+
+      if (scheduleDate >= monthStart && scheduleDate <= monthEnd) {
+        if (employee.probationStartDate && employee.probationEndDate && 
+            scheduleDate >= employee.probationStartDate && scheduleDate <= employee.probationEndDate) {
+          // 수습기간
+          probationWorkHours += workHours;
+        } else {
+          // 정규기간
+          regularWorkHours += workHours;
+        }
+      }
+    });
+
+    console.log('실제 근무시간 분리 계산:', {
+      employeeName: employee.name,
+      probationStart: employee.probationStartDate?.toDateString(),
+      probationEnd: employee.probationEndDate?.toDateString(),
+      probationWorkHours: probationWorkHours.toFixed(1),
+      regularWorkHours: regularWorkHours.toFixed(1),
+      totalWorkHours: (probationWorkHours + regularWorkHours).toFixed(1)
+    });
+
+    return [probationWorkHours, regularWorkHours];
+  };
+
   // 급여 계산 함수
   const calculatePayroll = async (employeeId: string) => {
     if (!selectedMonth) return;
@@ -427,20 +490,44 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       let actualPayment = 0;
       
       if ((employee.employmentType === '외국인' || employee.employmentType === '사업소득') && employee.salaryType === 'hourly') {
-        // 수습기간이 있는 경우 시간별로 계산
+        // 수습기간이 있는 경우 실제 근무시간을 수습기간과 정규기간으로 나누어 계산
         const probationRatio = calculateProbationRatio(employee, selectedMonth);
         
         if (probationRatio > 0) {
-          // 수습기간과 정규기간이 섞인 경우: 실제 근무시간을 기준으로 계산
-          const probationWorkHours = totalWorkHours * probationRatio; // 수습기간 근무시간
-          const regularWorkHours = totalWorkHours * (1 - probationRatio); // 정규기간 근무시간
+          // 스케줄 데이터 로드
+          const schedulesSnapshot = await getDocs(collection(db, 'schedules'));
+          const allSchedules = schedulesSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              employeeId: data.employeeId,
+              employeeName: data.employeeName,
+              branchId: data.branchId,
+              branchName: data.branchName,
+              date: data.date?.toDate() || new Date(),
+              startTime: data.startTime,
+              endTime: data.endTime,
+              breakTime: data.breakTime,
+              totalHours: data.totalHours,
+              timeSlots: data.timeSlots,
+              originalInput: data.originalInput,
+              createdAt: data.createdAt?.toDate() || new Date(),
+              updatedAt: data.updatedAt?.toDate() || new Date()
+            };
+          });
+
+          // 실제 근무시간을 수습기간과 정규기간으로 분리 계산
+          const [probationWorkHours, regularWorkHours] = calculateActualWorkHoursByPeriod(
+            employee, 
+            selectedMonth, 
+            allSchedules.filter(s => s.employeeId === selectedEmployeeId)
+          );
           
           // 월급여 = 수습기간근무시간 * 시급 * 0.9 + 정규기간근무시간 * 시급
           monthlySalary = (probationWorkHours * hourlyWage * 0.9) + (regularWorkHours * hourlyWage);
           
-          console.log('수습기간 급여 계산:', {
+          console.log('수습기간 급여 계산 (실제 근무시간 기준):', {
             totalWorkHours,
-            probationRatio,
             probationWorkHours: probationWorkHours.toFixed(1),
             regularWorkHours: regularWorkHours.toFixed(1),
             hourlyWage,
@@ -882,21 +969,41 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                 if (employee && (employee.employmentType === '외국인' || employee.employmentType === '사업소득')) {
                   const probationRatio = calculateProbationRatio(employee, selectedMonth);
                   if (probationRatio > 0) {
-                    const probationWorkHours = (payrollData?.totalWorkHours || 0) * probationRatio;
-                    const regularWorkHours = (payrollData?.totalWorkHours || 0) * (1 - probationRatio);
-                    const probationSalary = probationWorkHours * (payrollData?.hourlyWage || 0) * 0.9;
-                    const regularSalary = regularWorkHours * (payrollData?.hourlyWage || 0);
-                    
-                    return (
-                      <div className="text-orange-600 font-medium mt-2">
-                        <p>⚠️ 수습기간 시간별 계산:</p>
-                        <p>• 수습기간 근무시간: {probationWorkHours.toFixed(1)}시간 (90% 지급)</p>
-                        <p>• 정규기간 근무시간: {regularWorkHours.toFixed(1)}시간 (100% 지급)</p>
-                        <p>• 수습기간 급여: {probationSalary.toLocaleString()}원</p>
-                        <p>• 정규기간 급여: {regularSalary.toLocaleString()}원</p>
-                        <p>• 계산식: ({probationWorkHours.toFixed(1)} × {payrollData?.hourlyWage?.toLocaleString()} × 0.9) + ({regularWorkHours.toFixed(1)} × {payrollData?.hourlyWage?.toLocaleString()}) = {payrollData?.monthlySalary?.toLocaleString()}원</p>
-                      </div>
-                    );
+                    if (employee.salaryType === 'hourly') {
+                      // 시급일 때: 실제 근무시간으로 계산 (UI 표시용이므로 간단히 비율로 계산)
+                      const probationWorkHours = (payrollData?.totalWorkHours || 0) * probationRatio;
+                      const regularWorkHours = (payrollData?.totalWorkHours || 0) * (1 - probationRatio);
+                      const probationSalary = probationWorkHours * (payrollData?.hourlyWage || 0) * 0.9;
+                      const regularSalary = regularWorkHours * (payrollData?.hourlyWage || 0);
+                      
+                      return (
+                        <div className="text-orange-600 font-medium mt-2">
+                          <p>⚠️ 수습기간 실제 근무시간 계산 (시급):</p>
+                          <p>• 수습기간 근무시간: {probationWorkHours.toFixed(1)}시간 (90% 지급)</p>
+                          <p>• 정규기간 근무시간: {regularWorkHours.toFixed(1)}시간 (100% 지급)</p>
+                          <p>• 수습기간 급여: {probationSalary.toLocaleString()}원</p>
+                          <p>• 정규기간 급여: {regularSalary.toLocaleString()}원</p>
+                          <p>• 계산식: ({probationWorkHours.toFixed(1)} × {payrollData?.hourlyWage?.toLocaleString()} × 0.9) + ({regularWorkHours.toFixed(1)} × {payrollData?.hourlyWage?.toLocaleString()}) = {payrollData?.monthlySalary?.toLocaleString()}원</p>
+                        </div>
+                      );
+                    } else {
+                      // 월급일 때: 비율로 계산
+                      const probationWorkHours = (payrollData?.totalWorkHours || 0) * probationRatio;
+                      const regularWorkHours = (payrollData?.totalWorkHours || 0) * (1 - probationRatio);
+                      const probationSalary = probationWorkHours * (payrollData?.hourlyWage || 0) * 0.9;
+                      const regularSalary = regularWorkHours * (payrollData?.hourlyWage || 0);
+                      
+                      return (
+                        <div className="text-orange-600 font-medium mt-2">
+                          <p>⚠️ 수습기간 비율 계산 (월급):</p>
+                          <p>• 수습기간 근무시간: {probationWorkHours.toFixed(1)}시간 (90% 지급)</p>
+                          <p>• 정규기간 근무시간: {regularWorkHours.toFixed(1)}시간 (100% 지급)</p>
+                          <p>• 수습기간 급여: {probationSalary.toLocaleString()}원</p>
+                          <p>• 정규기간 급여: {regularSalary.toLocaleString()}원</p>
+                          <p>• 계산식: ({probationWorkHours.toFixed(1)} × {payrollData?.hourlyWage?.toLocaleString()} × 0.9) + ({regularWorkHours.toFixed(1)} × {payrollData?.hourlyWage?.toLocaleString()}) = {payrollData?.monthlySalary?.toLocaleString()}원</p>
+                        </div>
+                      );
+                    }
                   }
                 }
                 return null;
