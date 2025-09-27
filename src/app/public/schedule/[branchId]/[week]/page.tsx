@@ -70,7 +70,7 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       '청담장어마켓 송파점': '장어송파',
       '청담장어마켓 동탄점': '장어동탄',
       '카페드로잉 석촌호수점': '카페송파',
-      '카페드로잉 분당당점': '카페분당',
+      '카페드로잉 분당점': '카페분당',
       '카페드로잉 동탄점': '카페동탄'
     };
     return shortNames[branchName] || branchName;
