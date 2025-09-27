@@ -1981,6 +1981,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                             })() ? (
                               // 검토완료 상태: 검토완료취소 버튼 (급여확정 전까지만 가능)
                               <button
+                                style={{backgroundColor: 'red', color: 'white', padding: '8px', fontSize: '14px', zIndex: 9999}}
                                 onClick={async () => {
                                   if (confirm('검토완료를 취소하시겠습니까?')) {
                                     const updatedResults = [...comparisonResults];

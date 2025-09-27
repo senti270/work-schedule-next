@@ -514,6 +514,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         if (probationRatio > 0) {
           // 스케줄 데이터 로드
           const schedulesSnapshot = await getDocs(collection(db, 'schedules'));
+          console.log('스케줄 데이터 로드 결과:', {
+            totalSchedules: schedulesSnapshot.docs.length,
+            selectedEmployeeId
+          });
+          
           const allSchedules = schedulesSnapshot.docs.map(doc => {
             const data = doc.data();
             return {
@@ -535,10 +540,31 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           });
 
           // 실제 근무시간을 수습기간과 정규기간으로 분리 계산
+          const filteredSchedules = allSchedules.filter(s => s.employeeId === selectedEmployeeId);
+          console.log('스케줄 필터링 결과:', {
+            selectedEmployeeId,
+            allSchedulesCount: allSchedules.length,
+            filteredSchedulesCount: filteredSchedules.length,
+            allSchedules: allSchedules.map(s => ({
+              id: s.id,
+              employeeId: s.employeeId,
+              employeeName: s.employeeName,
+              date: s.date.toDateString(),
+              totalHours: s.totalHours
+            })),
+            filteredSchedules: filteredSchedules.map(s => ({
+              id: s.id,
+              employeeId: s.employeeId,
+              employeeName: s.employeeName,
+              date: s.date.toDateString(),
+              totalHours: s.totalHours
+            }))
+          });
+          
           const [calculatedProbationHours, calculatedRegularHours] = calculateActualWorkHoursByPeriod(
             employee, 
             selectedMonth, 
-            allSchedules.filter(s => s.employeeId === selectedEmployeeId)
+            filteredSchedules
           );
           
           probationWorkHours = calculatedProbationHours;
