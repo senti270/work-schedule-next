@@ -398,8 +398,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       let monthlySalary = 0;
       let actualPayment = 0;
       
-      if (employee.employmentType === '외국인' && employee.salaryType === 'hourly') {
-        // 외국인 시급: 월급여 = 총 근무시간 * 시급, 실지급금액 = 월급여 * 0.967
+      if ((employee.employmentType === '외국인' || employee.employmentType === '사업소득') && employee.salaryType === 'hourly') {
+        // 외국인/사업소득 시급: 월급여 = 총 근무시간 * 시급, 실지급금액 = 월급여 * 0.967
         monthlySalary = totalWorkHours * hourlyWage;
         
         // 수습기간 일할 계산
@@ -508,7 +508,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           employmentType: employee.employmentType || '',
           salaryType: employee.salaryType || '',
           weeklyWorkHours: employee.weeklyWorkHours || 40, // 기본값 40시간
-          taxRate: employee.employmentType === '외국인' ? 0.033 : 0, // 3.3% 세금
+          taxRate: (employee.employmentType === '외국인' || employee.employmentType === '사업소득') ? 0.033 : 0, // 3.3% 세금
           calculationDate: new Date()
         },
         
@@ -836,10 +836,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
               </div>
             </div>
             <div className="mt-4 text-sm text-gray-600">
-              <p>※ 외국인 시급: 월급여 = 총 근무시간 × 시급, 실지급금액 = 월급여 × 0.967 (3.3% 세금 차감)</p>
+              <p>※ 외국인/사업소득 시급: 월급여 = 총 근무시간 × 시급, 실지급금액 = 월급여 × 0.967 (3.3% 세금 차감)</p>
               {(() => {
                 const employee = employees.find(emp => emp.id === selectedEmployeeId);
-                if (employee && employee.employmentType === '외국인') {
+                if (employee && (employee.employmentType === '외국인' || employee.employmentType === '사업소득')) {
                   const probationRatio = calculateProbationRatio(employee, selectedMonth);
                   if (probationRatio > 0) {
                     const probationDays = Math.round(probationRatio * new Date(new Date(selectedMonth + '-01').getFullYear(), new Date(selectedMonth + '-01').getMonth() + 1, 0).getDate());
