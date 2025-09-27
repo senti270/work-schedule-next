@@ -97,6 +97,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [isLocked, setIsLocked] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{employeeId: string, date: Date} | null>(null);
   const [clickTimeout, setClickTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [showInputGuide, setShowInputGuide] = useState(false);
   
   // 드래그 상태
   const [dragState, setDragState] = useState<{
@@ -233,6 +234,42 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     } catch (error) {
       console.error('시간 보정 중 오류:', error);
       alert('시간 보정 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 공유 URL 복사 기능
+  const handleCopyShareUrl = async () => {
+    try {
+      const weekDates = getWeekDates();
+      const branch = branches.find(b => b.id === selectedBranchId);
+      
+      if (!branch) {
+        alert('지점 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 공유 URL 생성
+      const weekString = currentWeekStart.toISOString().split('T')[0];
+      const shareUrl = `${window.location.origin}/public/schedule/${selectedBranchId || 'all'}/${weekString}`;
+
+      // 클립보드에 URL 복사
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('공유 URL이 클립보드에 복사되었습니다!');
+      } catch (error) {
+        // 클립보드 복사 실패 시 대체 방법
+        const textArea = document.createElement('textarea');
+        textArea.value = shareUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('공유 URL이 클립보드에 복사되었습니다!');
+      }
+      
+    } catch (error) {
+      console.error('URL 복사 중 오류:', error);
+      alert('URL 복사 중 오류가 발생했습니다.');
     }
   };
 
@@ -1480,7 +1517,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       {/* 헤더 */}
       <div className="flex justify-between items-center">
         <h3 className="text-lg leading-6 font-medium text-gray-900">
-          스케줄 입력 (새 형식)
+          스케줄 입력
         </h3>
         <div className="flex items-center space-x-3">
           <button
@@ -1500,6 +1537,15 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
             </svg>
             <span>공유</span>
+          </button>
+          <button
+            onClick={handleCopyShareUrl}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span>공유URL복사</span>
           </button>
           {isLocked && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">
@@ -1534,47 +1580,70 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
       {/* 입력 형식 안내 */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-blue-800 mb-2">입력 형식 안내</h4>
-        <p className="text-sm text-blue-700">
-          단일 시간대: 시작시간-종료시간(휴식시간) &nbsp;&nbsp; ex) 10-22(2), 18.5-23(1)
-        </p>
-        <p className="text-sm text-blue-700">
-          여러 시간대: 쉼표로 구분 &nbsp;&nbsp; ex) 10-13, 19-23(0.5)
-        </p>
-        <p className="text-sm text-blue-700">
-          휴게시간 없는 경우: 시작시간-종료시간 &nbsp;&nbsp; ex) 18-23, 18.5-23
-        </p>
+        <button
+          onClick={() => setShowInputGuide(!showInputGuide)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <h4 className="text-sm font-medium text-blue-800">입력방법안내</h4>
+          <svg 
+            className={`w-4 h-4 text-blue-800 transition-transform ${showInputGuide ? 'rotate-180' : ''}`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
         
-        <h4 className="text-sm font-medium text-blue-800 mb-2 mt-3">입력 방법 안내</h4>
-        <div className="flex flex-wrap gap-2 text-sm text-blue-700">
-          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
-            <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">Enter</kbd>
-            <span className="ml-1">저장</span>
-          </span>
-          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
-            <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">Tab</kbd>
-            <span className="ml-1">다음 입력칸 이동</span>
-          </span>
-          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
-            <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">드래그</span>
-            <span className="ml-1">스케줄 복사</span>
-          </span>
-          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
-            <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+드래그</span>
-            <span className="ml-1">스케줄 이동</span>
-          </span>
-          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
-            <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">더블클릭</span>
-            <span className="ml-1">스케줄 삭제</span>
-          </span>
-          <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
-            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
-              <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
-            </svg>
-            <span>이전 주 데이터 복사</span>
-          </span>
-        </div>
+        {showInputGuide && (
+          <div className="mt-3 space-y-3">
+            <div>
+              <h5 className="text-sm font-medium text-blue-800 mb-2">입력 형식 안내</h5>
+              <p className="text-sm text-blue-700">
+                단일 시간대: 시작시간-종료시간(휴식시간) &nbsp;&nbsp; ex) 10-22(2), 18.5-23(1)
+              </p>
+              <p className="text-sm text-blue-700">
+                여러 시간대: 쉼표로 구분 &nbsp;&nbsp; ex) 10-13, 19-23(0.5)
+              </p>
+              <p className="text-sm text-blue-700">
+                휴게시간 없는 경우: 시작시간-종료시간 &nbsp;&nbsp; ex) 18-23, 18.5-23
+              </p>
+            </div>
+            
+            <div>
+              <h5 className="text-sm font-medium text-blue-800 mb-2">입력 방법 안내</h5>
+              <div className="flex flex-wrap gap-2 text-sm text-blue-700">
+                <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+                  <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">Enter</kbd>
+                  <span className="ml-1">저장</span>
+                </span>
+                <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+                  <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">Tab</kbd>
+                  <span className="ml-1">다음 입력칸 이동</span>
+                </span>
+                <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+                  <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">드래그</span>
+                  <span className="ml-1">스케줄 복사</span>
+                </span>
+                <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+                  <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Ctrl+드래그</span>
+                  <span className="ml-1">스케줄 이동</span>
+                </span>
+                <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+                  <span className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">더블클릭</span>
+                  <span className="ml-1">스케줄 삭제</span>
+                </span>
+                <span className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded-md">
+                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                    <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                  </svg>
+                  <span>이전 주 데이터 복사</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 스케줄 입력 테이블 */}
