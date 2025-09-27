@@ -1882,7 +1882,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                             
                             {/* 다른 지점 스케줄 정보 (입력 중에도 표시) */}
                             {otherBranchSchedules[`${employee.id}-${dateString}`] && otherBranchSchedules[`${employee.id}-${dateString}`].length > 0 && (
-                              <div className="mt-1 text-xs text-black space-y-0.5">
+                              <div className="mt-1 text-xs text-gray-600 space-y-0.5">
                                 {otherBranchSchedules[`${employee.id}-${dateString}`].map((item, idx) => (
                                   <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
                                     <span className="font-medium">{item.branchName}:</span> {item.schedule}
@@ -1927,23 +1927,25 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                               '클릭하여 입력'
                             }
                           >
-                            <div className="truncate">
-                              {existingSchedule 
-                                ? formatScheduleForDisplay(existingSchedule)
-                                : '클릭하여 입력'
-                              }
-                            </div>
-                            
-                            {/* 다른 지점 스케줄 정보 */}
-                            {otherBranchSchedules[`${employee.id}-${dateString}`] && otherBranchSchedules[`${employee.id}-${dateString}`].length > 0 && (
-                              <div className="mt-1 text-xs text-black space-y-0.5">
-                                {otherBranchSchedules[`${employee.id}-${dateString}`].map((item, idx) => (
-                                  <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
-                                    <span className="font-medium">{item.branchName}:</span> {item.schedule}
-                                  </div>
-                                ))}
+                            <div className="flex flex-col items-center">
+                              <div className="truncate w-full">
+                                {existingSchedule 
+                                  ? formatScheduleForDisplay(existingSchedule)
+                                  : '클릭하여 입력'
+                                }
                               </div>
-                            )}
+                              
+                              {/* 다른 지점 스케줄 정보 */}
+                              {otherBranchSchedules[`${employee.id}-${dateString}`] && otherBranchSchedules[`${employee.id}-${dateString}`].length > 0 && (
+                                <div className="mt-1 text-xs text-gray-600 space-y-0.5 w-full">
+                                  {otherBranchSchedules[`${employee.id}-${dateString}`].map((item, idx) => (
+                                    <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
+                                      <span className="font-medium">{item.branchName}:</span> {item.schedule}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                             
                             {/* 드래그 아이콘 및 툴팁 */}
                             {hoveredCell?.employeeId === employee.id && 

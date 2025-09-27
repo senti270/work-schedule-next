@@ -470,7 +470,7 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                                   
                                   {/* 다른 지점 스케줄 정보 */}
                                   {otherBranchSchedule && otherBranchSchedule.length > 0 && (
-                                    <div className="text-xs text-black space-y-0.5 mt-1 w-full">
+                                    <div className="text-xs text-gray-600 space-y-0.5 mt-1 w-full">
                                       {otherBranchSchedule.map((item, idx) => (
                                         <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
                                           <span className="font-medium">{item.branchName}:</span> {item.schedule}
