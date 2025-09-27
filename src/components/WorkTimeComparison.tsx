@@ -1971,17 +1971,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         {(result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && (
                           <div className="flex space-x-2">
-                            {(() => {
-                              console.log('버튼 표시 조건 확인:', {
-                                resultStatus: result.status,
-                                isPayrollConfirmed: isPayrollConfirmed(selectedEmployeeId),
-                                selectedEmployeeId
-                              });
-                              return result.status === 'review_completed';
-                            })() ? (
+                            {result.status === 'review_completed' ? (
                               // 검토완료 상태: 검토완료취소 버튼 (급여확정 전까지만 가능)
                               <button
-                                style={{backgroundColor: 'red', color: 'white', padding: '8px', fontSize: '14px', zIndex: 9999}}
                                 onClick={async () => {
                                   if (confirm('검토완료를 취소하시겠습니까?')) {
                                     const updatedResults = [...comparisonResults];
@@ -2049,7 +2041,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                                 }}
                                 className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
                               >
-                                확인
+                                검토완료
                               </button>
                             )}
                             {result.status === 'review_required' && (
