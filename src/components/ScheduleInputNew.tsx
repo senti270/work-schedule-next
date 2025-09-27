@@ -114,6 +114,18 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   });
 
 
+  // 지점명을 약칭으로 변환하는 함수
+  const getBranchShortName = (branchName: string): string => {
+    const shortNames: {[key: string]: string} = {
+      '청담장어마켓 송파점': '장어송파',
+      '청담장어마켓 동탄점': '장어동탄',
+      '카페드로잉 석촌호수점': '카페송파',
+      '카페드로잉 정자점': '카페분당',
+      '카페드로잉 동탄점': '카페동탄'
+    };
+    return shortNames[branchName] || branchName;
+  };
+
   // 다른 지점 스케줄 조회 함수
   const loadOtherBranchSchedules = useCallback(async () => {
     try {
@@ -145,7 +157,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         };
       });
       
-      // 현재 주간의 다른 지점 스케줄 필터링
+      // 현재 주간의 다른 지점 스케줄 필터링 (날짜별로 그룹화)
       const otherBranchSchedulesMap: {[key: string]: {branchName: string, schedule: string}[]} = {};
       
       allSchedules.forEach(schedule => {
@@ -154,16 +166,19 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             schedule.date >= weekStart && 
             schedule.date <= weekEnd) {
           
-          if (!otherBranchSchedulesMap[schedule.employeeId]) {
-            otherBranchSchedulesMap[schedule.employeeId] = [];
+          const dateString = schedule.date.toISOString().split('T')[0];
+          const key = `${schedule.employeeId}-${dateString}`;
+          
+          if (!otherBranchSchedulesMap[key]) {
+            otherBranchSchedulesMap[key] = [];
           }
           
           // 스케줄 포맷팅
           const scheduleText = schedule.originalInput || 
             `${schedule.startTime}-${schedule.endTime}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
           
-          otherBranchSchedulesMap[schedule.employeeId].push({
-            branchName: schedule.branchName,
+          otherBranchSchedulesMap[key].push({
+            branchName: getBranchShortName(schedule.branchName),
             schedule: scheduleText
           });
         }
@@ -1773,16 +1788,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                           </button>
                         )}
                       </div>
-                      {/* 다른 지점 스케줄 정보 */}
-                      {otherBranchSchedules[employee.id] && otherBranchSchedules[employee.id].length > 0 && (
-                        <div className="text-xs text-orange-600 space-y-0.5">
-                          {otherBranchSchedules[employee.id].map((item, idx) => (
-                            <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
-                              <span className="font-medium">{item.branchName}:</span> {item.schedule}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </td>
                   {weekDates.map((date, index) => {
@@ -1849,6 +1854,17 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                                 : '클릭하여 입력'
                               }
                             </div>
+                            
+                            {/* 다른 지점 스케줄 정보 */}
+                            {otherBranchSchedules[`${employee.id}-${dateString}`] && otherBranchSchedules[`${employee.id}-${dateString}`].length > 0 && (
+                              <div className="mt-1 text-xs text-orange-600 space-y-0.5">
+                                {otherBranchSchedules[`${employee.id}-${dateString}`].map((item, idx) => (
+                                  <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
+                                    <span className="font-medium">{item.branchName}:</span> {item.schedule}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                             
                             {/* 드래그 아이콘 및 툴팁 */}
                             {hoveredCell?.employeeId === employee.id && 
