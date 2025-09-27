@@ -301,7 +301,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     } catch (error) {
       console.error('급여확정 직원 목록 로드 실패:', error);
     }
-  }, [selectedMonth, selectedBranchId]);
+  }, [selectedMonth, selectedBranchId, isManager, userBranch]);
 
   // 직원별 급여메모 로드
   const loadEmployeeMemos = useCallback(async () => {
@@ -370,7 +370,13 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
 
   // 급여확정 여부 확인
   const isPayrollConfirmed = (employeeId: string) => {
-    return payrollConfirmedEmployees.includes(employeeId);
+    const confirmed = payrollConfirmedEmployees.includes(employeeId);
+    console.log('급여확정 상태 확인:', {
+      employeeId,
+      confirmed,
+      payrollConfirmedEmployees
+    });
+    return confirmed;
   };
 
   // 중복 데이터 정리 함수
