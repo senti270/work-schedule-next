@@ -214,9 +214,20 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             otherBranchSchedulesMap[key] = [];
           }
           
-          // 스케줄 포맷팅
+          // 스케줄 포맷팅 (시간 형식을 간단하게)
+          const formatTime = (timeStr: string) => {
+            const [hours, minutes] = timeStr.split(':');
+            if (minutes === '00') {
+              return hours;
+            } else if (minutes === '30') {
+              return `${hours}.5`;
+            } else {
+              return timeStr;
+            }
+          };
+          
           const scheduleText = schedule.originalInput || 
-            `${schedule.startTime}-${schedule.endTime}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
+            `${formatTime(schedule.startTime)}-${formatTime(schedule.endTime)}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
           
           otherBranchSchedulesMap[key].push({
             branchName: getBranchShortName(schedule.branchName),
