@@ -62,6 +62,19 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   const [loading, setLoading] = useState(true);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(new Date());
   const [branchName, setBranchName] = useState<string>('');
+  const [otherBranchSchedules, setOtherBranchSchedules] = useState<{[key: string]: {branchName: string, schedule: string}[]}>({});
+
+  // 지점명을 약칭으로 변환하는 함수
+  const getBranchShortName = (branchName: string): string => {
+    const shortNames: {[key: string]: string} = {
+      '청담장어마켓 송파점': '장어송파',
+      '청담장어마켓 동탄점': '장어동탄',
+      '카페드로잉 석촌호수점': '카페송파',
+      '카페드로잉 분당당점': '카페분당',
+      '카페드로잉 동탄점': '카페동탄'
+    };
+    return shortNames[branchName] || branchName;
+  };
 
   const loadBranchInfo = useCallback(async () => {
     if (resolvedParams.branchId === 'all') {
@@ -183,6 +196,73 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
     }
   }, [resolvedParams.week, resolvedParams.branchId]);
 
+  // 다른 지점 스케줄 조회 함수
+  const loadOtherBranchSchedules = useCallback(async () => {
+    try {
+      if (resolvedParams.branchId === 'all') {
+        setOtherBranchSchedules({});
+        return;
+      }
+      
+      const weekStart = new Date(resolvedParams.week);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      // 모든 스케줄 조회
+      const schedulesSnapshot = await getDocs(collection(db, 'schedules'));
+      const allSchedules = schedulesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          employeeId: data.employeeId,
+          employeeName: data.employeeName,
+          branchId: data.branchId,
+          branchName: data.branchName,
+          date: data.date?.toDate ? data.date.toDate() : new Date(),
+          startTime: data.startTime,
+          endTime: data.endTime,
+          breakTime: data.breakTime,
+          totalHours: data.totalHours,
+          timeSlots: data.timeSlots,
+          originalInput: data.originalInput,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
+        };
+      });
+      
+      // 현재 주간의 다른 지점 스케줄 필터링 (날짜별로 그룹화)
+      const otherBranchSchedulesMap: {[key: string]: {branchName: string, schedule: string}[]} = {};
+      
+      allSchedules.forEach(schedule => {
+        // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
+        if (schedule.branchId !== resolvedParams.branchId && 
+            schedule.date >= weekStart && 
+            schedule.date <= weekEnd) {
+          
+          const dateString = schedule.date.toISOString().split('T')[0];
+          const key = `${schedule.employeeId}-${dateString}`;
+          
+          if (!otherBranchSchedulesMap[key]) {
+            otherBranchSchedulesMap[key] = [];
+          }
+          
+          // 스케줄 포맷팅
+          const scheduleText = schedule.originalInput || 
+            `${schedule.startTime}-${schedule.endTime}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
+          
+          otherBranchSchedulesMap[key].push({
+            branchName: getBranchShortName(schedule.branchName),
+            schedule: scheduleText
+          });
+        }
+      });
+      
+      setOtherBranchSchedules(otherBranchSchedulesMap);
+    } catch (error) {
+      console.error('다른 지점 스케줄 조회 중 오류:', error);
+    }
+  }, [resolvedParams.branchId, resolvedParams.week]);
+
   useEffect(() => {
     // URL에서 주차 정보 파싱
     const weekDate = new Date(resolvedParams.week);
@@ -190,7 +270,8 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
     loadBranchInfo();
     loadSchedules();
     loadWeeklyNote();
-  }, [resolvedParams.week, resolvedParams.branchId, loadBranchInfo, loadSchedules, loadWeeklyNote]);
+    loadOtherBranchSchedules();
+  }, [resolvedParams.week, resolvedParams.branchId, loadBranchInfo, loadSchedules, loadWeeklyNote, loadOtherBranchSchedules]);
 
   const generateWeeklySummary = (schedulesData: Schedule[]) => {
     const summaryMap = new Map<string, WeeklySummary>();
@@ -366,12 +447,26 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                           <div className="space-y-1">
                             {daySchedules.map((schedule) => {
                               const scheduleInfo = formatScheduleDisplay(schedule);
+                              const dateString = date.toISOString().split('T')[0];
+                              const otherBranchKey = `${schedule.employeeId}-${dateString}`;
+                              const otherBranchSchedule = otherBranchSchedules[otherBranchKey];
+                              
                               return (
-                                <div
-                                  key={schedule.id}
-                                  className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 whitespace-nowrap"
-                                >
-                                  <span className="font-medium">{scheduleInfo.name}</span> {scheduleInfo.time}
+                                <div key={schedule.id} className="space-y-1">
+                                  <div className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 whitespace-nowrap">
+                                    <span className="font-medium">{scheduleInfo.name}</span> {scheduleInfo.time}
+                                  </div>
+                                  
+                                  {/* 다른 지점 스케줄 정보 */}
+                                  {otherBranchSchedule && otherBranchSchedule.length > 0 && (
+                                    <div className="text-xs text-black space-y-0.5">
+                                      {otherBranchSchedule.map((item, idx) => (
+                                        <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
+                                          <span className="font-medium">{item.branchName}:</span> {item.schedule}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}

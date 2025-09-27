@@ -120,7 +120,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       '청담장어마켓 송파점': '장어송파',
       '청담장어마켓 동탄점': '장어동탄',
       '카페드로잉 석촌호수점': '카페송파',
-      '카페드로잉 정자점': '카페분당',
+      '카페드로잉 분당당점': '카페분당',
       '카페드로잉 동탄점': '카페동탄'
     };
     return shortNames[branchName] || branchName;
@@ -1869,6 +1869,17 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                               ) : null;
                             })()}
                             
+                            {/* 다른 지점 스케줄 정보 (입력 중에도 표시) */}
+                            {otherBranchSchedules[`${employee.id}-${dateString}`] && otherBranchSchedules[`${employee.id}-${dateString}`].length > 0 && (
+                              <div className="mt-1 text-xs text-black space-y-0.5">
+                                {otherBranchSchedules[`${employee.id}-${dateString}`].map((item, idx) => (
+                                  <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
+                                    <span className="font-medium">{item.branchName}:</span> {item.schedule}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
                             <div className="flex space-x-1 justify-center">
                               <button
                                 onClick={() => handleCellSave(employee.id, date)}
@@ -1914,7 +1925,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                             
                             {/* 다른 지점 스케줄 정보 */}
                             {otherBranchSchedules[`${employee.id}-${dateString}`] && otherBranchSchedules[`${employee.id}-${dateString}`].length > 0 && (
-                              <div className="mt-1 text-xs text-orange-600 space-y-0.5">
+                              <div className="mt-1 text-xs text-black space-y-0.5">
                                 {otherBranchSchedules[`${employee.id}-${dateString}`].map((item, idx) => (
                                   <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
                                     <span className="font-medium">{item.branchName}:</span> {item.schedule}
