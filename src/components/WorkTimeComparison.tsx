@@ -770,6 +770,9 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       
       console.log('스케줄만으로 생성된 비교 결과:', scheduleOnlyComparisons);
       setComparisonResults(scheduleOnlyComparisons);
+      
+      // 스케줄만으로 생성된 비교결과도 DB에 저장
+      await saveComparisonResults(scheduleOnlyComparisons);
       return;
     }
 
