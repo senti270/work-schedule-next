@@ -98,6 +98,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [hoveredCell, setHoveredCell] = useState<{employeeId: string, date: Date} | null>(null);
   const [clickTimeout, setClickTimeout] = useState<NodeJS.Timeout | null>(null);
   const [showInputGuide, setShowInputGuide] = useState(false);
+  const [otherBranchSchedules, setOtherBranchSchedules] = useState<{[key: string]: {branchName: string, schedule: string}[]}>({});
   
   // 드래그 상태
   const [dragState, setDragState] = useState<{
@@ -113,6 +114,67 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   });
 
 
+  // 다른 지점 스케줄 조회 함수
+  const loadOtherBranchSchedules = useCallback(async () => {
+    try {
+      if (!selectedBranchId) return;
+      
+      const weekDates = getWeekDates();
+      const weekStart = weekDates[0];
+      const weekEnd = weekDates[6];
+      
+      // 모든 스케줄 조회
+      const schedulesSnapshot = await getDocs(collection(db, 'schedules'));
+      const allSchedules = schedulesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          employeeId: data.employeeId,
+          employeeName: data.employeeName,
+          branchId: data.branchId,
+          branchName: data.branchName,
+          date: data.date?.toDate ? data.date.toDate() : new Date(),
+          startTime: data.startTime,
+          endTime: data.endTime,
+          breakTime: data.breakTime,
+          totalHours: data.totalHours,
+          timeSlots: data.timeSlots,
+          originalInput: data.originalInput,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
+        };
+      });
+      
+      // 현재 주간의 다른 지점 스케줄 필터링
+      const otherBranchSchedulesMap: {[key: string]: {branchName: string, schedule: string}[]} = {};
+      
+      allSchedules.forEach(schedule => {
+        // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
+        if (schedule.branchId !== selectedBranchId && 
+            schedule.date >= weekStart && 
+            schedule.date <= weekEnd) {
+          
+          if (!otherBranchSchedulesMap[schedule.employeeId]) {
+            otherBranchSchedulesMap[schedule.employeeId] = [];
+          }
+          
+          // 스케줄 포맷팅
+          const scheduleText = schedule.originalInput || 
+            `${schedule.startTime}-${schedule.endTime}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
+          
+          otherBranchSchedulesMap[schedule.employeeId].push({
+            branchName: schedule.branchName,
+            schedule: scheduleText
+          });
+        }
+      });
+      
+      setOtherBranchSchedules(otherBranchSchedulesMap);
+    } catch (error) {
+      console.error('다른 지점 스케줄 조회 중 오류:', error);
+    }
+  }, [selectedBranchId]);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -122,8 +184,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       loadSchedules();
       checkPayrollLock();
       loadWeeklyNote();
+      loadOtherBranchSchedules();
     }
-  }, [currentWeekStart, selectedBranchId]);
+  }, [currentWeekStart, selectedBranchId, loadOtherBranchSchedules]);
 
 
   // 전역 마우스 이벤트 리스너 추가
@@ -1646,6 +1709,20 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         )}
       </div>
 
+      {/* 현재 편집 지점 표시 */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+        <div className="flex items-center space-x-2">
+          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span className="text-sm font-medium text-gray-700">현재 편집 지점:</span>
+          <span className="text-sm font-semibold text-blue-600">
+            {branches.find(b => b.id === selectedBranchId)?.name || '지점 정보 없음'}
+          </span>
+        </div>
+      </div>
+
       {/* 스케줄 입력 테이블 */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
@@ -1679,20 +1756,32 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             <tbody className="bg-white divide-y divide-gray-200">
               {employees.map((employee) => (
                 <tr key={employee.id} className="hover:bg-gray-50">
-                  <td className="w-24 px-2 py-3 text-center text-sm font-medium text-gray-900 truncate">
-                    <div className="flex items-center justify-center space-x-1">
-                      <span>{employee.name}</span>
-                      {hasPreviousWeekData(employee.id) && (
-                        <button
-                          onClick={() => handleCopyPreviousWeek(employee.id)}
-                          className="text-blue-600 hover:text-blue-800 text-xs"
-                          title="이전 주 데이터 복사"
-                        >
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
-                            <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
-                          </svg>
-                        </button>
+                  <td className="w-24 px-2 py-3 text-center text-sm font-medium text-gray-900">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-center space-x-1">
+                        <span className="truncate">{employee.name}</span>
+                        {hasPreviousWeekData(employee.id) && (
+                          <button
+                            onClick={() => handleCopyPreviousWeek(employee.id)}
+                            className="text-blue-600 hover:text-blue-800 text-xs"
+                            title="이전 주 데이터 복사"
+                          >
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                              <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      {/* 다른 지점 스케줄 정보 */}
+                      {otherBranchSchedules[employee.id] && otherBranchSchedules[employee.id].length > 0 && (
+                        <div className="text-xs text-orange-600 space-y-0.5">
+                          {otherBranchSchedules[employee.id].map((item, idx) => (
+                            <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
+                              <span className="font-medium">{item.branchName}:</span> {item.schedule}
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </td>
