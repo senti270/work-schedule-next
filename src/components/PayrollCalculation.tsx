@@ -516,7 +516,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           const schedulesSnapshot = await getDocs(collection(db, 'schedules'));
           console.log('스케줄 데이터 로드 결과:', {
             totalSchedules: schedulesSnapshot.docs.length,
-            selectedEmployeeId
+            employeeId
           });
           
           const allSchedules = schedulesSnapshot.docs.map(doc => {
@@ -540,9 +540,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           });
 
           // 실제 근무시간을 수습기간과 정규기간으로 분리 계산
-          const filteredSchedules = allSchedules.filter(s => s.employeeId === selectedEmployeeId);
+          const filteredSchedules = allSchedules.filter(s => s.employeeId === employeeId);
           console.log('스케줄 필터링 결과:', {
-            selectedEmployeeId,
+            employeeId,
             allSchedulesCount: allSchedules.length,
             filteredSchedulesCount: filteredSchedules.length,
             allSchedules: allSchedules.map(s => ({
