@@ -1374,7 +1374,7 @@ export default function Dashboard({ user }: DashboardProps) {
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
-                      근무시간 비교
+                      근무시간비교(구)
                     </button>
                     <button
                       onClick={() => handleSubTabChange('payroll-calculation')}
@@ -1384,7 +1384,7 @@ export default function Dashboard({ user }: DashboardProps) {
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                     >
-                      급여계산작업
+                      급여계산작업(구)
                     </button>
                     <button
                       onClick={() => handleSubTabChange('employee-payroll-processing')}
