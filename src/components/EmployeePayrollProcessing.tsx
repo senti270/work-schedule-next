@@ -13,6 +13,7 @@ interface Employee {
   branches: string[];
   probationStartDate?: Date;
   probationEndDate?: Date;
+  resignationDate?: Date;
 }
 
 interface Branch {
@@ -53,33 +54,39 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
   const [payrollStatuses, setPayrollStatuses] = useState<PayrollStatus[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 직원 목록 로드
+  // 직원 목록 로드 (현재 재직중인 전직원)
   const loadEmployees = useCallback(async () => {
-    if (!selectedBranchId || !selectedMonth) return;
+    if (!selectedMonth) return;
 
     try {
       setLoading(true);
       
-      // 지점별 직원 로드
+      // 현재 재직중인 전직원 로드 (퇴사일이 없거나 미래인 직원)
+      const now = new Date();
       const employeesQuery = query(
         collection(db, 'employees'),
-        where('branches', 'array-contains', selectedBranchId),
         orderBy('name')
       );
       
       const employeesSnapshot = await getDocs(employeesQuery);
-      const employeesData = employeesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.name,
-          employmentType: data.employmentType,
-          salaryType: data.salaryType,
-          branches: data.branches || [],
-          probationStartDate: data.probationStartDate?.toDate(),
-          probationEndDate: data.probationEndDate?.toDate()
-        };
-      });
+      const employeesData = employeesSnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            employmentType: data.employmentType,
+            salaryType: data.salaryType,
+            branches: data.branches || [],
+            probationStartDate: data.probationStartDate?.toDate(),
+            probationEndDate: data.probationEndDate?.toDate(),
+            resignationDate: data.resignationDate?.toDate()
+          };
+        })
+        .filter(employee => {
+          // 재직중인 직원만 필터링 (퇴사일이 없거나 미래인 경우)
+          return !employee.resignationDate || employee.resignationDate > now;
+        });
 
       setEmployees(employeesData);
       
@@ -91,7 +98,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedBranchId, selectedMonth]);
+  }, [selectedMonth]);
 
   // 급여 처리 상태 로드
   const loadPayrollStatuses = async (employeesData: Employee[]) => {
