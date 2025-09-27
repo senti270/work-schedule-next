@@ -1907,9 +1907,10 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                             </div>
                           </div>
                         ) : (
-                          <div className="space-y-1">
+                          <div className="relative h-full">
+                            {/* 메인 스케줄 박스 (고정 위치) */}
                             <div
-                              className={`relative px-1 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 min-h-[24px] flex items-center ${
+                              className={`absolute top-0 left-0 right-0 px-1 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 h-[24px] flex items-center ${
                                 existingSchedule ? 'bg-blue-100 text-blue-800' : 'bg-gray-50 text-gray-500'
                               } ${isLocked ? 'cursor-not-allowed opacity-50' : ''} ${
                                 dragState.isDragging && dragState.targetCell?.employeeId === employee.id && 
@@ -1964,9 +1965,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                               )}
                             </div>
                             
-                            {/* 다른 지점 스케줄 정보 (박스 밖으로 분리) */}
+                            {/* 다른 지점 스케줄 정보 (고정된 박스 아래 배치) */}
                             {otherBranchSchedules[`${employee.id}-${dateString}`] && otherBranchSchedules[`${employee.id}-${dateString}`].length > 0 && (
-                              <div className="text-xs text-gray-600 space-y-0.5">
+                              <div className="absolute top-[26px] left-0 right-0 text-xs text-gray-600 space-y-0.5">
                                 {otherBranchSchedules[`${employee.id}-${dateString}`].map((item, idx) => (
                                   <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
                                     <span className="font-medium">{item.branchName}:</span> {item.schedule}
