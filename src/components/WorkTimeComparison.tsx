@@ -529,39 +529,12 @@ export default function WorkTimeComparison({
             return savedStatus;
           }
           
-          // DB에 상태가 없으면 기존 비교 데이터 확인
-          try {
-            // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
-            const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
-            
-            const existingDataQuery = query(
-              collection(db, 'actualWorkRecords'),
-              where('employeeId', '==', employee.id),
-              where('month', '==', selectedMonth),
-              where('branchId', '==', branchId)
-            );
-            const existingDataSnapshot = await getDocs(existingDataQuery);
-            
-            if (!existingDataSnapshot.empty) {
-              console.log(`직원 ${employee.name}의 기존 비교 데이터 발견, 검토중으로 설정`);
-              return {
-                employeeId: employee.id,
-                status: '검토중' as '검토전' | '검토중' | '검토완료'
-              };
-            } else {
-              console.log(`직원 ${employee.name}의 비교 데이터 없음, 검토전으로 설정`);
-              return {
-                employeeId: employee.id,
-                status: '검토전' as '검토전' | '검토중' | '검토완료'
-              };
-            }
-          } catch (error) {
-            console.error(`직원 ${employee.name}의 상태 확인 실패:`, error);
-            return {
-              employeeId: employee.id,
-              status: '검토전' as '검토전' | '검토중' | '검토완료'
-            };
-          }
+          // DB에 상태가 없으면 기본적으로 검토전으로 설정
+          console.log(`직원 ${employee.name}의 저장된 상태 없음, 검토전으로 설정`);
+          return {
+            employeeId: employee.id,
+            status: '검토전' as '검토전' | '검토중' | '검토완료'
+          };
         })
       );
       
