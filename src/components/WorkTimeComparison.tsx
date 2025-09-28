@@ -1424,7 +1424,7 @@ export default function WorkTimeComparison({
     } catch (error) {
       console.error('비교 결과 저장 실패:', error);
     }
-  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch]);
+  }, [selectedEmployeeId, selectedMonth, selectedBranchId]);
 
   // 수정된 데이터를 DB에 저장
   const saveModifiedData = async (result: WorkTimeComparison) => {
