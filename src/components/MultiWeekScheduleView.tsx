@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import DateInput from './DateInput';
+// import DateInput from './DateInput'; // 사용하지 않음
 
 interface Schedule {
   id: string;
@@ -80,7 +80,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
   const [editingSchedule, setEditingSchedule] = useState<EditingSchedule | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [dateInputs, setDateInputs] = useState<{[key: string]: string}>({});
-  const [weeklySummary, setWeeklySummary] = useState<WeeklySummary[]>([]);
+  // const [weeklySummary, setWeeklySummary] = useState<WeeklySummary[]>([]); // 사용하지 않음
   const [invalidEmployees, setInvalidEmployees] = useState<{[key: string]: string[]}>({});
   const [draggedSchedule, setDraggedSchedule] = useState<Schedule | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
@@ -234,7 +234,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     
     console.log('업데이트된 주간집계:', allSummaries);
     setWeeklySummary(allSummaries);
-  }, [schedules, employees, dateInputs, currentWeekStart, generateWeeklySummary]);
+  }, [currentWeekStart, generateWeeklySummary]);
 
   // 데이터가 로드되면 주간집계 업데이트
   useEffect(() => {
@@ -883,7 +883,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
                       return Array.from(allEmployees)
                         .sort((a, b) => a.localeCompare(b, 'ko'))
                         .map((employeeName, index) => {
-                          const summary = weeklySummary.find(s => s.employeeName === employeeName);
+                          // const summary = weeklySummary.find(s => s.employeeName === employeeName); // 사용하지 않음
                           return (
                             <tr key={index} className="hover:bg-gray-50">
                               {weekDates.map((date, dayIndex) => {

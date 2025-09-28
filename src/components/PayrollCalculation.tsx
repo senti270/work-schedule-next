@@ -101,7 +101,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     if (selectedBranchId && selectedMonth) {
       loadEmployees();
     }
-  }, [selectedBranchId, selectedMonth]);
+  }, [selectedBranchId, selectedMonth, loadEmployees]);
 
   const loadBranches = async () => {
     try {
@@ -313,10 +313,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     return ratio;
   };
 
-  // 수습기간 확인 함수 (UI 표시용)
-  const checkIfOnProbation = (employee: { probationStartDate?: Date; probationEndDate?: Date }, month: string) => {
-    return calculateProbationRatio(employee, month) > 0;
-  };
+  // 수습기간 확인 함수 (UI 표시용) - 사용하지 않음
+  // const checkIfOnProbation = (employee: { probationStartDate?: Date; probationEndDate?: Date }, month: string) => {
+  //   return calculateProbationRatio(employee, month) > 0;
+  // };
 
   // 실제 근무시간을 수습기간과 정규기간으로 나누어 계산 (시급일 때만 사용)
   const calculateActualWorkHoursByPeriod = (

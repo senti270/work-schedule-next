@@ -72,7 +72,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     } finally {
       setLoading(false);
     }
-  }, [currentWeekStart, selectedBranchId, generateWeeklySummary]);
+  }, [generateWeeklySummary]);
 
   useEffect(() => {
     if (currentWeekStart) {

@@ -466,7 +466,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       try {
         await navigator.clipboard.writeText(shareText);
         alert('스케줄이 클립보드에 복사되었습니다!');
-      } catch (error) {
+      } catch {
         // 클립보드 복사 실패 시 대체 방법
         const textArea = document.createElement('textarea');
         textArea.value = shareText;
@@ -483,7 +483,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       await Promise.all([
@@ -498,7 +498,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadEmployees, loadBranches, loadSchedules, loadPayrollLocks, loadWeeklyNote]);
 
   const loadEmployees = useCallback(async () => {
     try {
@@ -603,7 +603,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     } catch (error) {
       console.error('직원 목록을 불러올 수 없습니다:', error);
     }
-  }, [selectedBranchId, branches]);
+  }, [selectedBranchId, branches, getWeekDates]);
 
   // 지점이 변경될 때 직원 목록 다시 로드
   useEffect(() => {
@@ -656,7 +656,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   };
 
   // 주간 비고 로드
-  const loadWeeklyNote = async () => {
+  const loadWeeklyNote = useCallback(async () => {
     if (!selectedBranchId) return;
     
     try {
@@ -694,7 +694,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     } catch (error) {
       console.error('주간 비고를 불러올 수 없습니다:', error);
     }
-  };
+  }, [selectedBranchId, getWeekDates]);
 
   // 주간 비고 저장
   const saveWeeklyNote = async () => {
@@ -753,7 +753,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   };
 
-  const checkPayrollLock = () => {
+  const checkPayrollLock = useCallback(() => {
     // 1주 기간 동안 급여 잠금 상태 확인
     const weekDates = getWeekDates();
     let hasLockedWeek = false;
@@ -775,7 +775,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     });
     
     setIsLocked(hasLockedWeek);
-  };
+  }, [getWeekDates, payrollLocks, selectedBranchId]);
 
   // 주간 네비게이션 핸들러
   const goToPreviousWeek = () => {
@@ -791,7 +791,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   };
 
   // 1주 기간의 날짜들 생성
-  const getWeekDates = () => {
+  const getWeekDates = useCallback(() => {
     const dates = [];
     // currentWeekStart는 이미 월요일이므로 그대로 사용
     const mondayDate = new Date(currentWeekStart);
@@ -804,7 +804,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
     
     return dates;
-  };
+  }, [currentWeekStart]);
 
   // 해당 날짜의 스케줄 가져오기 (지점별 필터링 포함)
   const getScheduleForDate = (employeeId: string, date: Date) => {
