@@ -1756,10 +1756,58 @@ export default function WorkTimeComparison({
       </div>
 
       {/* 전체 검토 상태 관리 */}
-      {comparisonResults.length > 0 && selectedEmployeeId && (
+      {selectedEmployeeId && (
         <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">전체 검토 상태</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">전체 검토 상태</h3>
+              <button
+                onClick={async () => {
+                  if (confirm('2024-09월의 모든 잘못된 검토 상태를 초기화하시겠습니까?\n(실제근무 데이터가 없는 직원들의 검토완료 상태를 삭제합니다)')) {
+                    try {
+                      // 2024-09월의 모든 검토 상태 데이터 조회
+                      const reviewStatusQuery = query(
+                        collection(db, 'employeeReviewStatus'),
+                        where('month', '==', '2024-09')
+                      );
+                      const reviewStatusSnapshot = await getDocs(reviewStatusQuery);
+                      
+                      let deletedCount = 0;
+                      
+                      for (const docSnapshot of reviewStatusSnapshot.docs) {
+                        const data = docSnapshot.data();
+                        
+                        // 해당 직원의 실제근무 데이터 확인
+                        const actualWorkQuery = query(
+                          collection(db, 'actualWorkRecords'),
+                          where('employeeId', '==', data.employeeId),
+                          where('month', '==', '2024-09')
+                        );
+                        const actualWorkSnapshot = await getDocs(actualWorkQuery);
+                        
+                        // 실제근무 데이터가 없는데 검토완료 상태인 경우 삭제
+                        if (actualWorkSnapshot.empty && (data.status === '검토완료' || data.status === '근무시간검토완료')) {
+                          await deleteDoc(doc(db, 'employeeReviewStatus', docSnapshot.id));
+                          deletedCount++;
+                        }
+                      }
+                      
+                      alert(`${deletedCount}개의 잘못된 상태 데이터가 삭제되었습니다.`);
+                      
+                      // 상태 업데이트
+                      await loadReviewStatus(employees);
+                      
+                    } catch (error) {
+                      console.error('상태 초기화 실패:', error);
+                      alert('상태 초기화에 실패했습니다.');
+                    }
+                  }
+                }}
+                className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700"
+              >
+                전체 상태 초기화
+              </button>
+            </div>
           </div>
           <div className="px-6 py-4">
             {(() => {
