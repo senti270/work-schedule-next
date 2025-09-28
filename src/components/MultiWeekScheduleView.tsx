@@ -233,7 +233,7 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     }
     
     console.log('업데이트된 주간집계:', allSummaries);
-    setWeeklySummary(allSummaries);
+    // setWeeklySummary(allSummaries); // 주석 처리됨
   }, [currentWeekStart, generateWeeklySummary]);
 
   // 데이터가 로드되면 주간집계 업데이트

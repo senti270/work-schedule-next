@@ -72,12 +72,6 @@ export default function ReportManagement() {
     loadData();
   }, []);
 
-  useEffect(() => {
-    if (schedules.length > 0) {
-      generateReport();
-    }
-  }, [schedules, selectedEmployee, selectedBranch, reportType, selectedMonth, selectedYear, generateReport]);
-
   const loadData = async () => {
     try {
       setLoading(true);
@@ -232,6 +226,12 @@ export default function ReportManagement() {
       branchBreakdown
     });
   }, [schedules, selectedEmployee, selectedBranch, reportType, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    if (schedules.length > 0) {
+      generateReport();
+    }
+  }, [schedules, selectedEmployee, selectedBranch, reportType, selectedMonth, selectedYear, generateReport]);
 
   const formatPeriod = () => {
     if (reportType === 'monthly') {

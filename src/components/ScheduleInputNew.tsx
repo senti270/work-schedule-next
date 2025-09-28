@@ -242,6 +242,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   }, [selectedBranchId, getWeekDates]);
 
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -612,7 +613,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   }, [selectedBranchId, loadEmployees]);
 
-  const loadBranches = async () => {
+  const loadBranches = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
       const branchesData = querySnapshot.docs.map(doc => ({
@@ -623,9 +624,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     } catch (error) {
       console.error('지점 목록을 불러올 수 없습니다:', error);
     }
-  };
+  }, []);
 
-  const loadSchedules = async () => {
+  const loadSchedules = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'schedules'));
       const schedulesData = querySnapshot.docs.map(doc => ({
@@ -639,9 +640,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     } catch (error) {
       console.error('스케줄 목록을 불러올 수 없습니다:', error);
     }
-  };
+  }, []);
 
-  const loadPayrollLocks = async () => {
+  const loadPayrollLocks = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'payrollLocks'));
       const locksData = querySnapshot.docs.map(doc => ({
@@ -653,7 +654,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     } catch (error) {
       console.error('급여 잠금 상태를 불러올 수 없습니다:', error);
     }
-  };
+  }, []);
 
   // 주간 비고 로드
   const loadWeeklyNote = useCallback(async () => {

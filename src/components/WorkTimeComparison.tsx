@@ -734,7 +734,7 @@ export default function WorkTimeComparison({
 
     // console.log('실제근무 데이터 파싱 시작, 총 라인 수:', lines.length);
 
-    lines.forEach((line, index) => {
+    lines.forEach((line) => {
       if (line.trim()) {
         const columns = line.split('\t');
         // console.log(`라인 ${index + 1}:`, columns);
@@ -1372,7 +1372,7 @@ export default function WorkTimeComparison({
       console.error('기존 비교 데이터 로드 실패:', error);
       setComparisonResults([]);
     }
-  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch]);
+  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch, employeeReviewStatus]);
 
   // 모든 비교 결과를 DB에 저장하는 함수
   const saveAllComparisonResults = useCallback(async (results: WorkTimeComparison[]) => {

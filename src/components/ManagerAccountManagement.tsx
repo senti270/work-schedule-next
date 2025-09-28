@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface ManagerAccount {
@@ -32,7 +32,7 @@ interface ManagerAccountManagementProps {
   isManager?: boolean;
 }
 
-export default function ManagerAccountManagement({ userBranch, isManager }: ManagerAccountManagementProps) {
+export default function ManagerAccountManagement({ }: ManagerAccountManagementProps) {
   const [managerAccounts, setManagerAccounts] = useState<ManagerAccount[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [showForm, setShowForm] = useState(false);

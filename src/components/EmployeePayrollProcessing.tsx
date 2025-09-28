@@ -27,7 +27,7 @@ interface PayrollStatus {
   employeeId: string;
   month: string;
   branchId: string;
-  status: '미처리' | '근무시간확인완료' | '급여계산완료' | '급여확정완료';
+  status: '미처리' | '근무시간검토중' | '근무시간검토완료' | '급여확정완료';
   lastUpdated: Date;
 }
 

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 
 interface FormDocument {
@@ -50,17 +50,7 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
     branchId: ''
   });
 
-  useEffect(() => {
-    loadBranches();
-  }, []);
-
-  useEffect(() => {
-    if (selectedBranchId) {
-      loadForms();
-    }
-  }, [selectedBranchId]);
-
-  const loadBranches = async () => {
+  const loadBranches = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
       const branchesData = querySnapshot.docs.map(doc => ({
@@ -81,9 +71,9 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
     } catch (error) {
       console.error('지점 정보를 불러오는 중 오류:', error);
     }
-  };
+  }, [isManager, userBranch]);
 
-  const loadForms = async () => {
+  const loadForms = useCallback(async () => {
     if (!selectedBranchId) return;
     
     try {
@@ -125,7 +115,17 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
     } catch (error) {
       console.error('서식 목록을 불러오는 중 오류:', error);
     }
-  };
+  }, [selectedBranchId]);
+
+  useEffect(() => {
+    loadBranches();
+  }, [loadBranches]);
+
+  useEffect(() => {
+    if (selectedBranchId) {
+      loadForms();
+    }
+  }, [selectedBranchId, loadForms]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,7 +180,7 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
           });
           
           fileUrl = await base64Promise;
-          isBase64 = true;
+          // isBase64 = true;
         } catch (base64Error) {
           console.error('Base64 변환 실패:', base64Error);
           throw new Error('파일 처리 중 오류가 발생했습니다. 파일을 다시 선택해주세요.');

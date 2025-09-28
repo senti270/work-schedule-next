@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -97,12 +97,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   }, [isManager, userBranch]);
 
-  useEffect(() => {
-    if (selectedBranchId && selectedMonth) {
-      loadEmployees();
-    }
-  }, [selectedBranchId, selectedMonth, loadEmployees]);
-
   const loadBranches = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
@@ -119,7 +113,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   };
 
-  const loadEmployees = async () => {
+  const loadEmployees = useCallback(async () => {
     if (!selectedBranchId || !selectedMonth) return;
     
     try {
@@ -254,7 +248,13 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedBranchId, selectedMonth, branches]);
+
+  useEffect(() => {
+    if (selectedBranchId && selectedMonth) {
+      loadEmployees();
+    }
+  }, [selectedBranchId, selectedMonth, loadEmployees]);
 
   // 수습기간 비율 계산 함수 (일할 계산)
   const calculateProbationRatio = (employee: { probationStartDate?: Date; probationEndDate?: Date }, month: string) => {
