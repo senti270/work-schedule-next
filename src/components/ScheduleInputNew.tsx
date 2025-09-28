@@ -1170,6 +1170,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 totalHours: totalHours,
                 timeSlots: parsed.timeSlots, // 여러 시간대 정보 저장
                 originalInput: inputValue, // 원본 입력 형식 저장
+                month: `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`, // YYYY-MM 형식
                 updatedAt: new Date()
               });
             } else {
@@ -1186,6 +1187,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 totalHours: totalHours,
                 timeSlots: parsed.timeSlots, // 여러 시간대 정보 저장
                 originalInput: inputValue, // 원본 입력 형식 저장
+                month: `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`, // YYYY-MM 형식
                 createdAt: new Date(),
                 updatedAt: new Date()
               });
@@ -1445,6 +1447,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           endTime: prevSchedule.endTime,
           breakTime: prevSchedule.breakTime,
           totalHours: prevSchedule.totalHours,
+          month: `${targetDate.getFullYear()}-${(targetDate.getMonth() + 1).toString().padStart(2, '0')}`, // YYYY-MM 형식
           createdAt: new Date(),
           updatedAt: new Date()
         };
@@ -1578,6 +1581,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           endTime: sourceSchedule.endTime,
           breakTime: sourceSchedule.breakTime,
           totalHours: sourceSchedule.totalHours,
+          month: `${targetCell.date.getFullYear()}-${(targetCell.date.getMonth() + 1).toString().padStart(2, '0')}`, // YYYY-MM 형식
           updatedAt: new Date()
         };
 
