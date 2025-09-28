@@ -100,6 +100,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [contracts, setContracts] = useState<EmploymentContract[]>([]);
   const [contractsKey, setContractsKey] = useState(0); // 강제 리렌더링용
+  const [modalContracts, setModalContracts] = useState<EmploymentContract[]>([]); // 근로계약관리 모달용
   const [showContractModal, setShowContractModal] = useState(false);
   // 필터링 및 검색 상태
   const [showResignedEmployees, setShowResignedEmployees] = useState(false);
@@ -1122,10 +1123,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       console.log('정렬된 계약서 목록:', sortedContracts);
       console.log('setContracts 호출 전 현재 contracts 길이:', contracts.length);
       
-      // 상태 직접 업데이트
-      setContracts(sortedContracts);
+      // 근로계약관리 모달용 계약서만 설정 (전체 contracts 배열은 건드리지 않음)
+      setModalContracts(sortedContracts);
       setContractsKey(prev => prev + 1);
-      console.log('setContracts 호출 완료, 새로운 길이:', sortedContracts.length);
+      console.log('근로계약관리용 계약서 로드 완료:', sortedContracts.length);
     } catch (error) {
       console.error('근로계약서 로드 중 오류:', error);
     }
@@ -2787,10 +2788,13 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   {selectedEmployee.name} - 근로계약서 관리
                 </h2>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setShowContractModal(false);
                     setSelectedEmployee(null);
                     resetContractForm();
+                    setModalContracts([]); // 모달용 계약서 초기화
+                    // 근로계약관리에서 나올 때 전체 데이터 다시 로드
+                    await loadEmployees();
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -3007,12 +3011,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
               {/* 근로계약서 목록 */}
               <div>
                 <h3 className="text-md font-medium text-gray-900 mb-4">
-                  근로계약 히스토리 (총 {contracts.length}개)
+                  근로계약 히스토리 (총 {modalContracts.length}개)
                 </h3>
                 {(() => {
-                  console.log('히스토리 테이블 렌더링 체크 - contracts.length:', contracts.length);
-                  console.log('현재 contracts 배열:', contracts);
-                  return contracts.length === 0;
+                  console.log('히스토리 테이블 렌더링 체크 - modalContracts.length:', modalContracts.length);
+                  console.log('현재 modalContracts 배열:', modalContracts);
+                  return modalContracts.length === 0;
                 })() ? (
                   <div className="text-center py-8 text-gray-500">
                     등록된 근로계약이 없습니다.
@@ -3043,7 +3047,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {contracts.map((contract) => (
+                        {modalContracts.map((contract) => (
                           <tr key={contract.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div className="font-medium">
@@ -3162,7 +3166,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                 <div className="mb-6">
                   <div className="flex justify-between items-center mb-4">
                     <h4 className="text-md font-medium text-gray-900">
-                      근로계약 히스토리 (총 {contracts.length}개)
+                      근로계약 히스토리 (총 {modalContracts.length}개)
                     </h4>
                     <button
                       onClick={() => setShowAddContractForm(true)}
@@ -3205,7 +3209,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {contracts.map((contract) => (
+                          {modalContracts.map((contract) => (
                             <tr key={contract.id} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {contract.startDate.toLocaleDateString('ko-KR')}

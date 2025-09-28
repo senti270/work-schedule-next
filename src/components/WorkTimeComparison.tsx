@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc, orderBy, limit, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface Schedule {
@@ -49,15 +49,30 @@ interface WorkTimeComparisonProps {
     managerEmail?: string;
   } | null;
   isManager?: boolean;
+  selectedEmployeeId?: string;
+  selectedMonth?: string;
+  selectedBranchId?: string;
+  hideEmployeeSelection?: boolean;
+  hideBranchSelection?: boolean;
+  selectedEmployeeBranches?: string[]; // 선택된 직원의 지점 목록
 }
 
-export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeComparisonProps) {
+export default function WorkTimeComparison({ 
+  userBranch, 
+  isManager, 
+  selectedEmployeeId: propSelectedEmployeeId,
+  selectedMonth: propSelectedMonth,
+  selectedBranchId: propSelectedBranchId,
+  hideEmployeeSelection = false,
+  hideBranchSelection = false,
+  selectedEmployeeBranches: propSelectedEmployeeBranches = []
+}: WorkTimeComparisonProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [actualWorkData, setActualWorkData] = useState<string>('');
   const [comparisonResults, setComparisonResults] = useState<WorkTimeComparison[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>(propSelectedMonth || '');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(propSelectedBranchId || '');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(propSelectedEmployeeId || '');
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<{
     id: string; 
@@ -81,19 +96,117 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
     actualWorkHours: number;
   } | null>(null);
   const [hasShownOvertimePopup, setHasShownOvertimePopup] = useState(false); // 팝업 표시 여부 추적
+  const [showMenuDescription, setShowMenuDescription] = useState(false); // 메뉴 설명 펼침 여부
+  const [showDataCopyMethod, setShowDataCopyMethod] = useState(false); // 데이터 복사 방법 펼침 여부
+  const [employeeBranches, setEmployeeBranches] = useState<string[]>([]); // 선택된 직원의 지점 목록
 
   useEffect(() => {
     loadBranches();
     loadEmployees();
-    // 현재 월을 기본값으로 설정
-    const now = new Date();
-    setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    // 현재 월을 기본값으로 설정 (props가 없을 때만)
+    if (!propSelectedMonth) {
+      const now = new Date();
+      setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    }
     
-    // 매니저인 경우 해당 지점을 기본값으로 설정
-    if (isManager && userBranch) {
+    // 매니저인 경우 해당 지점을 기본값으로 설정 (props가 없을 때만)
+    if (isManager && userBranch && !propSelectedBranchId) {
       setSelectedBranchId(userBranch.id);
     }
-  }, [isManager, userBranch]);
+  }, [isManager, userBranch, propSelectedMonth, propSelectedBranchId]);
+
+  // Props 변경 시 상태 업데이트
+  useEffect(() => {
+    if (propSelectedEmployeeId !== undefined) {
+      setSelectedEmployeeId(propSelectedEmployeeId);
+    }
+  }, [propSelectedEmployeeId]);
+
+  useEffect(() => {
+    if (propSelectedMonth !== undefined) {
+      setSelectedMonth(propSelectedMonth);
+    }
+  }, [propSelectedMonth]);
+
+  useEffect(() => {
+    if (propSelectedBranchId !== undefined) {
+      setSelectedBranchId(propSelectedBranchId);
+    }
+  }, [propSelectedBranchId]);
+
+  // 선택된 직원의 지점 정보 가져오기
+  const getEmployeeBranches = useCallback(async (employeeId: string) => {
+    try {
+      console.log('직원 지점 정보 조회 시작:', employeeId);
+      
+      // doc() 함수를 사용하여 특정 문서 ID로 직접 조회
+      const employeeRef = doc(db, 'employees', employeeId);
+      const employeeSnap = await getDoc(employeeRef);
+      
+      if (employeeSnap.exists()) {
+        const employeeData = employeeSnap.data();
+        console.log('직원 데이터:', employeeData);
+        const branches = employeeData.branches || [];
+        console.log('직원 지점:', branches);
+        return branches;
+      } else {
+        console.log('직원 문서가 존재하지 않음:', employeeId);
+        return [];
+      }
+    } catch (error) {
+      console.error('직원 지점 정보 로드 실패:', error);
+      return [];
+    }
+  }, []);
+
+  // 선택된 직원이 변경될 때 해당 직원의 지점 정보 로드
+  useEffect(() => {
+    if (selectedEmployeeId && hideEmployeeSelection) {
+      console.log('직원 지점 정보 로드 시작:', selectedEmployeeId);
+      console.log('Props로 받은 직원 지점:', propSelectedEmployeeBranches);
+      console.log('propSelectedEmployeeBranches 타입:', typeof propSelectedEmployeeBranches);
+      console.log('propSelectedEmployeeBranches 길이:', propSelectedEmployeeBranches?.length);
+      
+      // Props로 받은 지점 정보가 있으면 사용, 없으면 DB에서 조회
+      if (propSelectedEmployeeBranches && propSelectedEmployeeBranches.length > 0) {
+        console.log('Props 지점 정보 사용:', propSelectedEmployeeBranches);
+        setEmployeeBranches(propSelectedEmployeeBranches);
+        // 지점이 1개인 경우 자동 선택, 여러 개인 경우 기존 선택 유지
+        if (propSelectedEmployeeBranches.length === 1) {
+          setSelectedBranchId(propSelectedEmployeeBranches[0]);
+        } else if (!selectedBranchId) {
+          setSelectedBranchId(propSelectedEmployeeBranches[0]);
+        }
+      } else {
+        console.log('DB에서 지점 정보 조회');
+        getEmployeeBranches(selectedEmployeeId).then(branchIds => {
+          console.log('직원 지점 정보 로드 결과:', branchIds);
+          setEmployeeBranches(branchIds);
+          // 지점이 1개인 경우 자동 선택, 여러 개인 경우 기존 선택 유지
+          if (branchIds.length === 1) {
+            setSelectedBranchId(branchIds[0]);
+          } else if (branchIds.length > 0 && !selectedBranchId) {
+            setSelectedBranchId(branchIds[0]);
+          }
+        });
+      }
+    }
+  }, [selectedEmployeeId, hideEmployeeSelection, getEmployeeBranches, selectedBranchId, propSelectedEmployeeBranches]);
+
+  // 지점 선택이 숨겨진 경우 첫 번째 지점 자동 선택 및 비교결과 자동 로드
+  useEffect(() => {
+    if (hideBranchSelection && branches.length > 0 && !selectedBranchId) {
+      const firstBranch = branches[0];
+      setSelectedBranchId(firstBranch.id);
+    }
+  }, [hideBranchSelection, branches, selectedBranchId]);
+
+  // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드
+  useEffect(() => {
+    if (hideBranchSelection && selectedBranchId && selectedEmployeeId && selectedMonth) {
+      loadExistingComparisonData();
+    }
+  }, [hideBranchSelection, selectedBranchId, selectedEmployeeId, selectedMonth]);
 
   const loadEmployees = useCallback(async () => {
     try {
@@ -441,13 +554,12 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
   // 검토 상태를 DB에 저장
   const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '검토완료') => {
     try {
-      console.log('검토 상태 저장 시작:', { employeeId, status, selectedMonth, selectedBranchId });
+      console.log('검토 상태 저장 시작:', { employeeId, status, selectedMonth });
       
       const reviewStatusRecord = {
         employeeId,
         status,
         month: selectedMonth,
-        branchId: isManager && userBranch ? userBranch.id : selectedBranchId,
         updatedAt: new Date()
       };
 
@@ -473,6 +585,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       }
     } catch (error) {
       console.error('검토 상태 저장 실패:', error);
+      alert('검토 상태 저장에 실패했습니다: ' + error.message);
     }
   };
 
@@ -483,13 +596,10 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       
       console.log('검토 상태 로드 시작 - 선택된 월:', selectedMonth);
       
-      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
-      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
-      
+      // 직원별급여처리와 동일한 로직: branchId 필터링 없이 월별로만 조회
       const reviewStatusQuery = query(
         collection(db, 'employeeReviewStatus'),
-        where('month', '==', selectedMonth),
-        where('branchId', '==', branchId)
+        where('month', '==', selectedMonth)
       );
       const reviewStatusSnapshot = await getDocs(reviewStatusQuery);
       
@@ -1430,14 +1540,30 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         <div className="mb-6">
         
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
+          <button
+            onClick={() => setShowMenuDescription(!showMenuDescription)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-medium text-blue-800 ml-3">메뉴 설명 및 사용 방법</h3>
             </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800 mb-2">메뉴 설명</h3>
+            <svg
+              className={`h-5 w-5 text-blue-400 transition-transform ${showMenuDescription ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          
+          {showMenuDescription && (
+            <div className="mt-4">
               <div className="text-sm text-blue-700 space-y-1">
                 <p>• 매월 초 한번씩 전달의 스케쥴과 실제근무 시간을 비교합니다</p>
                 <p>• 비교할 월을 선택하고 실제근무 데이터를 복사붙여넣기합니다</p>
@@ -1452,7 +1578,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                 <p>4. 모든 스케쥴 수정/확인 완료 시 검토완료 상태로 변경</p>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -1469,22 +1595,34 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {branches.map((branch) => (
-                <button
-                  key={branch.id}
-                  onClick={() => {
-                    setSelectedBranchId(branch.id);
-                    setSelectedEmployeeId(''); // 지점 변경 시 직원 선택 초기화
-                  }}
-                  className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
-                    selectedBranchId === branch.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  {branch.name}
-                </button>
-              ))}
+              {(() => {
+                const filteredBranches = branches.filter(branch => hideEmployeeSelection ? employeeBranches.includes(branch.id) : true);
+                console.log('지점 필터링 결과:', {
+                  hideEmployeeSelection,
+                  allBranches: branches.map(b => ({ id: b.id, name: b.name })),
+                  employeeBranches,
+                  filteredBranches: filteredBranches.map(b => ({ id: b.id, name: b.name }))
+                });
+                return filteredBranches;
+              })()
+                .map((branch) => (
+                  <button
+                    key={branch.id}
+                    onClick={() => {
+                      setSelectedBranchId(branch.id);
+                      if (!hideEmployeeSelection) {
+                        setSelectedEmployeeId(''); // 지점 변경 시 직원 선택 초기화
+                      }
+                    }}
+                    className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
+                      selectedBranchId === branch.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    {branch.name}
+                  </button>
+                ))}
             </div>
           )}
         </div>
@@ -1509,7 +1647,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
       </div>
 
       {/* 직원 리스트 테이블 */}
-      {selectedBranchId && selectedMonth && employees.length > 0 ? (
+      {!hideEmployeeSelection && selectedBranchId && selectedMonth && employees.length > 0 ? (
         <div className="mb-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             선택된 지점의 직원 목록
@@ -1644,14 +1782,30 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         
         {/* 도움말 */}
         <div className="mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0">
-              <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
+          <button
+            onClick={() => setShowDataCopyMethod(!showDataCopyMethod)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h4 className="text-sm font-medium text-blue-900 ml-3">데이터 복사 방법</h4>
             </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">데이터 복사 방법</h4>
+            <svg
+              className={`h-5 w-5 text-blue-400 transition-transform ${showDataCopyMethod ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          
+          {showDataCopyMethod && (
+            <div className="mt-4">
               <div className="text-sm text-blue-800 space-y-2">
                 <p><strong>POS ASP 시스템에서 복사하기:</strong></p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
@@ -1668,37 +1822,31 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                       onClick={() => {
                         const modal = document.createElement('div');
                         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-                        modal.innerHTML = `
-                          <div class="bg-white p-4 rounded-lg max-w-6xl max-h-[90vh] overflow-auto">
-                            <div class="flex justify-between items-center mb-4">
-                              <h3 class="text-lg font-semibold">POS ASP 시스템 화면 예시</h3>
-                              <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
-                            </div>
-                            <div class="text-sm text-gray-600 mb-4">
-                              <p><strong>복사할 영역:</strong> 아래 표에서 해당 직원의 전체 데이터 행을 선택하여 복사하세요.</p>
-                              <p><strong>주의:</strong> 표 헤더는 제외하고 데이터 행만 복사해야 합니다.</p>
-                            </div>
-                            <div class="bg-gray-100 p-4 rounded border">
-                              <p class="text-xs text-gray-500 mb-2">POS ASP 시스템 → 기타관리 → 근태관리 → 월근태내역 화면</p>
-                              <div class="bg-white border rounded p-3">
-                                <img 
-                                  src="/images/pos-asp-example.png" 
-                                  alt="POS ASP 시스템 화면 예시" 
-                                  class="w-full h-auto border rounded"
-                                  onerror="console.log('이미지 로드 실패:', this); this.style.display='none';"
-                                />
-                              </div>
-                              <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                                <p class="font-medium text-yellow-800 mb-2">💡 복사 방법:</p>
-                                <ul class="text-yellow-700 space-y-1">
-                                  <li>• 위 표에서 해당 직원의 데이터 행들을 마우스로 드래그하여 선택한 후 Ctrl+C로 복사하세요.</li>
-                                  <li>• 헤더는 제외하고 데이터 행만 복사</li>
-                                  <li>• 여러 날의 데이터가 있는 경우 모든 행을 포함</li>
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        `;
+                        modal.innerHTML = 
+                          '<div class="bg-white p-4 rounded-lg max-w-6xl max-h-[90vh] overflow-auto">' +
+                            '<div class="flex justify-between items-center mb-4">' +
+                              '<h3 class="text-lg font-semibold">POS ASP 시스템 화면 예시</h3>' +
+                              '<button onclick="this.closest(\'.fixed\').remove()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>' +
+                            '</div>' +
+                            '<div class="text-sm text-gray-600 mb-4">' +
+                              '<p><strong>복사할 영역:</strong> 아래 표에서 해당 직원의 전체 데이터 행을 선택하여 복사하세요.</p>' +
+                              '<p><strong>주의:</strong> 표 헤더는 제외하고 데이터 행만 복사해야 합니다.</p>' +
+                            '</div>' +
+                            '<div class="bg-gray-100 p-4 rounded border">' +
+                              '<p class="text-xs text-gray-500 mb-2">POS ASP 시스템 → 기타관리 → 근태관리 → 월근태내역 화면</p>' +
+                              '<div class="bg-white border rounded p-3">' +
+                                '<img src="/images/pos-asp-example.png" alt="POS ASP 시스템 화면 예시" class="w-full h-auto border rounded" onerror="console.log(\'이미지 로드 실패:\', this); this.style.display=\'none\';" />' +
+                              '</div>' +
+                              '<div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">' +
+                                '<p class="font-medium text-yellow-800 mb-2">💡 복사 방법:</p>' +
+                                '<ul class="text-yellow-700 space-y-1">' +
+                                  '<li>• 위 표에서 해당 직원의 데이터 행들을 마우스로 드래그하여 선택한 후 Ctrl+C로 복사하세요.</li>' +
+                                  '<li>• 헤더는 제외하고 데이터 행만 복사</li>' +
+                                  '<li>• 여러 날의 데이터가 있는 경우 모든 행을 포함</li>' +
+                                '</ul>' +
+                              '</div>' +
+                            '</div>' +
+                          '</div>';
                         document.body.appendChild(modal);
                       }}
                       className="text-blue-600 hover:text-blue-800 text-xs underline"
@@ -1709,7 +1857,7 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
         
         <textarea
@@ -1741,18 +1889,88 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
         </button>
       </div>
 
+      {/* 전체 검토 상태 관리 */}
+      {comparisonResults.length > 0 && selectedEmployeeId && (
+        <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">전체 검토 상태</h3>
+          </div>
+          <div className="px-6 py-4">
+            {(() => {
+              const reviewStatus = employeeReviewStatus.find(status => status.employeeId === selectedEmployeeId);
+              const isCompleted = reviewStatus?.status === '검토완료';
+              const isPayrollConfirmed = payrollConfirmedEmployees.includes(selectedEmployeeId);
+              
+              return (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      isCompleted ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {isCompleted ? '검토완료' : '검토중'}
+                    </span>
+                    {isPayrollConfirmed && (
+                      <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                        급여확정완료
+                      </span>
+                    )}
+                  </div>
+                  
+                  {!isPayrollConfirmed && (
+                    <div className="flex space-x-2">
+                      {isCompleted ? (
+                        <button
+                          onClick={async () => {
+                            if (confirm('전체 검토완료를 취소하시겠습니까?')) {
+                              await saveReviewStatus(selectedEmployeeId, '검토중');
+                              // 상태 업데이트
+                              await loadReviewStatus(employees);
+                            }
+                          }}
+                          className="bg-orange-600 text-white px-4 py-2 rounded text-sm hover:bg-orange-700"
+                        >
+                          검토완료취소
+                        </button>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            if (confirm('전체 검토를 완료하시겠습니까?')) {
+                              console.log('검토완료 상태 저장 시작');
+                              await saveReviewStatus(selectedEmployeeId, '검토완료');
+                              console.log('검토완료 상태 저장 완료');
+                              // 상태 업데이트
+                              await loadReviewStatus(employees);
+                            }
+                          }}
+                          className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700"
+                        >
+                          검토완료
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* 비교 결과 */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">
-            비교 결과 {comparisonResults.length > 0 ? `(${comparisonResults.length}건)` : ''}
+            {(() => {
+              const selectedEmployeeName = employees.find(emp => emp.id === selectedEmployeeId)?.name || '선택된 직원';
+              return `${selectedEmployeeName} 비교결과 ${comparisonResults.length > 0 ? `(${comparisonResults.length}건)` : ''}`;
+            })()}
           </h3>
         </div>
         
         {comparisonResults.length > 0 && (
           <div>
-            {/* 검토완료 버튼 */}
-            <div className="mb-4 flex justify-between items-center">
+            {/* 확인완료 상태 표시 */}
+            <div className="mb-4">
               <div className="text-sm text-gray-600">
                 {(() => {
                   const completedCount = comparisonResults.filter(result => 
@@ -1762,59 +1980,12 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                   return `${completedCount}/${totalCount} 항목 확인완료`;
                 })()}
               </div>
-              <button
-                onClick={async () => {
-                  const allCompleted = comparisonResults.every(result => 
-                    result.status === 'review_completed' || result.status === 'time_match'
-                  );
-                  
-                  if (allCompleted) {
-                    if (confirm('모든 항목이 확인완료되었습니다. 검토완료 상태로 변경하시겠습니까?')) {
-                      setEmployeeReviewStatus(prev => {
-                        const existingIndex = prev.findIndex(status => status.employeeId === selectedEmployeeId);
-                        
-                        if (existingIndex >= 0) {
-                          // 기존 상태 업데이트
-                          const updated = [...prev];
-                          updated[existingIndex] = { ...updated[existingIndex], status: '검토완료' as '검토전' | '검토중' | '검토완료' };
-                          console.log('검토완료 상태 업데이트:', updated);
-                          return updated;
-                        } else {
-                          // 새로운 상태 추가
-                          const newStatus = { employeeId: selectedEmployeeId, status: '검토완료' as '검토전' | '검토중' | '검토완료' };
-                          const updated = [...prev, newStatus];
-                          console.log('검토완료 상태 추가:', updated);
-                          return updated;
-                        }
-                      });
-                      await saveReviewStatus(selectedEmployeeId, '검토완료');
-                    }
-                  } else {
-                    alert('모든 항목을 확인완료한 후 검토완료 상태로 변경할 수 있습니다.');
-                  }
-                }}
-                disabled={!comparisonResults.every(result => 
-                  result.status === 'review_completed' || result.status === 'time_match'
-                ) || isPayrollConfirmed(selectedEmployeeId)}
-                className={`px-4 py-2 rounded-md font-medium text-sm ${
-                  comparisonResults.every(result => 
-                    result.status === 'review_completed' || result.status === 'time_match'
-                  ) && !isPayrollConfirmed(selectedEmployeeId)
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                검토완료
-              </button>
             </div>
             
             <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    직원명
-                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     날짜
                   </th>
@@ -1852,9 +2023,6 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                   
                   return (
                     <tr key={index} className={`hover:bg-gray-50 ${rowBgColor} border-t border-gray-200`}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {result.employeeName}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {result.date}
                       </td>
@@ -1972,42 +2140,8 @@ export default function WorkTimeComparison({ userBranch, isManager }: WorkTimeCo
                         {(result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && (
                           <div className="flex space-x-2">
                             {result.status === 'review_completed' ? (
-                              // 검토완료 상태: 검토완료취소 버튼 (급여확정 전까지만 가능)
-                              <button
-                                onClick={async () => {
-                                  if (confirm('검토완료를 취소하시겠습니까?')) {
-                                    const updatedResults = [...comparisonResults];
-                                    updatedResults[index] = {
-                                      ...result,
-                                      status: 'review_required',
-                                      isModified: true
-                                    };
-                                    setComparisonResults(sortComparisonResults(updatedResults));
-                                    
-                                    setEmployeeReviewStatus(prev => {
-                                      const existingIndex = prev.findIndex(status => status.employeeId === selectedEmployeeId);
-                                      
-                                      if (existingIndex >= 0) {
-                                        // 기존 상태 업데이트
-                                        const updated = [...prev];
-                                        updated[existingIndex] = { ...updated[existingIndex], status: '검토중' as '검토전' | '검토중' | '검토완료' };
-                                        return updated;
-                                      } else {
-                                        // 새로운 상태 추가
-                                        const newStatus = { employeeId: selectedEmployeeId, status: '검토중' as '검토전' | '검토중' | '검토완료' };
-                                        return [...prev, newStatus];
-                                      }
-                                    });
-                                    
-                                    // DB에 저장
-                                    await saveModifiedData(updatedResults[index]);
-                                    await saveReviewStatus(selectedEmployeeId, '검토중');
-                                  }
-                                }}
-                                className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700"
-                              >
-                                검토완료취소
-                              </button>
+                              // 검토완료 상태: 확인완료 표시만
+                              <span className="text-green-600 text-xs font-medium">확인완료</span>
                             ) : (
                               // 미확인 상태: 확인 버튼
                               <button
