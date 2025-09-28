@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc, orderBy, limit, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -137,7 +137,7 @@ export default function WorkTimeComparison({
   // 선택된 직원의 지점 정보 가져오기
   const getEmployeeBranches = useCallback(async (employeeId: string) => {
     try {
-      console.log('직원 지점 정보 조회 시작:', employeeId);
+      // console.log('직원 지점 정보 조회 시작:', employeeId);
       
       // doc() 함수를 사용하여 특정 문서 ID로 직접 조회
       const employeeRef = doc(db, 'employees', employeeId);
@@ -145,9 +145,9 @@ export default function WorkTimeComparison({
       
       if (employeeSnap.exists()) {
         const employeeData = employeeSnap.data();
-        console.log('직원 데이터:', employeeData);
+        // console.log('직원 데이터:', employeeData);
         const branches = employeeData.branches || [];
-        console.log('직원 지점:', branches);
+        // console.log('직원 지점:', branches);
         return branches;
       } else {
         console.log('직원 문서가 존재하지 않음:', employeeId);
@@ -207,6 +207,11 @@ export default function WorkTimeComparison({
       loadExistingComparisonData();
     }
   }, [hideBranchSelection, selectedBranchId, selectedEmployeeId, selectedMonth, loadExistingComparisonData]);
+
+  // 지점 필터링 최적화
+  const filteredBranches = useMemo(() => {
+    return branches.filter(branch => hideEmployeeSelection ? employeeBranches.includes(branch.id) : true);
+  }, [branches, hideEmployeeSelection, employeeBranches]);
 
   const loadEmployees = useCallback(async () => {
     try {
@@ -359,7 +364,7 @@ export default function WorkTimeComparison({
 
   // 직원이 변경될 때 실제근무데이터 초기화 및 기존 데이터 로드
   useEffect(() => {
-    console.log('직원 변경 useEffect 실행:', selectedEmployeeId, selectedMonth);
+      // console.log('직원 변경 useEffect 실행:', selectedEmployeeId, selectedMonth);
     if (selectedEmployeeId) {
       // 직원이 변경되면 실제근무데이터 초기화
       setActualWorkData('');
@@ -371,7 +376,7 @@ export default function WorkTimeComparison({
       setHasShownOvertimePopup(false);
       
       // 기존 비교 데이터가 있는지 확인하고 로드
-      console.log('loadExistingComparisonData 호출 예정');
+      // console.log('loadExistingComparisonData 호출 예정');
       loadExistingComparisonData();
     } else {
       // 직원이 선택되지 않았으면 비교 결과 초기화
@@ -727,12 +732,12 @@ export default function WorkTimeComparison({
     const lines = data.trim().split('\n');
     const records: ActualWorkRecord[] = [];
 
-    console.log('실제근무 데이터 파싱 시작, 총 라인 수:', lines.length);
+    // console.log('실제근무 데이터 파싱 시작, 총 라인 수:', lines.length);
 
     lines.forEach((line, index) => {
       if (line.trim()) {
         const columns = line.split('\t');
-        console.log(`라인 ${index + 1}:`, columns);
+        // console.log(`라인 ${index + 1}:`, columns);
         
         if (columns.length >= 8) {
           // POS 데이터 형식: 첫 번째 날짜는 무시, 두 번째가 시작일시, 세 번째가 종료일시
@@ -751,7 +756,7 @@ export default function WorkTimeComparison({
             const colValue = columns[i].trim();
             if (colValue.includes(':') && colValue.match(/^\d+:\d+$/)) {
               totalTimeStr = colValue;
-              console.log(`시간 발견: 컬럼 ${i} = "${colValue}"`);
+              // console.log(`시간 발견: 컬럼 ${i} = "${colValue}"`);
               break;
             }
           }
@@ -763,33 +768,33 @@ export default function WorkTimeComparison({
               const end = new Date(endTime);
               const diffMs = end.getTime() - start.getTime();
               totalHours = diffMs / (1000 * 60 * 60); // 시간 단위로 변환
-              console.log(`시간 계산: ${startTime} ~ ${endTime} = ${totalHours}시간`);
+              // console.log(`시간 계산: ${startTime} ~ ${endTime} = ${totalHours}시간`);
             } catch (error) {
               console.error('시간 계산 오류:', error);
             }
           }
 
-          console.log(`전체 컬럼 정보:`, columns.map((col, idx) => `${idx}: "${col}"`));
-          console.log(`파싱된 데이터: 날짜=${date}, 시작=${startTime}, 종료=${endTime}, 총시간=${totalTimeStr}`);
+          // console.log(`전체 컬럼 정보:`, columns.map((col, idx) => `${idx}: "${col}"`));
+          // console.log(`파싱된 데이터: 날짜=${date}, 시작=${startTime}, 종료=${endTime}, 총시간=${totalTimeStr}`);
 
           // 시간 문자열을 소수점 시간으로 변환 (예: "3:11" -> 3.18)
           if (totalTimeStr) {
             try {
-              console.log(`시간 문자열 파싱: "${totalTimeStr}"`);
+              // console.log(`시간 문자열 파싱: "${totalTimeStr}"`);
               
               // 여러 가지 시간 형식 시도
               if (totalTimeStr.includes(':')) {
                 const timeParts = totalTimeStr.split(':');
-                console.log(`시간 파싱: ${totalTimeStr} -> parts:`, timeParts);
+                // console.log(`시간 파싱: ${totalTimeStr} -> parts:`, timeParts);
                 
                 if (timeParts.length === 2) {
                   const hours = parseInt(timeParts[0], 10);
                   const minutes = parseInt(timeParts[1], 10);
-                  console.log(`시간 변환: hours=${hours}, minutes=${minutes}`);
+                  // console.log(`시간 변환: hours=${hours}, minutes=${minutes}`);
                   
                   if (!isNaN(hours) && !isNaN(minutes)) {
                     totalHours = hours + (minutes / 60);
-                    console.log(`최종 계산: ${hours} + (${minutes}/60) = ${totalHours}`);
+                    // console.log(`최종 계산: ${hours} + (${minutes}/60) = ${totalHours}`);
                   } else {
                     console.error('시간 파싱 실패: hours 또는 minutes가 NaN', { hours, minutes });
                   }
@@ -801,7 +806,7 @@ export default function WorkTimeComparison({
                 const numericValue = parseFloat(totalTimeStr);
                 if (!isNaN(numericValue)) {
                   totalHours = numericValue;
-                  console.log(`숫자로 파싱: ${totalTimeStr} -> ${totalHours}`);
+                  // console.log(`숫자로 파싱: ${totalTimeStr} -> ${totalHours}`);
                 } else {
                   console.error('시간 파싱 실패: 숫자도 아니고 시간 형식도 아님', totalTimeStr);
                 }
@@ -818,22 +823,22 @@ export default function WorkTimeComparison({
             totalHours
           });
         } else {
-          console.log(`라인 ${index + 1} 컬럼 수 부족:`, columns.length);
+          // console.log(`라인 ${index + 1} 컬럼 수 부족:`, columns.length);
         }
       }
     });
 
-    console.log('파싱 완료된 실제근무 데이터:', records);
+    // console.log('파싱 완료된 실제근무 데이터:', records);
     return records;
   };
 
   const compareWorkTimes = async () => {
-    console.log('근무시간 비교 시작');
-    console.log('선택된 지점:', selectedBranchId);
-    console.log('선택된 월:', selectedMonth);
-    console.log('선택된 직원:', selectedEmployeeId);
-    console.log('실제근무 데이터 길이:', actualWorkData.length);
-    console.log('스케줄 개수:', schedules.length);
+    // console.log('근무시간 비교 시작');
+    // console.log('선택된 지점:', selectedBranchId);
+    // console.log('선택된 월:', selectedMonth);
+    // console.log('선택된 직원:', selectedEmployeeId);
+    // console.log('실제근무 데이터 길이:', actualWorkData.length);
+    // console.log('스케줄 개수:', schedules.length);
 
     // 필수 항목 검증
     if (!selectedBranchId) {
@@ -853,7 +858,7 @@ export default function WorkTimeComparison({
 
     if (!actualWorkData.trim()) {
       // 실제근무 데이터가 없어도 스케줄 데이터만으로 리스트 표시
-      console.log('실제근무 데이터 없음, 스케줄 데이터만으로 리스트 생성');
+      // console.log('실제근무 데이터 없음, 스케줄 데이터만으로 리스트 생성');
       
       const scheduleOnlyComparisons: WorkTimeComparison[] = [];
       
@@ -878,7 +883,7 @@ export default function WorkTimeComparison({
           });
         });
       
-      console.log('스케줄만으로 생성된 비교 결과:', scheduleOnlyComparisons);
+      // console.log('스케줄만으로 생성된 비교 결과:', scheduleOnlyComparisons);
       setComparisonResults(scheduleOnlyComparisons);
       
       // 스케줄만으로 생성된 비교결과도 DB에 저장
@@ -898,7 +903,7 @@ export default function WorkTimeComparison({
     }
 
     const actualRecords = parseActualWorkData(actualWorkData);
-    console.log('파싱된 실제근무 데이터:', actualRecords);
+    // console.log('파싱된 실제근무 데이터:', actualRecords);
 
     const comparisons: WorkTimeComparison[] = [];
     const processedDates = new Set<string>();
@@ -1361,7 +1366,7 @@ export default function WorkTimeComparison({
       } else {
         // 기존 데이터가 없으면 비교 결과 초기화
         setComparisonResults([]);
-        console.log('기존 비교 데이터 없음, 초기화됨');
+        // console.log('기존 비교 데이터 없음, 초기화됨');
       }
     } catch (error) {
       console.error('기존 비교 데이터 로드 실패:', error);
@@ -1370,7 +1375,7 @@ export default function WorkTimeComparison({
   }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch]);
 
   // 모든 비교 결과를 DB에 저장하는 함수
-  const saveAllComparisonResults = async (results: WorkTimeComparison[]) => {
+  const saveAllComparisonResults = useCallback(async (results: WorkTimeComparison[]) => {
     if (!selectedEmployeeId || !selectedMonth) {
       console.log('저장 실패: 직원ID 또는 월이 없음');
       return;
@@ -1424,7 +1429,7 @@ export default function WorkTimeComparison({
     } catch (error) {
       console.error('비교 결과 저장 실패:', error);
     }
-  }, [selectedEmployeeId, selectedMonth, selectedBranchId]);
+  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch]);
 
   // 수정된 데이터를 DB에 저장
   const saveModifiedData = async (result: WorkTimeComparison) => {
@@ -1595,17 +1600,7 @@ export default function WorkTimeComparison({
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {(() => {
-                const filteredBranches = branches.filter(branch => hideEmployeeSelection ? employeeBranches.includes(branch.id) : true);
-                console.log('지점 필터링 결과:', {
-                  hideEmployeeSelection,
-                  allBranches: branches.map(b => ({ id: b.id, name: b.name })),
-                  employeeBranches,
-                  filteredBranches: filteredBranches.map(b => ({ id: b.id, name: b.name }))
-                });
-                return filteredBranches;
-              })()
-                .map((branch) => (
+              {filteredBranches.map((branch) => (
                   <button
                     key={branch.id}
                     onClick={() => {
