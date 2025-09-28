@@ -1367,7 +1367,7 @@ export default function WorkTimeComparison({
       console.error('기존 비교 데이터 로드 실패:', error);
       setComparisonResults([]);
     }
-  };
+  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch]);
 
   // 모든 비교 결과를 DB에 저장하는 함수
   const saveAllComparisonResults = async (results: WorkTimeComparison[]) => {
