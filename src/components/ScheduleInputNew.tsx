@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { isRedDay } from '@/lib/holidays';
+// import { format } from 'date-fns';
 
 interface Schedule {
   id: string;
@@ -167,6 +168,21 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   };
 
+  // 1주 기간의 날짜들 생성
+  const getWeekDates = useCallback(() => {
+    const dates = [];
+    // currentWeekStart는 이미 월요일이므로 그대로 사용
+    const mondayDate = new Date(currentWeekStart);
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(mondayDate);
+      date.setDate(mondayDate.getDate() + i);
+      dates.push(date);
+    }
+    
+    return dates;
+  }, [currentWeekStart]);
+
   // 다른 지점 스케줄 조회 함수
   const loadOtherBranchSchedules = useCallback(async () => {
     try {
@@ -242,6 +258,113 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   }, [selectedBranchId, getWeekDates]);
 
+  const loadBranches = useCallback(async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'branches'));
+      const branchesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name
+      })) as Branch[];
+      setBranches(branchesData);
+    } catch (error) {
+      console.error('지점 목록을 불러올 수 없습니다:', error);
+    }
+  }, []);
+
+  const loadSchedules = useCallback(async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'schedules'));
+      const schedulesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+        date: doc.data().date?.toDate() || new Date()
+      })) as Schedule[];
+      setSchedules(schedulesData);
+    } catch (error) {
+      console.error('스케줄 목록을 불러올 수 없습니다:', error);
+    }
+  }, []);
+
+  const loadPayrollLocks = useCallback(async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'payrollLocks'));
+      const locksData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        lockedAt: doc.data().lockedAt?.toDate() || new Date()
+      })) as PayrollLock[];
+      setPayrollLocks(locksData);
+    } catch (error) {
+      console.error('급여 잠금 상태를 불러올 수 없습니다:', error);
+    }
+  }, []);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        loadBranches(),
+        loadSchedules(),
+        loadPayrollLocks()
+      ]);
+    } catch (error) {
+      console.error('데이터 로드 중 오류:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadBranches, loadSchedules, loadPayrollLocks]);
+
+  const checkPayrollLock = useCallback(async () => {
+    if (!selectedBranchId || !currentWeekStart) return;
+    
+    try {
+      const weekDates = getWeekDates();
+      const weekStart = weekDates[0];
+      const weekEnd = weekDates[6];
+      
+      const lockQuery = query(
+        collection(db, 'payrollLocks'),
+        where('branchId', '==', selectedBranchId),
+        where('month', '==', new Date(currentWeekStart).toISOString().slice(0, 7))
+      );
+      
+      const lockSnapshot = await getDocs(lockQuery);
+      const isLocked = lockSnapshot.docs.length > 0;
+      
+      setIsLocked(isLocked);
+    } catch (error) {
+      console.error('급여 잠금 상태 확인 중 오류:', error);
+    }
+  }, [selectedBranchId, currentWeekStart, getWeekDates]);
+
+  const loadWeeklyNote = useCallback(async () => {
+    if (!selectedBranchId) return;
+    
+    try {
+      const weekDates = getWeekDates();
+      const weekStart = weekDates[0];
+      const weekEnd = weekDates[6];
+      
+      const noteQuery = query(
+        collection(db, 'weeklyNotes'),
+        where('branchId', '==', selectedBranchId),
+        where('weekStart', '>=', weekStart),
+        where('weekStart', '<=', weekEnd)
+      );
+      
+      const noteSnapshot = await getDocs(noteQuery);
+      if (!noteSnapshot.empty) {
+        const noteData = noteSnapshot.docs[0].data();
+        setWeeklyNote(noteData.note || '');
+      } else {
+        setWeeklyNote('');
+      }
+    } catch (error) {
+      console.error('주간 비고 로드 중 오류:', error);
+    }
+  }, [selectedBranchId, getWeekDates]);
 
   useEffect(() => {
     loadData();
@@ -254,7 +377,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       loadWeeklyNote();
       loadOtherBranchSchedules();
     }
-  }, [currentWeekStart, selectedBranchId, loadOtherBranchSchedules, checkPayrollLock, loadWeeklyNote]);
+  }, [currentWeekStart, selectedBranchId, loadOtherBranchSchedules, checkPayrollLock, loadWeeklyNote, loadSchedules]);
 
 
   // 전역 마우스 이벤트 리스너 추가
@@ -484,22 +607,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   };
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      await Promise.all([
-        loadEmployees(),
-        loadBranches(),
-        loadSchedules(),
-        loadPayrollLocks(),
-        loadWeeklyNote()
-      ]);
-    } catch (error) {
-      console.error('데이터 로드 중 오류:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadEmployees, loadBranches, loadSchedules, loadPayrollLocks, loadWeeklyNote]);
 
   const loadEmployees = useCallback(async () => {
     try {
@@ -613,89 +720,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   }, [selectedBranchId, loadEmployees]);
 
-  const loadBranches = useCallback(async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'branches'));
-      const branchesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name
-      })) as Branch[];
-      setBranches(branchesData);
-    } catch (error) {
-      console.error('지점 목록을 불러올 수 없습니다:', error);
-    }
-  }, []);
-
-  const loadSchedules = useCallback(async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'schedules'));
-      const schedulesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        date: doc.data().date?.toDate() || new Date()
-      })) as Schedule[];
-      setSchedules(schedulesData);
-    } catch (error) {
-      console.error('스케줄 목록을 불러올 수 없습니다:', error);
-    }
-  }, []);
-
-  const loadPayrollLocks = useCallback(async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'payrollLocks'));
-      const locksData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        lockedAt: doc.data().lockedAt?.toDate() || new Date()
-      })) as PayrollLock[];
-      setPayrollLocks(locksData);
-    } catch (error) {
-      console.error('급여 잠금 상태를 불러올 수 없습니다:', error);
-    }
-  }, []);
-
   // 주간 비고 로드
-  const loadWeeklyNote = useCallback(async () => {
-    if (!selectedBranchId) return;
-    
-    try {
-      const weekDates = getWeekDates();
-      const weekStart = weekDates[0];
-      const weekEnd = weekDates[6];
-      
-      const querySnapshot = await getDocs(collection(db, 'weeklyNotes'));
-      const existingNote = querySnapshot.docs.find(doc => {
-        const data = doc.data();
-        const noteWeekStart = data.weekStart?.toDate();
-        const noteWeekEnd = data.weekEnd?.toDate();
-        
-        return data.branchId === selectedBranchId &&
-               noteWeekStart?.toDateString() === weekStart.toDateString() &&
-               noteWeekEnd?.toDateString() === weekEnd.toDateString();
-      });
-      
-      if (existingNote) {
-        const noteData = {
-          id: existingNote.id,
-          ...existingNote.data(),
-          weekStart: existingNote.data().weekStart?.toDate() || new Date(),
-          weekEnd: existingNote.data().weekEnd?.toDate() || new Date(),
-          createdAt: existingNote.data().createdAt?.toDate() || new Date(),
-          updatedAt: existingNote.data().updatedAt?.toDate() || new Date()
-        } as WeeklyNote;
-        
-        setCurrentWeeklyNote(noteData);
-        setWeeklyNote(noteData.note || '');
-      } else {
-        setCurrentWeeklyNote(null);
-        setWeeklyNote('');
-      }
-    } catch (error) {
-      console.error('주간 비고를 불러올 수 없습니다:', error);
-    }
-  }, [selectedBranchId, getWeekDates]);
 
   // 주간 비고 저장
   const saveWeeklyNote = async () => {
@@ -754,29 +779,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   };
 
-  const checkPayrollLock = useCallback(() => {
-    // 1주 기간 동안 급여 잠금 상태 확인
-    const weekDates = getWeekDates();
-    let hasLockedWeek = false;
-    
-    weekDates.forEach(date => {
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
-      
-      const lock = payrollLocks.find(lock => 
-        lock.year === year && 
-        lock.month === month && 
-        lock.branchId === selectedBranchId &&
-        lock.isLocked
-      );
-      
-      if (lock) {
-        hasLockedWeek = true;
-      }
-    });
-    
-    setIsLocked(hasLockedWeek);
-  }, [getWeekDates, payrollLocks, selectedBranchId]);
 
   // 주간 네비게이션 핸들러
   const goToPreviousWeek = () => {
@@ -791,21 +793,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     setCurrentWeekStart(newWeekStart);
   };
 
-  // 1주 기간의 날짜들 생성
-  const getWeekDates = useCallback(() => {
-    const dates = [];
-    // currentWeekStart는 이미 월요일이므로 그대로 사용
-    const mondayDate = new Date(currentWeekStart);
-    
-    // 1주 (7일) 생성
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(mondayDate);
-      date.setDate(mondayDate.getDate() + i);
-      dates.push(date);
-    }
-    
-    return dates;
-  }, [currentWeekStart]);
 
   // 해당 날짜의 스케줄 가져오기 (지점별 필터링 포함)
   const getScheduleForDate = (employeeId: string, date: Date) => {

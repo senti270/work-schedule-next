@@ -41,7 +41,6 @@ interface EmployeePayrollProcessingProps {
 }
 
 const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({ 
-  user, 
   userBranch, 
   isManager 
 }) => {
@@ -56,23 +55,111 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'work-comparison' | 'payroll-calculation'>('work-comparison');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [contracts, setContracts] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<{
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    employmentType: string;
+    salaryType: string;
+    hourlyWage?: number;
+    monthlySalary?: number;
+    probationStartDate?: Date;
+    probationEndDate?: Date;
+    startDate: Date;
+    endDate?: Date;
+    createdAt: Date;
+    updatedAt: Date;
+  }[]>([]);
 
   // 근로계약 정보 로드
   const loadContracts = useCallback(async () => {
     try {
       console.log('근로계약 정보 로드 시작');
       const contractsSnapshot = await getDocs(collection(db, 'employmentContracts'));
-      const contractsData = contractsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const contractsData = contractsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          employeeId: data.employeeId,
+          employeeName: data.employeeName,
+          employmentType: data.employmentType,
+          salaryType: data.salaryType,
+          hourlyWage: data.hourlyWage,
+          monthlySalary: data.monthlySalary,
+          probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : data.probationStartDate,
+          probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : data.probationEndDate,
+          startDate: data.startDate?.toDate ? data.startDate.toDate() : data.startDate,
+          endDate: data.endDate?.toDate ? data.endDate.toDate() : data.endDate,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt
+        };
+      });
       console.log('근로계약 정보 로드 완료:', contractsData.length, '개');
       setContracts(contractsData);
     } catch (error) {
       console.error('근로계약 정보 로드 실패:', error);
     }
   }, []);
+
+  // 급여 처리 상태 로드
+  const loadPayrollStatuses = useCallback(async (employeesData: Employee[]) => {
+    try {
+      const statuses: PayrollStatus[] = [];
+      
+      for (const employee of employeesData) {
+        // 근무시간비교 완료 상태 확인 (선택된 지점이 있으면 해당 지점만, 없으면 모든 지점)
+        const workTimeQuery = selectedBranchId 
+          ? query(
+              collection(db, 'actualWorkRecords'),
+              where('employeeId', '==', employee.id),
+              where('month', '==', selectedMonth),
+              where('branchId', '==', selectedBranchId)
+            )
+          : query(
+              collection(db, 'actualWorkRecords'),
+              where('employeeId', '==', employee.id),
+              where('month', '==', selectedMonth)
+            );
+        
+        const workTimeSnapshot = await getDocs(workTimeQuery);
+        
+        // 급여확정 상태 확인
+        const payrollQuery = query(
+          collection(db, 'payrollRecords'),
+          where('employeeId', '==', employee.id),
+          where('month', '==', selectedMonth),
+          where('branchId', '==', selectedBranchId || '')
+        );
+        const payrollSnapshot = await getDocs(payrollQuery);
+        
+        let status: '미처리' | '근무시간검토중' | '근무시간검토완료' | '급여확정완료' = '미처리';
+        
+        if (payrollSnapshot.docs.length > 0) {
+          status = '급여확정완료';
+        } else if (workTimeSnapshot.docs.length > 0) {
+          // 근무시간비교 데이터가 있는지 확인
+          const hasWorkTimeData = workTimeSnapshot.docs.length > 0;
+          status = hasWorkTimeData ? '근무시간검토완료' : '근무시간검토완료';
+        } else {
+          // 근무시간비교 데이터가 있는지 확인
+          const hasWorkTimeData = workTimeSnapshot.docs.length > 0;
+          status = hasWorkTimeData ? '근무시간검토중' : '미처리';
+        }
+        
+        statuses.push({
+          employeeId: employee.id,
+          month: selectedMonth,
+          branchId: selectedBranchId || '',
+          status,
+          lastUpdated: new Date()
+        });
+      }
+      
+      setPayrollStatuses(statuses);
+    } catch (error) {
+      console.error('급여 처리 상태 로드 실패:', error);
+    }
+  }, [selectedMonth, selectedBranchId]);
 
   // 직원 목록 로드 (현재 재직중인 전직원)
   const loadEmployees = useCallback(async () => {
@@ -122,75 +209,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth]);
-
-  // 급여 처리 상태 로드
-  const loadPayrollStatuses = async (employeesData: Employee[]) => {
-    try {
-      const statuses: PayrollStatus[] = [];
-      
-      for (const employee of employeesData) {
-        // 근무시간비교 완료 상태 확인 (선택된 지점이 있으면 해당 지점만, 없으면 모든 지점)
-        const workTimeQuery = selectedBranchId 
-          ? query(
-              collection(db, 'workTimeComparisonResults'),
-              where('employeeId', '==', employee.id),
-              where('month', '==', selectedMonth),
-              where('branchId', '==', selectedBranchId)
-            )
-          : query(
-              collection(db, 'workTimeComparisonResults'),
-              where('employeeId', '==', employee.id),
-              where('month', '==', selectedMonth)
-            );
-        
-        const workTimeSnapshot = await getDocs(workTimeQuery);
-        const workTimeCompleted = workTimeSnapshot.docs.length > 0 && 
-          workTimeSnapshot.docs.every(doc => doc.data().status === 'review_completed');
-        
-        // 급여계산 완료 상태 확인 (선택된 지점이 있으면 해당 지점만, 없으면 모든 지점)
-        const payrollQuery = selectedBranchId
-          ? query(
-              collection(db, 'payrollRecords'),
-              where('employeeId', '==', employee.id),
-              where('month', '==', selectedMonth),
-              where('branchId', '==', selectedBranchId)
-            )
-          : query(
-              collection(db, 'payrollRecords'),
-              where('employeeId', '==', employee.id),
-              where('month', '==', selectedMonth)
-            );
-        
-        const payrollSnapshot = await getDocs(payrollQuery);
-        const payrollConfirmed = payrollSnapshot.docs.length > 0;
-        
-        let status: '미처리' | '근무시간검토중' | '근무시간검토완료' | '급여계산완료' | '급여확정완료';
-        
-        if (payrollConfirmed) {
-          status = '급여확정완료';
-        } else if (workTimeCompleted) {
-          status = '근무시간검토완료';
-        } else {
-          // 근무시간비교 데이터가 있는지 확인
-          const hasWorkTimeData = workTimeSnapshot.docs.length > 0;
-          status = hasWorkTimeData ? '근무시간검토중' : '미처리';
-        }
-        
-        statuses.push({
-          employeeId: employee.id,
-          month: selectedMonth,
-          branchId: selectedBranchId || '',
-          status,
-          lastUpdated: new Date()
-        });
-      }
-      
-      setPayrollStatuses(statuses);
-    } catch (error) {
-      console.error('급여 처리 상태 로드 실패:', error);
-    }
-  };
+  }, [selectedMonth, loadContracts, loadPayrollStatuses]);
 
   // 지점 목록 로드
   const loadBranches = useCallback(async () => {

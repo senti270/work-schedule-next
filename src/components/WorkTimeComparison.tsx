@@ -113,7 +113,39 @@ export default function WorkTimeComparison({
     if (isManager && userBranch && !propSelectedBranchId) {
       setSelectedBranchId(userBranch.id);
     }
-  }, [isManager, userBranch, propSelectedMonth, propSelectedBranchId, loadEmployees]);
+  }, [isManager, userBranch, propSelectedMonth, propSelectedBranchId]);
+
+  const loadEmployees = useCallback(async () => {
+    if (!selectedBranchId || !selectedMonth) return;
+    
+    try {
+      setLoading(true);
+      
+      // 간단한 직원 목록 로드
+      const employeeQuery = query(
+        collection(db, 'employees'),
+        where('branchIds', 'array-contains', selectedBranchId),
+        orderBy('name', 'asc')
+      );
+      const employeeSnapshot = await getDocs(employeeQuery);
+      const employeesData = employeeSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || '',
+        branchId: doc.data().branchId || '',
+        type: doc.data().type,
+        employmentType: doc.data().employmentType,
+        salaryType: doc.data().salaryType,
+        ...doc.data()
+      }));
+
+      setEmployees(employeesData);
+      
+    } catch (error) {
+      console.error('직원 로드 중 오류:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedBranchId, selectedMonth]);
 
   // Props 변경 시 상태 업데이트
   useEffect(() => {
@@ -206,146 +238,12 @@ export default function WorkTimeComparison({
     if (hideBranchSelection && selectedBranchId && selectedEmployeeId && selectedMonth) {
       loadExistingComparisonData();
     }
-  }, [hideBranchSelection, selectedBranchId, selectedEmployeeId, selectedMonth, loadExistingComparisonData]);
+  }, [hideBranchSelection, selectedBranchId, selectedEmployeeId, selectedMonth]);
 
   // 지점 필터링 최적화
   const filteredBranches = useMemo(() => {
     return branches.filter(branch => hideEmployeeSelection ? employeeBranches.includes(branch.id) : true);
   }, [branches, hideEmployeeSelection, employeeBranches]);
-
-  const loadEmployees = useCallback(async () => {
-    try {
-      // 선택된 월이 없으면 빈 배열로 설정
-      if (!selectedMonth) {
-        setEmployees([]);
-        setEmployeeReviewStatus([]);
-        return;
-      }
-
-      // 먼저 해당 월의 스케줄을 로드하여 스케줄이 있는 직원들을 찾음
-      const [year, monthNum] = selectedMonth.split('-').map(Number);
-      const startDate = new Date(year, monthNum - 1, 1);
-      const endDate = new Date(year, monthNum, 0, 23, 59, 59, 999);
-
-      const schedulesSnapshot = await getDocs(collection(db, 'schedules'));
-      const schedulesData = schedulesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          employeeId: data.employeeId,
-          employeeName: data.employeeName,
-          branchId: data.branchId,
-          branchName: data.branchName,
-          date: data.date?.toDate ? data.date.toDate() : new Date(),
-          startTime: data.startTime,
-          endTime: data.endTime,
-          breakTime: data.breakTime,
-          totalHours: data.totalHours,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-          originalInput: data.originalInput
-        };
-      });
-
-      // 선택된 지점의 스케줄만 필터링
-      const filteredSchedules = schedulesData.filter(schedule => {
-        if (isManager && userBranch) {
-          return schedule.branchId === userBranch.id;
-        }
-        return selectedBranchId ? schedule.branchId === selectedBranchId : true;
-      });
-
-      // 해당 월의 스케줄만 필터링
-      const monthSchedules = filteredSchedules.filter(schedule => {
-        const scheduleDate = schedule.date;
-        return scheduleDate >= startDate && scheduleDate <= endDate;
-      });
-
-      // 스케줄이 있는 직원 ID들 추출
-      const employeeIds = [...new Set(monthSchedules.map(schedule => schedule.employeeId))];
-
-      // 직원 정보 로드 및 해당월의 근로계약 정보 가져오기
-      const employeesSnapshot = await getDocs(collection(db, 'employees'));
-      const employeesData = [];
-      
-      for (const employeeId of employeeIds) {
-        const employeeDoc = employeesSnapshot.docs.find(doc => doc.id === employeeId);
-        if (employeeDoc) {
-          const data = employeeDoc.data();
-          
-          // 해당월의 근로계약 정보 가져오기
-          const contractsQuery = query(
-            collection(db, 'employmentContracts'),
-            where('employeeId', '==', employeeId)
-          );
-          const contractsSnapshot = await getDocs(contractsQuery);
-          
-          let employmentType = '';
-          let salaryType = '';
-          let weeklyWorkHours = 40; // 기본값
-          
-          if (!contractsSnapshot.empty) {
-            // 해당월에 유효한 계약서 찾기
-            const validContracts = contractsSnapshot.docs
-              .map(doc => {
-                const contractData = doc.data();
-                return {
-                  id: doc.id,
-                  startDate: contractData.startDate?.toDate ? contractData.startDate.toDate() : new Date(),
-                  endDate: contractData.endDate?.toDate ? contractData.endDate.toDate() : undefined,
-                  employmentType: contractData.employmentType || '',
-                  salaryType: contractData.salaryType || '',
-                  weeklyWorkHours: contractData.weeklyWorkHours || 40
-                };
-              })
-              .filter(contract => {
-                // 해당월에 유효한 계약인지 확인
-                const contractStart = contract.startDate;
-                const contractEnd = contract.endDate || new Date('2099-12-31');
-                return contractStart <= endDate && contractEnd >= startDate;
-              });
-            
-            if (validContracts.length > 0) {
-              // 가장 최신 계약서 사용
-              const latestContract = validContracts[0];
-              employmentType = latestContract.employmentType;
-              salaryType = latestContract.salaryType;
-              weeklyWorkHours = latestContract.weeklyWorkHours;
-            }
-          }
-          
-          employeesData.push({
-            id: employeeId,
-            name: data.name,
-            branchId: data.branchId,
-            branchName: data.branchName,
-            employmentType: employmentType,
-            salaryType: salaryType,
-            weeklyWorkHours: weeklyWorkHours,
-            probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : undefined,
-            probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : undefined,
-            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-            updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
-          });
-        }
-      }
-
-      setEmployees(employeesData);
-      
-      // 중복 데이터 정리
-      await cleanupDuplicateRecords();
-      
-      // DB에서 검토 상태 로드 (직원 목록이 설정된 후)
-      await loadReviewStatus(employeesData);
-      
-      // 급여확정된 직원 목록도 함께 로드
-      await loadPayrollConfirmedEmployees();
-      
-      // 직원별 급여메모도 함께 로드
-      await loadEmployeeMemos();
-    } catch (error) {
-      console.error('직원 목록을 불러올 수 없습니다:', error);
-    }
-  }, [selectedMonth, selectedBranchId, isManager, userBranch, cleanupDuplicateRecords, loadEmployeeMemos, loadPayrollConfirmedEmployees, loadReviewStatus]);
 
   // 지점이나 월이 변경될 때 직원 목록 다시 로드
   useEffect(() => {
@@ -590,7 +488,7 @@ export default function WorkTimeComparison({
       }
     } catch (error) {
       console.error('검토 상태 저장 실패:', error);
-      alert('검토 상태 저장에 실패했습니다: ' + error.message);
+      alert('검토 상태 저장에 실패했습니다: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 

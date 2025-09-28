@@ -155,7 +155,7 @@ const FormManagement: React.FC<FormManagementProps> = ({ userBranch, isManager, 
       let fileName = '';
       let fileSize = 0;
       let fileType = '';
-      let isBase64 = false;
+      // let isBase64 = false; // 사용하지 않음
       
       // 파일 업로드 (새 파일이 선택된 경우만)
       if (selectedFile) {

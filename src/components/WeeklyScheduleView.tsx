@@ -53,6 +53,33 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     setCurrentWeekStart(monday);
   }, []);
 
+  const generateWeeklySummary = useCallback((schedulesData: Schedule[]) => {
+    const weekDates = getWeekDates(currentWeekStart);
+    const summaryMap = new Map<string, WeeklySummary>();
+
+    console.log('=== WeeklyScheduleView 주간집계 생성 ===');
+    console.log('전체 스케줄 데이터:', schedulesData);
+
+    schedulesData.forEach(schedule => {
+      const scheduleDate = new Date(schedule.date);
+      const dayOfWeek = DAYS_OF_WEEK[scheduleDate.getDay() === 0 ? 6 : scheduleDate.getDay() - 1];
+
+      if (!summaryMap.has(schedule.employeeName)) {
+        summaryMap.set(schedule.employeeName, {
+          employeeName: schedule.employeeName,
+          dailyHours: {},
+          totalHours: 0
+        });
+      }
+
+      const summary = summaryMap.get(schedule.employeeName)!;
+      summary.dailyHours[dayOfWeek.key] = schedule.totalHours;
+      summary.totalHours += schedule.totalHours;
+    });
+
+    setWeeklySummaries(Array.from(summaryMap.values()));
+  }, [currentWeekStart, selectedBranchId]);
+
   const loadSchedules = useCallback(async () => {
     setLoading(true);
     try {
@@ -74,53 +101,12 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     }
   }, [generateWeeklySummary]);
 
+
   useEffect(() => {
     if (currentWeekStart) {
       loadSchedules();
     }
   }, [currentWeekStart, loadSchedules]);
-
-  const generateWeeklySummary = useCallback((schedulesData: Schedule[]) => {
-    const weekDates = getWeekDates(currentWeekStart);
-    const summaryMap = new Map<string, WeeklySummary>();
-
-    console.log('=== WeeklyScheduleView 주간집계 생성 ===');
-    console.log('전체 스케줄 데이터:', schedulesData);
-    console.log('선택된 지점 ID:', selectedBranchId);
-
-    // 주간 스케줄 필터링 (지점별로)
-    const weekSchedules = schedulesData.filter(schedule => {
-      const scheduleDate = new Date(schedule.date);
-      const isInWeek = weekDates.some(weekDate => 
-        scheduleDate.toDateString() === weekDate.toDateString()
-      );
-      const isInBranch = !selectedBranchId || schedule.branchId === selectedBranchId;
-      return isInWeek && isInBranch;
-    });
-    
-    console.log('필터링된 주간 스케줄:', weekSchedules);
-
-    // 각 직원별로 요일별 근무시간 계산
-    weekSchedules.forEach(schedule => {
-      const employeeName = schedule.employeeName;
-      const scheduleDate = new Date(schedule.date);
-      const dayOfWeek = DAYS_OF_WEEK[scheduleDate.getDay() === 0 ? 6 : scheduleDate.getDay() - 1];
-
-      if (!summaryMap.has(employeeName)) {
-        summaryMap.set(employeeName, {
-          employeeName,
-          dailyHours: {},
-          totalHours: 0
-        });
-      }
-
-      const summary = summaryMap.get(employeeName)!;
-      summary.dailyHours[dayOfWeek.key] = schedule.totalHours;
-      summary.totalHours += schedule.totalHours;
-    });
-
-    setWeeklySummaries(Array.from(summaryMap.values()));
-  }, [currentWeekStart, selectedBranchId]);
 
   const getWeekDates = (weekStart: Date) => {
     const dates = [];

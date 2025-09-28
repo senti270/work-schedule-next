@@ -113,6 +113,54 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   };
 
+  // 직원별 메모 로드
+  const loadEmployeeMemos = useCallback(async () => {
+    try {
+      if (!selectedMonth) return;
+      
+      const memosQuery = query(
+        collection(db, 'employeeMemos'),
+        where('month', '==', selectedMonth)
+      );
+      
+      const memosSnapshot = await getDocs(memosQuery);
+      const memosMap: {[employeeId: string]: string} = {};
+      
+      memosSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        memosMap[data.employeeId] = data.memo;
+      });
+      
+      setEmployeeMemos(memosMap);
+      console.log('직원별 메모 로드됨:', memosMap);
+      
+    } catch (error) {
+      console.error('직원별 메모 로드 실패:', error);
+    }
+  }, [selectedMonth]);
+
+  // 급여확정된 직원 목록 로드
+  const loadPayrollConfirmedEmployees = useCallback(async () => {
+    try {
+      if (!selectedMonth || !selectedBranchId) return;
+      
+      const payrollQuery = query(
+        collection(db, 'payrollRecords'),
+        where('month', '==', selectedMonth),
+        where('branchId', '==', selectedBranchId)
+      );
+      
+      const payrollSnapshot = await getDocs(payrollQuery);
+      
+      const confirmedEmployeeIds = payrollSnapshot.docs.map(doc => doc.data().employeeId);
+      setPayrollConfirmedEmployees(confirmedEmployeeIds);
+      
+      console.log('급여확정된 직원들:', confirmedEmployeeIds);
+    } catch (error) {
+      console.error('급여확정 직원 로드 실패:', error);
+    }
+  }, [selectedMonth, selectedBranchId]);
+
   const loadEmployees = useCallback(async () => {
     if (!selectedBranchId || !selectedMonth) return;
     
@@ -248,7 +296,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     } finally {
       setLoading(false);
     }
-  }, [selectedBranchId, selectedMonth, branches]);
+  }, [selectedBranchId, selectedMonth, branches, loadEmployeeMemos, loadPayrollConfirmedEmployees]);
 
   useEffect(() => {
     if (selectedBranchId && selectedMonth) {
@@ -740,50 +788,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   };
 
-  // 직원별 메모 로드
-  const loadPayrollConfirmedEmployees = async () => {
-    try {
-      if (!selectedMonth || !selectedBranchId) return;
-      
-      const payrollQuery = query(
-        collection(db, 'payrollRecords'),
-        where('month', '==', selectedMonth),
-        where('branchId', '==', selectedBranchId)
-      );
-      const payrollSnapshot = await getDocs(payrollQuery);
-      
-      const confirmedEmployeeIds = payrollSnapshot.docs.map(doc => doc.data().employeeId);
-      setPayrollConfirmedEmployees(confirmedEmployeeIds);
-      
-      console.log('급여확정된 직원들:', confirmedEmployeeIds);
-    } catch (error) {
-      console.error('급여확정 직원 로드 실패:', error);
-    }
-  };
 
-  const loadEmployeeMemos = async () => {
-    try {
-      if (!selectedMonth) return;
-      
-      const memosQuery = query(
-        collection(db, 'employeeMemos'),
-        where('month', '==', selectedMonth)
-      );
-      const memosSnapshot = await getDocs(memosQuery);
-      
-      const memosMap: {[employeeId: string]: string} = {};
-      memosSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        memosMap[data.employeeId] = data.memo || '';
-      });
-      
-      setEmployeeMemos(memosMap);
-      console.log('직원별 메모 로드됨:', memosMap);
-      
-    } catch (error) {
-      console.error('직원별 메모 로드 실패:', error);
-    }
-  };
 
   // 직원별 메모 저장
   const saveEmployeeMemo = async (employeeId: string, memo: string) => {
