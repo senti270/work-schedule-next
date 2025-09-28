@@ -1763,12 +1763,12 @@ export default function WorkTimeComparison({
               <h3 className="text-lg font-medium text-gray-900">전체 검토 상태</h3>
               <button
                 onClick={async () => {
-                  if (confirm('2024-09월의 모든 잘못된 검토 상태를 초기화하시겠습니까?\n(실제근무 데이터가 없는 직원들의 검토완료 상태를 삭제합니다)')) {
+                  if (confirm(`${selectedMonth}월의 모든 잘못된 검토 상태를 초기화하시겠습니까?\n(실제근무 데이터가 없는 직원들의 검토완료 상태를 삭제합니다)`)) {
                     try {
-                      // 2024-09월의 모든 검토 상태 데이터 조회
+                      // 현재 선택된 월의 모든 검토 상태 데이터 조회
                       const reviewStatusQuery = query(
                         collection(db, 'employeeReviewStatus'),
-                        where('month', '==', '2024-09')
+                        where('month', '==', selectedMonth)
                       );
                       const reviewStatusSnapshot = await getDocs(reviewStatusQuery);
                       
@@ -1781,7 +1781,7 @@ export default function WorkTimeComparison({
                         const actualWorkQuery = query(
                           collection(db, 'actualWorkRecords'),
                           where('employeeId', '==', data.employeeId),
-                          where('month', '==', '2024-09')
+                          where('month', '==', selectedMonth)
                         );
                         const actualWorkSnapshot = await getDocs(actualWorkQuery);
                         
