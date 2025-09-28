@@ -1800,10 +1800,8 @@ export default function WorkTimeComparison({
                       ) : (
                         <button
                           onClick={async () => {
-                            if (confirm('전체 검토를 완료하시겠습니까?')) {
-                              console.log('검토완료 상태 저장 시작');
+                            if (confirm('전체 검토완료로 설정하시겠습니까?')) {
                               await saveReviewStatus(selectedEmployeeId, '검토완료');
-                              console.log('검토완료 상태 저장 완료');
                               // 상태 업데이트
                               await loadReviewStatus(employees);
                             }
@@ -1813,6 +1811,35 @@ export default function WorkTimeComparison({
                           검토완료
                         </button>
                       )}
+                      <button
+                        onClick={async () => {
+                          if (confirm('검토 상태를 초기화하시겠습니까? (검토전으로 변경)')) {
+                            // DB에서 해당 직원의 검토 상태 데이터 삭제
+                            try {
+                              const reviewStatusQuery = query(
+                                collection(db, 'employeeReviewStatus'),
+                                where('employeeId', '==', selectedEmployeeId),
+                                where('month', '==', selectedMonth)
+                              );
+                              const reviewStatusSnapshot = await getDocs(reviewStatusQuery);
+                              
+                              for (const docSnapshot of reviewStatusSnapshot.docs) {
+                                await deleteDoc(doc(db, 'employeeReviewStatus', docSnapshot.id));
+                              }
+                              
+                              // 상태 업데이트
+                              await loadReviewStatus(employees);
+                              alert('검토 상태가 초기화되었습니다.');
+                            } catch (error) {
+                              console.error('상태 초기화 실패:', error);
+                              alert('상태 초기화에 실패했습니다.');
+                            }
+                          }
+                        }}
+                        className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700"
+                      >
+                        상태초기화
+                      </button>
                     </div>
                   )}
                 </div>
