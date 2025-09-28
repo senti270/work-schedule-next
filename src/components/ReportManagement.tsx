@@ -76,7 +76,7 @@ export default function ReportManagement() {
     if (schedules.length > 0) {
       generateReport();
     }
-  }, [schedules, selectedEmployee, selectedBranch, reportType, selectedMonth, selectedYear]);
+  }, [schedules, selectedEmployee, selectedBranch, reportType, selectedMonth, selectedYear, generateReport]);
 
   const loadData = async () => {
     try {

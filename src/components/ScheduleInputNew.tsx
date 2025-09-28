@@ -240,11 +240,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     } catch (error) {
       console.error('다른 지점 스케줄 조회 중 오류:', error);
     }
-  }, [selectedBranchId]);
+  }, [selectedBranchId, getWeekDates]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     if (currentWeekStart) {
@@ -253,7 +253,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       loadWeeklyNote();
       loadOtherBranchSchedules();
     }
-  }, [currentWeekStart, selectedBranchId, loadOtherBranchSchedules]);
+  }, [currentWeekStart, selectedBranchId, loadOtherBranchSchedules, checkPayrollLock, loadWeeklyNote]);
 
 
   // 전역 마우스 이벤트 리스너 추가
@@ -269,7 +269,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       }
     };
 
-    const handleGlobalMouseMove = (e: MouseEvent) => {
+    const handleGlobalMouseMove = () => {
       if (dragState.isDragging) {
         // 드래그 중일 때 커서 변경
         document.body.style.cursor = dragState.isCopyMode ? 'copy' : 'move';
@@ -370,7 +370,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   // 공유 URL 복사 기능
   const handleCopyShareUrl = async () => {
     try {
-      const weekDates = getWeekDates();
+      getWeekDates();
       const branch = branches.find(b => b.id === selectedBranchId);
       
       if (!branch) {
@@ -386,7 +386,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       try {
         await navigator.clipboard.writeText(shareUrl);
         alert('공유 URL이 클립보드에 복사되었습니다!');
-      } catch (error) {
+      } catch {
         // 클립보드 복사 실패 시 대체 방법
         const textArea = document.createElement('textarea');
         textArea.value = shareUrl;
@@ -1516,7 +1516,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   };
 
   // 드래그 종료 (마우스 업)
-  const handleMouseUp = async (e: React.MouseEvent) => {
+  const handleMouseUp = async () => {
     if (!dragState.isDragging || !dragState.sourceCell || !dragState.targetCell) {
       setDragState({
         isDragging: false,
@@ -2171,7 +2171,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 return { hour, dayData };
               });
               
-              const maxCount = Math.max(...hourlyData.flatMap(d => d.dayData));
+              Math.max(...hourlyData.flatMap(d => d.dayData));
               
               return (
                 <div className="space-y-4">

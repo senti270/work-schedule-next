@@ -113,7 +113,7 @@ export default function WorkTimeComparison({
     if (isManager && userBranch && !propSelectedBranchId) {
       setSelectedBranchId(userBranch.id);
     }
-  }, [isManager, userBranch, propSelectedMonth, propSelectedBranchId]);
+  }, [isManager, userBranch, propSelectedMonth, propSelectedBranchId, loadEmployees]);
 
   // Props 변경 시 상태 업데이트
   useEffect(() => {
@@ -206,7 +206,7 @@ export default function WorkTimeComparison({
     if (hideBranchSelection && selectedBranchId && selectedEmployeeId && selectedMonth) {
       loadExistingComparisonData();
     }
-  }, [hideBranchSelection, selectedBranchId, selectedEmployeeId, selectedMonth]);
+  }, [hideBranchSelection, selectedBranchId, selectedEmployeeId, selectedMonth, loadExistingComparisonData]);
 
   const loadEmployees = useCallback(async () => {
     try {
@@ -340,7 +340,7 @@ export default function WorkTimeComparison({
     } catch (error) {
       console.error('직원 목록을 불러올 수 없습니다:', error);
     }
-  }, [selectedMonth, selectedBranchId, isManager, userBranch]);
+  }, [selectedMonth, selectedBranchId, isManager, userBranch, cleanupDuplicateRecords, loadEmployeeMemos, loadPayrollConfirmedEmployees, loadReviewStatus]);
 
   // 지점이나 월이 변경될 때 직원 목록 다시 로드
   useEffect(() => {
@@ -549,7 +549,7 @@ export default function WorkTimeComparison({
     } catch (error) {
       console.error('중복 데이터 정리 실패:', error);
     }
-  }, [selectedMonth, selectedBranchId]);
+  }, [selectedMonth, selectedBranchId, isManager, userBranch]);
 
   // 검토 상태를 DB에 저장
   const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '검토완료') => {
@@ -667,7 +667,7 @@ export default function WorkTimeComparison({
     } catch (error) {
       console.error('검토 상태 로드 실패:', error);
     }
-  }, [selectedMonth, selectedBranchId]);
+  }, [selectedMonth, selectedBranchId, isManager, userBranch]);
 
 
   const loadSchedules = async (month: string) => {

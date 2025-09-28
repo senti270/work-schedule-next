@@ -72,13 +72,12 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     } finally {
       setLoading(false);
     }
-  }, [currentWeekStart, selectedBranchId]);
+  }, [currentWeekStart, selectedBranchId, generateWeeklySummary]);
 
   useEffect(() => {
     if (currentWeekStart) {
       loadSchedules();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWeekStart, loadSchedules]);
 
   const generateWeeklySummary = useCallback((schedulesData: Schedule[]) => {
