@@ -712,7 +712,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       // 급여 = a × 시급 × 0.9 + b × 시급
       const probationPay = probationHours * employee.hourlyWage * 0.9;
       const regularPay = regularHours * employee.hourlyWage;
-      let basePay = probationPay + regularPay;
+      const basePay = probationPay + regularPay;
       
       // 주휴수당 계산 (근로소득 또는 사업소득 & 시급 & 주휴수당 미포함)
       
@@ -761,7 +761,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           
           // 🔥 해당 월 내에 속하는지 확인
           const monthDate = typeof selectedMonth === 'string' ? new Date(selectedMonth) : selectedMonth;
-          const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
           const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
           
           // 🔥 주 끝(일요일)이 이번 달에 속하지 않으면 다음 달에 지급
@@ -792,7 +791,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           
           console.log(`🔥 주차 ${weekKey} 주휴수당 계산 진행`);
           
-          const weeklyContractHours = employee.weeklyContractHours || 40; // 기본 주 40시간
           const weeklyWorkdays = employee.weeklyWorkdays || 5; // 기본 주 5일
           const weeklyActualHours = weekSchedules.reduce((sum, s) => sum + s.actualWorkHours, 0);
           
