@@ -812,7 +812,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           });
           
           const weeklyHolidayResult = calcWeeklyHolidayPay({
-            hourlyWage: employee.hourlyWage,
+            hourlyWage: employee.hourlyWage || 0,
             weeklyContractHours: weeklyActualHours, // 실제 근무시간 기준
             weeklyWorkdays: weeklyWorkdays,
             workedAllScheduledDays: workedAllScheduledDays,
