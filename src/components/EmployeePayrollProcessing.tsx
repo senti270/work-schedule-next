@@ -57,7 +57,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('전체');
   const [payrollStatuses, setPayrollStatuses] = useState<PayrollStatus[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'work-comparison' | 'payroll-calculation'>('work-comparison');
+  const [activeTab, setActiveTab] = useState<'work-comparison' | 'payroll-calculation' | 'short-term-worker'>('work-comparison');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [contracts, setContracts] = useState<{
     id: string;
@@ -558,6 +558,16 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                   >
                     급여계산작업
                   </button>
+                  <button
+                    onClick={() => setActiveTab('short-term-worker')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'short-term-worker'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    단기알바
+                  </button>
                 </nav>
               </div>
 
@@ -590,6 +600,17 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                       }}
                     />
                   </>
+                )}
+
+                {activeTab === 'short-term-worker' && (
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">단기알바 관리</h3>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                      <p className="text-sm text-yellow-800">
+                        <strong>개발 예정:</strong> 단기알바 관리 기능이 곧 추가됩니다.
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
               </div>

@@ -137,7 +137,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
               // 최신 계약서 찾기 (createdAt 기준으로 정렬)
               const contracts = contractsSnapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() }))
-                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                .sort((a: any, b: any) => {
+                  const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                  const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                  return dateB - dateA;
+                });
               const contract = contracts[0];
               
             console.log(`직원 ${employee.name} 계약서 정보:`, {
