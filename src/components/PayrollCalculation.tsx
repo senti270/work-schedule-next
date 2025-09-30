@@ -7,7 +7,7 @@ interface Employee {
   name: string;
   branchIds: string[];
   employmentType: string;
-  salaryType?: 'hourly' | 'monthly';
+  salaryType?: 'hourly' | 'monthly' | '시급' | '월급';
   hourlyWage?: number;
   monthlySalary?: number;
   probationStartDate?: Date | { toDate: () => Date };
@@ -32,6 +32,13 @@ interface WeeklySchedule {
   schedules: Record<string, unknown>[];
   actualWorkHours: number;
   breakTime: number;
+  date?: string | Date;
+  startDate?: string | Date;
+  createdAt?: Date | { toDate: () => Date };
+  workDate?: string | Date;
+  scheduleDate?: string | Date;
+  weekStartDate?: string | Date;
+  [key: string]: unknown;
 }
 
 interface PayrollCalculation {
@@ -56,6 +63,10 @@ interface PayrollCalculation {
     branchName: string;
     workHours: number;
   }[];
+  probationHours?: number;
+  regularHours?: number;
+  probationPay?: number;
+  regularPay?: number;
 }
 
 interface PayrollCalculationProps {
@@ -136,13 +147,13 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
             if (!contractsSnapshot.empty) {
               // 최신 계약서 찾기 (createdAt 기준으로 정렬)
               const contracts = contractsSnapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() }))
-                .sort((a: { createdAt?: Date | { toDate: () => Date } | string }, b: { createdAt?: Date | { toDate: () => Date } | string }) => {
+                .map(doc => ({ id: doc.id, ...doc.data() }) as { id: string; createdAt?: Date | { toDate: () => Date } | string; [key: string]: unknown })
+                .sort((a, b) => {
                   const dateA = a.createdAt ? new Date(a.createdAt.toString()).getTime() : 0;
                   const dateB = b.createdAt ? new Date(b.createdAt.toString()).getTime() : 0;
                   return dateB - dateA;
                 });
-              const contract = contracts[0];
+              const contract = contracts[0] as { [key: string]: unknown; employmentType?: string; salaryType?: string; hourlyWage?: number; monthlySalary?: number; probationStartDate?: Date | { toDate: () => Date }; probationEndDate?: Date | { toDate: () => Date } };
               
             console.log(`직원 ${employee.name} 계약서 정보:`, {
               employeeId: employee.id,
@@ -159,12 +170,12 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
               
               return {
                 ...employee,
-                employmentType: contract.employmentType || '로드실패',
-                salaryType: contract.salaryType === 'hourly' ? '시급' : 
+                employmentType: (contract.employmentType as string) || '로드실패',
+                salaryType: (contract.salaryType === 'hourly' ? '시급' : 
                            contract.salaryType === 'monthly' ? '월급' : 
-                           contract.salaryType || '로드실패',
-                hourlyWage: contract.salaryType === 'hourly' ? contract.salaryAmount : (contract.salaryType === 'monthly' ? 0 : employee.hourlyWage),
-                monthlySalary: contract.salaryType === 'monthly' ? contract.salaryAmount : (contract.salaryType === 'hourly' ? 0 : employee.monthlySalary),
+                           contract.salaryType as string || '로드실패') as '시급' | '월급' | 'hourly' | 'monthly',
+                hourlyWage: contract.salaryType === 'hourly' ? (contract.hourlyWage as number) : (contract.salaryType === 'monthly' ? 0 : employee.hourlyWage),
+                monthlySalary: contract.salaryType === 'monthly' ? (contract.monthlySalary as number) : (contract.salaryType === 'hourly' ? 0 : employee.monthlySalary),
                 // 수습기간 정보는 employees 컬렉션에서 직접 가져오기
                 probationStartDate: employee.probationStartDate || contract.probationStartDate,
                 probationEndDate: employee.probationEndDate || contract.probationEndDate
@@ -310,7 +321,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           actualWorkHours: data.actualWorkHours || 0,
           breakTime: data.breakTime || 0,
           weekStart: data.weekStart ? data.weekStart.toDate() : new Date(),
-          weekEnd: data.weekEnd ? data.weekEnd.toDate() : new Date()
+          weekEnd: data.weekEnd ? data.weekEnd.toDate() : new Date(),
+          schedules: []
         };
       }) as WeeklySchedule[];
       
@@ -458,8 +470,12 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       // probationHours와 regularHours는 이미 위에서 초기화됨
       
       // Timestamp 객체를 Date 객체로 변환
-      const probationStart = probationStartDate?.toDate ? probationStartDate.toDate() : probationStartDate;
-      const probationEnd = probationEndDate?.toDate ? probationEndDate.toDate() : probationEndDate;
+      const probationStart = probationStartDate && typeof probationStartDate === 'object' && 'toDate' in probationStartDate 
+        ? probationStartDate.toDate() 
+        : probationStartDate as Date | undefined;
+      const probationEnd = probationEndDate && typeof probationEndDate === 'object' && 'toDate' in probationEndDate 
+        ? probationEndDate.toDate() 
+        : probationEndDate as Date | undefined;
       
       console.log('🔥 수습기간 원본 데이터 확인:', {
         probationStartDate: probationStartDate,
@@ -680,8 +696,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       // 수습기간 관련 값들 추가
       probationHours: probationHours || 0,
       regularHours: regularHours || 0,
-      probationPay: probationHours ? probationHours * employee.hourlyWage * 0.9 : 0,
-      regularPay: regularHours ? regularHours * employee.hourlyWage : 0
+      probationPay: probationHours ? probationHours * (employee.hourlyWage || 0) * 0.9 : 0,
+      regularPay: regularHours ? regularHours * (employee.hourlyWage || 0) : 0
     });
 
     setPayrollCalculations(calculations);
@@ -1118,7 +1134,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                                 // 하루근무시간 = 주간근무시간 / 8
                                 const dailyWorkHours = weeklyWorkHours / 8;
                                 // 해당월의 일수
-                                const monthDate = selectedMonth instanceof Date ? selectedMonth : new Date(selectedMonth);
+                                const monthDate = typeof selectedMonth === 'string' ? new Date(selectedMonth) : selectedMonth;
                                 const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
                                 // 한달근무시간 = 하루근무시간 × 해당월의 일수
                                 const monthlyWorkHours = dailyWorkHours * daysInMonth;
@@ -1136,7 +1152,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                                   // 하루근무시간 = 주간근무시간 / 8
                                   const dailyWorkHours = weeklyWorkHours / 8;
                                   // 해당월의 일수
-                                  const monthDate = selectedMonth instanceof Date ? selectedMonth : new Date(selectedMonth);
+                                  const monthDate = typeof selectedMonth === 'string' ? new Date(selectedMonth) : selectedMonth;
                                   const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
                                   // 한달근무시간 = 하루근무시간 × 해당월의 일수
                                   const monthlyWorkHours = dailyWorkHours * daysInMonth;
@@ -1228,14 +1244,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           {/* 수습기간별 상세 계산 내역 */}
           {payrollCalculations.map((calc) => (
             <div key={`probation-${calc.employeeId}`}>
-              {console.log('🔥 수습기간 계산 확인:', {
-                probationHours: calc.probationHours,
-                regularHours: calc.regularHours,
-                probationPay: calc.probationPay,
-                regularPay: calc.regularPay,
-                employeeName: calc.employeeName
-              })}
-              {calc.probationHours > 0 && (
+              {(calc.probationHours || 0) > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                   <h4 className="text-md font-semibold text-red-800 mb-3">▲ 수습기간 실제 근무시간 계산 (시급):</h4>
                   <div className="space-y-2 text-sm">
