@@ -137,7 +137,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
               // 최신 계약서 찾기 (createdAt 기준으로 정렬)
               const contracts = contractsSnapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() }))
-                .sort((a: any, b: any) => {
+                .sort((a: { createdAt?: any }, b: { createdAt?: any }) => {
                   const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
                   const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                   return dateB - dateA;
@@ -1002,21 +1002,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   }, [calculatePayroll, selectedEmployeeId]);
 
-  // 월 옵션 생성 (최근 12개월)
-  const generateMonthOptions = () => {
-    const options = [];
-    const now = new Date();
-    
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const label = `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
-      
-      options.push({ value, label });
-    }
-    
-    return options;
-  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
