@@ -2,6 +2,40 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 
+// 주휴수당 계산 타입
+type WeeklyHolidayInput = {
+  hourlyWage: number;
+  weeklyContractHours: number;
+  weeklyWorkdays: number;
+  workedAllScheduledDays: boolean;
+  isFirstWeek: boolean;
+  carryoverHoursPrevWeek?: number;
+  requirePrevWeekAttendance?: boolean;
+  prevWeekWorkedAll?: boolean;
+};
+
+// 주휴수당 계산 함수
+function calcWeeklyHolidayPay(i: WeeklyHolidayInput) {
+  if (i.hourlyWage <= 0 || i.weeklyContractHours <= 0 || i.weeklyWorkdays <= 0) {
+    return { eligible: false, hours: 0, pay: 0 };
+  }
+
+  const carry = i.isFirstWeek ? (i.carryoverHoursPrevWeek ?? 0) : 0;
+  const hoursForEligibility = i.weeklyContractHours + carry;
+
+  const attendanceOK =
+    i.workedAllScheduledDays &&
+    (!i.requirePrevWeekAttendance || (i.prevWeekWorkedAll ?? true));
+
+  const eligible = hoursForEligibility >= 15 && attendanceOK;
+  if (!eligible) return { eligible, hours: 0, pay: 0 };
+
+  const weeklyHolidayHours = i.weeklyContractHours / i.weeklyWorkdays;
+  const pay = weeklyHolidayHours * i.hourlyWage;
+
+  return { eligible, hours: weeklyHolidayHours, pay };
+}
+
 interface Employee {
   id: string;
   name: string;
@@ -14,6 +48,9 @@ interface Employee {
   probationEndDate?: Date | { toDate: () => Date };
   probationStart?: Date | { toDate: () => Date };
   probationEnd?: Date | { toDate: () => Date };
+  includesWeeklyHolidayInWage?: boolean;
+  weeklyContractHours?: number;
+  weeklyWorkdays?: number;
 }
 
 interface Branch {
@@ -38,6 +75,9 @@ interface WeeklySchedule {
   workDate?: string | Date;
   scheduleDate?: string | Date;
   weekStartDate?: string | Date;
+  weeklyContractHours?: number;
+  weeklyWorkdays?: number;
+  workedAllScheduledDays?: boolean;
   [key: string]: unknown;
 }
 
@@ -67,6 +107,9 @@ interface PayrollCalculation {
   regularHours?: number;
   probationPay?: number;
   regularPay?: number;
+  weeklyHolidayPay?: number;
+  weeklyHolidayHours?: number;
+  includesWeeklyHolidayInWage?: boolean;
 }
 
 interface PayrollCalculationProps {
@@ -610,11 +653,66 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       // 급여 = a × 시급 × 0.9 + b × 시급
       const probationPay = probationHours * employee.hourlyWage * 0.9;
       const regularPay = regularHours * employee.hourlyWage;
-      grossPay = probationPay + regularPay;
+      let basePay = probationPay + regularPay;
+      
+      // 주휴수당 계산 (근로소득 또는 사업소득 & 시급 & 주휴수당 미포함)
+      let weeklyHolidayPay = 0;
+      let weeklyHolidayHours = 0;
+      
+      const shouldCalculateWeeklyHoliday = 
+        (employee.employmentType === '근로소득' || employee.employmentType === '사업소득') &&
+        !employee.includesWeeklyHolidayInWage;
+      
+      if (shouldCalculateWeeklyHoliday) {
+        // 주별로 주휴수당 계산 (employeeSchedules를 주별로 그룹핑)
+        const weeklyScheduleGroups = employeeSchedules.reduce((groups, schedule) => {
+          const weekKey = schedule.weekStart.toISOString().split('T')[0];
+          if (!groups[weekKey]) {
+            groups[weekKey] = [];
+          }
+          groups[weekKey].push(schedule);
+          return groups;
+        }, {} as Record<string, typeof employeeSchedules>);
+        
+        // 각 주별로 주휴수당 계산
+        Object.entries(weeklyScheduleGroups).forEach(([weekKey, weekSchedules]) => {
+          const weeklyContractHours = employee.weeklyContractHours || 40; // 기본 주 40시간
+          const weeklyWorkdays = employee.weeklyWorkdays || 5; // 기본 주 5일
+          const weeklyActualHours = weekSchedules.reduce((sum, s) => sum + s.actualWorkHours, 0);
+          
+          // 소정근로일 모두 이행 여부 확인 (실제로는 더 복잡한 로직 필요)
+          const workedAllScheduledDays = weekSchedules.length >= weeklyWorkdays;
+          
+          // 첫 주 판단 (해당 월의 첫 주인지)
+          const monthStart = new Date(selectedMonth);
+          const weekStartDate = new Date(weekKey);
+          const isFirstWeek = weekStartDate.getDate() <= 7;
+          
+          const weeklyHolidayResult = calcWeeklyHolidayPay({
+            hourlyWage: employee.hourlyWage,
+            weeklyContractHours: weeklyActualHours, // 실제 근무시간 기준
+            weeklyWorkdays: weeklyWorkdays,
+            workedAllScheduledDays: workedAllScheduledDays,
+            isFirstWeek: isFirstWeek,
+            carryoverHoursPrevWeek: 0, // 전달 주 합산은 추후 구현
+            requirePrevWeekAttendance: false
+          });
+          
+          if (weeklyHolidayResult.eligible) {
+            weeklyHolidayPay += weeklyHolidayResult.pay;
+            weeklyHolidayHours += weeklyHolidayResult.hours;
+          }
+        });
+      }
+      
+      grossPay = basePay + weeklyHolidayPay;
       
       console.log('PayrollCalculation - 수습기간별 급여 계산:', {
         probationPay: probationPay,
         regularPay: regularPay,
+        basePay: basePay,
+        weeklyHolidayPay: weeklyHolidayPay,
+        weeklyHolidayHours: weeklyHolidayHours,
         totalPay: grossPay
       });
       
@@ -697,7 +795,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       probationHours: probationHours || 0,
       regularHours: regularHours || 0,
       probationPay: probationHours ? probationHours * (employee.hourlyWage || 0) * 0.9 : 0,
-      regularPay: regularHours ? regularHours * (employee.hourlyWage || 0) : 0
+      regularPay: regularHours ? regularHours * (employee.hourlyWage || 0) : 0,
+      // 주휴수당 추가
+      weeklyHolidayPay: weeklyHolidayPay || 0,
+      weeklyHolidayHours: weeklyHolidayHours || 0,
+      includesWeeklyHolidayInWage: employee.includesWeeklyHolidayInWage || false
     });
 
     setPayrollCalculations(calculations);
@@ -1204,6 +1306,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
               <p><strong>총 근무시간:</strong> {calc.totalWorkHours.toFixed(1)}시간</p>
               <p><strong>총 휴게시간:</strong> {calc.totalBreakTime.toFixed(1)}시간</p>
               <p><strong>실 근무시간:</strong> {calc.actualWorkHours.toFixed(1)}시간</p>
+              {calc.weeklyHolidayPay && calc.weeklyHolidayPay > 0 && (
+                <>
+                  <p className="text-blue-600"><strong>주휴수당:</strong> {calc.weeklyHolidayPay.toLocaleString()}원 ({calc.weeklyHolidayHours?.toFixed(1)}시간)</p>
+                </>
+              )}
               <p><strong>기본급:</strong> {calc.grossPay.toLocaleString()}원</p>
               <p><strong>공제:</strong></p>
               <ul className="list-disc list-inside ml-4">
