@@ -15,6 +15,7 @@ import ManagerAccountManagement from './ManagerAccountManagement';
 import PayrollCalculation from './PayrollCalculation';
 import FormManagement from './FormManagement';
 import EmployeePayrollProcessing from './EmployeePayrollProcessing';
+import TaxFileGeneration from './TaxFileGeneration';
 
 interface DashboardProps {
   user: User;
@@ -50,6 +51,28 @@ interface Comment {
 export default function Dashboard({ user }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
   const [activeSubTab, setActiveSubTab] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  
+  // 디버깅용 로그
+  useEffect(() => {
+    console.log('Dashboard - selectedEmployeeId 변경됨:', selectedEmployeeId);
+  }, [selectedEmployeeId]);
+
+  // selectedEmployeeId 설정 함수에 로그 추가
+  const handleEmployeeChange = (employeeId: string) => {
+    console.log('Dashboard - handleEmployeeChange 호출됨:', employeeId);
+    setSelectedEmployeeId(employeeId);
+    console.log('Dashboard - setSelectedEmployeeId 호출됨:', employeeId);
+  };
+
+  // selectedEmployeeId 상태 변경 시 로그 추가
+  useEffect(() => {
+    console.log('Dashboard - selectedEmployeeId 상태 변경됨:', selectedEmployeeId);
+  }, [selectedEmployeeId]);
+
+  // selectedEmployeeId 초기값 로그
+  console.log('Dashboard - selectedEmployeeId 초기값:', selectedEmployeeId);
   const [userBranch, setUserBranch] = useState<{
     id: string;
     name: string;
@@ -518,16 +541,19 @@ export default function Dashboard({ user }: DashboardProps) {
     if (tab === 'reports') {
       setActiveSubTab('work-report');
     } else if (tab === 'payroll') {
-      // 급여작업 탭인 경우 근무시간 비교를 기본으로 설정
-      setActiveSubTab('work-comparison');
+      // 급여작업 탭인 경우 직원별 급여처리를 기본으로 설정
+      setActiveSubTab('employee-payroll-processing');
     } else {
       setActiveSubTab(''); // 다른 탭 변경 시 서브탭 초기화
     }
   };
 
   const handleSubTabChange = (subTab: string) => {
+    console.log('handleSubTabChange 함수 호출됨:', subTab);
     console.log('서브탭 변경됨:', subTab);
+    console.log('이전 activeSubTab:', activeSubTab);
     setActiveSubTab(subTab);
+    console.log('새로운 activeSubTab 설정됨:', subTab);
   };
 
   console.log('Dashboard 렌더링됨, 현재 탭:', activeTab);
@@ -1367,26 +1393,6 @@ export default function Dashboard({ user }: DashboardProps) {
                 <div className="border-b border-gray-200">
                   <nav className="-mb-px flex space-x-8 px-6">
                     <button
-                      onClick={() => handleSubTabChange('work-comparison')}
-                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                        activeSubTab === 'work-comparison'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      근무시간비교(구)
-                    </button>
-                    <button
-                      onClick={() => handleSubTabChange('payroll-calculation')}
-                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                        activeSubTab === 'payroll-calculation'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      급여계산작업(구)
-                    </button>
-                    <button
                       onClick={() => handleSubTabChange('employee-payroll-processing')}
                       className={`py-4 px-1 border-b-2 font-medium text-sm ${
                         activeSubTab === 'employee-payroll-processing'
@@ -1425,50 +1431,20 @@ export default function Dashboard({ user }: DashboardProps) {
               </div>
 
               {/* 서브탭 콘텐츠 */}
-              {activeSubTab === 'work-comparison' && (
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-4 sm:p-6">
-                    <WorkTimeComparison userBranch={userBranch} isManager={isManager} />
-                  </div>
-                </div>
-              )}
 
-              {activeSubTab === 'payroll-calculation' && (
-                <PayrollCalculation userBranch={userBranch} isManager={isManager} />
-              )}
 
               {activeSubTab === 'employee-payroll-processing' && (
                 <EmployeePayrollProcessing 
                   user={user}
                   userBranch={userBranch}
                   isManager={isManager}
+                  onMonthChange={setSelectedMonth}
+                  onEmployeeChange={handleEmployeeChange}
                 />
               )}
               
               {activeSubTab === 'tax-file' && (
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-4 sm:p-6">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                      세무사 전송파일 생성
-                </h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      급여 관련 데이터를 세무사 전송용 Excel 파일로 생성합니다.
-                    </p>
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                      <p className="text-sm text-yellow-800">
-                        <strong>개발 예정:</strong> 이 기능은 향후 구현될 예정입니다.
-                      </p>
-                    </div>
-                    <div className="mt-4">
-                      <button
-                        disabled
-                        className="bg-gray-300 text-gray-500 px-4 py-2 rounded-md text-sm font-medium cursor-not-allowed"
-                      >
-                        Excel 파일 다운로드 (개발 예정)
-                      </button>
-                    </div>
-              </div>
-                </div>
+                <TaxFileGeneration />
               )}
 
               {activeSubTab === 'payroll-file' && (
@@ -1507,20 +1483,6 @@ export default function Dashboard({ user }: DashboardProps) {
                       급여 관련 작업을 선택해주세요.
                     </p>
                     <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      <button
-                        onClick={() => handleSubTabChange('work-comparison')}
-                        className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors duration-200 cursor-pointer text-left w-full"
-                      >
-                        <h4 className="font-medium text-blue-900">근무시간 비교</h4>
-                        <p className="text-blue-600 text-sm">스케줄과 실제 근무시간을 비교합니다</p>
-                      </button>
-                      <button
-                        onClick={() => handleSubTabChange('payroll-calculation')}
-                        className="bg-orange-50 p-4 rounded-lg hover:bg-orange-100 transition-colors duration-200 cursor-pointer text-left w-full"
-                      >
-                        <h4 className="font-medium text-orange-900">급여계산작업</h4>
-                        <p className="text-orange-600 text-sm">급여 계산을 위한 직원 현황을 확인합니다</p>
-                      </button>
                       {!isManager && (
                         <>
                           <button

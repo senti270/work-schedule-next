@@ -38,11 +38,15 @@ interface EmployeePayrollProcessingProps {
     name: string;
   } | null;
   isManager: boolean;
+  onMonthChange?: (month: string) => void;
+  onEmployeeChange?: (employeeId: string) => void;
 }
 
 const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({ 
   userBranch, 
-  isManager 
+  isManager,
+  onMonthChange,
+  onEmployeeChange
 }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -101,49 +105,77 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     }
   }, []);
 
-  // 급여 처리 상태 로드
+  // 급여 처리 상태 로드 (해당월, 해당직원 기준)
   const loadPayrollStatuses = useCallback(async (employeesData: Employee[]) => {
     try {
       const statuses: PayrollStatus[] = [];
       
       for (const employee of employeesData) {
-        // 근무시간비교 완료 상태 확인 (선택된 지점이 있으면 해당 지점만, 없으면 모든 지점)
-        const workTimeQuery = selectedBranchId 
-          ? query(
-              collection(db, 'actualWorkRecords'),
-              where('employeeId', '==', employee.id),
-              where('month', '==', selectedMonth),
-              where('branchId', '==', selectedBranchId)
-            )
-          : query(
-              collection(db, 'actualWorkRecords'),
-              where('employeeId', '==', employee.id),
-              where('month', '==', selectedMonth)
-            );
+        console.log(`\n=== ${employee.name} (${employee.id}) 상태 확인 시작 ===`);
         
-        const workTimeSnapshot = await getDocs(workTimeQuery);
-        
-        // 급여확정 상태 확인
+        // 급여확정 상태 확인 (해당월, 해당직원)
         const payrollQuery = query(
-          collection(db, 'payrollRecords'),
+          collection(db, 'confirmedPayrolls'),
           where('employeeId', '==', employee.id),
-          where('month', '==', selectedMonth),
-          where('branchId', '==', selectedBranchId || '')
+          where('month', '==', selectedMonth)
         );
         const payrollSnapshot = await getDocs(payrollQuery);
+        console.log(`${employee.name} 급여확정 상태:`, payrollSnapshot.docs.length > 0 ? '있음' : '없음');
+        
+        // 해당 직원의 모든 지점의 근무시간비교 검토상태 확인
+        const allReviewStatusQuery = query(
+          collection(db, 'employeeReviewStatus'),
+          where('employeeId', '==', employee.id),
+          where('month', '==', selectedMonth)
+        );
+        const allReviewStatusSnapshot = await getDocs(allReviewStatusQuery);
+        console.log(`${employee.name} 검토상태 개수:`, allReviewStatusSnapshot.docs.length);
         
         let status: '미처리' | '근무시간검토중' | '근무시간검토완료' | '급여확정완료' = '미처리';
         
         if (payrollSnapshot.docs.length > 0) {
+          // 급여확정완료
           status = '급여확정완료';
-        } else if (workTimeSnapshot.docs.length > 0) {
-          // 근무시간비교 데이터가 있는지 확인
-          const hasWorkTimeData = workTimeSnapshot.docs.length > 0;
-          status = hasWorkTimeData ? '근무시간검토완료' : '근무시간검토완료';
+          console.log(`${employee.name} 최종 상태: 급여확정완료`);
+        } else if (allReviewStatusSnapshot.docs.length > 0) {
+          // 근무시간비교 검토상태 확인
+          const reviewStatuses = allReviewStatusSnapshot.docs.map(doc => {
+            const data = doc.data();
+            console.log(`${employee.name} 지점 ${data.branchId} 상태:`, data.status);
+            return data.status;
+          });
+          
+          // 직원의 모든 지점 확인 (검토상태가 없는 지점도 고려)
+          const employeeBranches = employee.branches || [];
+          console.log(`${employee.name} 총 지점 수:`, employeeBranches.length);
+          console.log(`${employee.name} 검토상태가 있는 지점 수:`, allReviewStatusSnapshot.docs.length);
+          
+          // 모든 지점이 검토완료인지 확인 (검토상태가 없는 지점은 검토전으로 간주)
+          const allCompleted = employeeBranches.length > 0 && 
+            employeeBranches.every(branchId => {
+              const branchStatus = allReviewStatusSnapshot.docs.find(doc => doc.data().branchId === branchId);
+              return branchStatus && (branchStatus.data().status === '근무시간검토완료' || branchStatus.data().status === '급여확정완료');
+            });
+          
+          const hasInProgress = allReviewStatusSnapshot.docs.some(doc => doc.data().status === '근무시간검토중');
+          const hasAnyReviewStatus = allReviewStatusSnapshot.docs.length > 0;
+          
+          console.log(`${employee.name} 모든 지점 검토완료:`, allCompleted);
+          console.log(`${employee.name} 검토중 지점 있음:`, hasInProgress);
+          console.log(`${employee.name} 검토상태 있는 지점 있음:`, hasAnyReviewStatus);
+          
+          if (allCompleted) {
+            status = '근무시간검토완료';
+          } else if (hasInProgress || hasAnyReviewStatus) {
+            status = '근무시간검토중';
+          } else {
+            status = '미처리';
+          }
+          console.log(`${employee.name} 최종 상태:`, status);
         } else {
-          // 근무시간비교 데이터가 있는지 확인
-          const hasWorkTimeData = workTimeSnapshot.docs.length > 0;
-          status = hasWorkTimeData ? '근무시간검토중' : '미처리';
+          // 근무시간비교 검토상태가 없으면 미처리
+          status = '미처리';
+          console.log(`${employee.name} 최종 상태: 미처리 (검토상태 없음)`);
         }
         
         statuses.push({
@@ -155,11 +187,25 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
         });
       }
       
+      console.log('\n=== 최종 상태 목록 ===');
+      statuses.forEach(s => {
+        const employee = employeesData.find(e => e.id === s.employeeId);
+        console.log(`${employee?.name}: ${s.status}`);
+      });
+      
       setPayrollStatuses(statuses);
     } catch (error) {
       console.error('급여 처리 상태 로드 실패:', error);
     }
   }, [selectedMonth, selectedBranchId]);
+
+  // selectedBranchId 자동 설정
+  useEffect(() => {
+    if (selectedEmployee && selectedEmployee.branches && selectedEmployee.branches.length > 0 && !selectedBranchId) {
+      setSelectedBranchId(selectedEmployee.branches[0]);
+      console.log('EmployeePayrollProcessing - selectedBranchId 자동 설정:', selectedEmployee.branches[0]);
+    }
+  }, [selectedEmployee, selectedBranchId]);
 
   // 직원 목록 로드 (현재 재직중인 전직원)
   const loadEmployees = useCallback(async () => {
@@ -223,12 +269,9 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
       
       setBranches(branchesData);
       
-      // 매니저인 경우 자동으로 해당 지점 선택, 관리자는 전지점 기본 선택
-      if (isManager && userBranch) {
-        setSelectedBranchId(userBranch.id);
-      } else {
-        setSelectedBranchId(''); // 전지점 기본 선택
-      }
+      // 관리자, 매니저 모두 전지점 기본 선택
+      // (매니저는 필터가 보이지 않으므로 실제로는 자신의 지점만 보임)
+      setSelectedBranchId(''); // 전지점 기본 선택
     } catch (error) {
       console.error('지점 목록 로드 실패:', error);
     }
@@ -259,13 +302,20 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     const matchesStatus = statusFilter === '전체' || 
       payrollStatuses.find(status => status.employeeId === employee.id)?.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    // 지점 필터링
+    const matchesBranch = selectedBranchId === '' || 
+      (employee.branches && employee.branches.includes(selectedBranchId));
+    
+    return matchesSearch && matchesStatus && matchesBranch;
   });
 
   // 직원 선택 핸들러
   const handleEmployeeSelect = (employee: Employee) => {
     setSelectedEmployee(employee);
     setSelectedEmployeeId(employee.id);
+    console.log('EmployeePayrollProcessing - 직원 선택됨:', employee.name, employee.id);
+    onEmployeeChange?.(employee.id);
+    console.log('EmployeePayrollProcessing - onEmployeeChange 호출됨:', employee.id);
     console.log('선택된 직원:', employee);
     console.log('선택된 직원의 지점:', employee.branches);
   };
@@ -290,55 +340,19 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
         <p className="text-gray-600 mt-1">직원별로 근무시간 비교 및 급여계산을 체계적으로 관리합니다</p>
       </div>
 
-      {/* 상단 컨트롤 */}
+      {/* 상단 컨트롤 - 월 선택만 */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 지점 선택 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">지점 선택</label>
-            {isManager ? (
-              <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-700">
-                {userBranch?.name || '지점 정보 없음'}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSelectedBranchId('')}
-                  className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
-                    selectedBranchId === ''
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  전지점
-                </button>
-                {branches.map((branch) => (
-                  <button
-                    key={branch.id}
-                    onClick={() => setSelectedBranchId(branch.id)}
-                    className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
-                      selectedBranchId === branch.id
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {branch.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 월 선택 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">처리할 월</label>
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">처리할 월</label>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => {
+              setSelectedMonth(e.target.value);
+              onMonthChange?.(e.target.value);
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
       </div>
 
@@ -347,7 +361,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow">
             <div className="p-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">직원 목록</h3>
+              <h3 className="text-sm font-medium text-gray-900">직원 목록</h3>
               <p className="text-sm text-gray-500 mt-1">
                 총 {filteredEmployees.length}명
               </p>
@@ -366,6 +380,25 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
+              
+              {/* 지점 필터 */}
+              {!isManager && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">지점 필터</label>
+                  <select
+                    value={selectedBranchId}
+                    onChange={(e) => setSelectedBranchId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="">전지점</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               
               {/* 상태 필터 */}
               <div>
@@ -404,37 +437,51 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                         console.log('직원 클릭됨:', employee.name);
                         handleEmployeeSelect(employee);
                       }}
-                      className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
+                      className={`p-2 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
                         isSelected ? 'bg-blue-50 border-blue-200' : ''
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="font-medium text-gray-900 flex items-center">
+                          <div className="font-medium text-gray-900 flex items-center text-sm">
                             {employee.name}
                             {(() => {
                               // 직원관리와 동일한 로직: contracts 배열에서 해당 직원의 계약서 확인
                               const hasContract = contracts.some(contract => contract.employeeId === employee.id);
-                              if (employee.name === '김상미') {
-                                console.log('김상미 계약서 확인:', {
-                                  employeeId: employee.id,
-                                  hasContract,
-                                  contractsCount: contracts.length,
-                                  contracts: contracts.filter(c => c.employeeId === employee.id)
-                                });
-                              }
+                              // 디버깅용 로그 제거
+                              // if (employee.name === '김상미') {
+                              //   console.log('김상미 계약서 확인:', {
+                              //     employeeId: employee.id,
+                              //     hasContract,
+                              //     contractsCount: contracts.length,
+                              //     contracts: contracts.filter(c => c.employeeId === employee.id)
+                              //   });
+                              // }
                               return !hasContract && (
-                                <span className="ml-2 text-red-500 text-lg" title="근로계약정보 없음">⚠️</span>
+                                <span className="ml-2 text-red-500 text-sm" title="근로계약정보 없음">⚠️</span>
                               );
                             })()}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {employee.employmentType && employee.employmentType !== '정규직' && employee.employmentType !== '아르바이트' 
-                              ? employee.employmentType 
-                              : '근로소득'} | {employee.salaryType || '시급'}
+                          <div className="text-xs text-gray-500 mt-1">
+                            {(() => {
+                              // 근로계약정보가 있는지 확인
+                              const hasContract = contracts.some(contract => contract.employeeId === employee.id);
+                              if (!hasContract) {
+                                return '근로계약정보 없음';
+                              }
+                              return employee.employmentType && employee.employmentType !== '정규직' && employee.employmentType !== '아르바이트' 
+                                ? employee.employmentType 
+                                : '근로소득';
+                            })()} | {(() => {
+                              const hasContract = contracts.some(contract => contract.employeeId === employee.id);
+                              if (!hasContract) {
+                                return '미설정';
+                              }
+                              return employee.salaryType || '시급';
+                            })()}
                           </div>
                         </div>
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                        <div className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                           {status}
                         </div>
                       </div>
@@ -450,8 +497,40 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
         {/* 우측: 탭 콘텐츠 */}
         <div className="lg:col-span-3">
           {selectedEmployee ? (
-            <div className="bg-white rounded-lg shadow">
-              {/* 탭 헤더 */}
+            <>
+              {/* 선택된 직원 표시 - 흰색 상자 바깥 */}
+              {selectedEmployeeId && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-4 rounded-lg shadow-sm mb-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <svg className="h-4 w-4 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-gray-900">
+                          현재 선택된 직원
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          근무시간비교 및 급여계산 작업에 사용됩니다
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                        {selectedEmployee?.name || selectedEmployeeId}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 탭 메뉴가 있는 흰색 상자 */}
+              <div className="bg-white rounded-lg shadow">
+                {/* 탭 헤더 */}
               <div className="border-b border-gray-200">
                 <nav className="flex space-x-8 px-6">
                   <button
@@ -465,7 +544,12 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                     근무시간비교
                   </button>
                   <button
-                    onClick={() => setActiveTab('payroll-calculation')}
+                    onClick={() => {
+                      console.log('EmployeePayrollProcessing - 급여계산작업 탭 클릭됨');
+                      console.log('EmployeePayrollProcessing - 이전 activeTab:', activeTab);
+                      setActiveTab('payroll-calculation');
+                      console.log('EmployeePayrollProcessing - 새로운 activeTab 설정됨: payroll-calculation');
+                    }}
                     className={`py-4 px-1 border-b-2 font-medium text-sm ${
                       activeTab === 'payroll-calculation'
                         ? 'border-blue-500 text-blue-600'
@@ -493,18 +577,56 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                 )}
 
                 {activeTab === 'payroll-calculation' && (
-                  <PayrollCalculation 
-                    userBranch={selectedBranchId ? branches.find(b => b.id === selectedBranchId) : undefined}
-                    isManager={isManager}
-                  />
+                  <>
+                    {console.log('EmployeePayrollProcessing - PayrollCalculation 렌더링 조건:', { activeTab, selectedEmployeeId, selectedMonth })}
+                    <PayrollCalculation
+                      userBranch={selectedBranchId}
+                      isManager={isManager}
+                      selectedEmployeeId={selectedEmployeeId}
+                      selectedMonth={selectedMonth}
+                      onPayrollStatusChange={() => {
+                        // 급여확정 상태 변경 시 직원 목록과 상태 다시 로드
+                        loadEmployees();
+                      }}
+                    />
+                  </>
                 )}
               </div>
-            </div>
+              </div>
+            </>
           ) : (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
-              <div className="text-gray-400 text-lg mb-2">👥</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">직원을 선택하세요</h3>
-              <p className="text-gray-600">좌측에서 직원을 선택하면 근무시간비교 및 급여계산 작업을 진행할 수 있습니다.</p>
+            <div className="space-y-4">
+              {/* 선택된 직원 표시 */}
+              {selectedEmployeeId && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-blue-700">
+                          <span className="font-medium">현재 선택된 직원:</span> 
+                          <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
+                            {selectedEmployeeId}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-xs text-blue-600">
+                      근무시간비교 • 급여계산작업에서 사용됩니다
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="text-gray-400 text-lg mb-2">👥</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">직원을 선택하세요</h3>
+                <p className="text-gray-600">좌측에서 직원을 선택하면 근무시간비교 및 급여계산 작업을 진행할 수 있습니다.</p>
+              </div>
             </div>
           )}
         </div>

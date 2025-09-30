@@ -83,7 +83,7 @@ export default function WorkTimeComparison({
     salaryType?: string;
   }[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
-  const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, status: '검토전' | '검토중' | '검토완료'}[]>([]);
+  const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, branchId: string, status: '검토전' | '검토중' | '검토완료' | '근무시간검토완료'}[]>([]);
   const [payrollConfirmedEmployees, setPayrollConfirmedEmployees] = useState<string[]>([]);
   const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: string}>({});
   
@@ -116,28 +116,55 @@ export default function WorkTimeComparison({
   }, [isManager, userBranch, propSelectedMonth, propSelectedBranchId]);
 
   const loadEmployees = useCallback(async () => {
-    if (!selectedBranchId || !selectedMonth) return;
+    console.log('loadEmployees 호출됨:', { selectedBranchId, selectedMonth });
+    if (!selectedBranchId || !selectedMonth) {
+      console.log('loadEmployees 조건 불만족:', { selectedBranchId, selectedMonth });
+      return;
+    }
     
     try {
       setLoading(true);
+      console.log('직원 로드 시작...');
       
-      // 간단한 직원 목록 로드
-      const employeeQuery = query(
-        collection(db, 'employees'),
-        where('branchIds', 'array-contains', selectedBranchId),
-        orderBy('name', 'asc')
-      );
-      const employeeSnapshot = await getDocs(employeeQuery);
-      const employeesData = employeeSnapshot.docs.map(doc => ({
+      // 모든 직원을 로드한 후 클라이언트에서 필터링 (인덱스 문제 완전 해결)
+      console.log('Firestore 직원 컬렉션 조회 시작...');
+      const employeeSnapshot = await getDocs(collection(db, 'employees'));
+      console.log('Firestore 직원 컬렉션 조회 완료, 문서 수:', employeeSnapshot.docs.length);
+      
+      const allEmployees = employeeSnapshot.docs.map(doc => ({
         id: doc.id,
         name: doc.data().name || '',
         branchId: doc.data().branchId || '',
         type: doc.data().type,
         employmentType: doc.data().employmentType,
         salaryType: doc.data().salaryType,
+        branchIds: doc.data().branchIds || [],
         ...doc.data()
       }));
+      
+      console.log('모든 직원 데이터 매핑 완료:', allEmployees.length);
+      console.log('선택된 지점 ID:', selectedBranchId);
+      
+      // 선택된 지점에 속한 직원만 필터링
+      // 임시: branchIds가 비어있으면 모든 직원을 표시
+      const employeesData = allEmployees.filter(emp => {
+        // branchIds가 비어있으면 모든 직원을 표시 (임시 해결책)
+        if (!emp.branchIds || emp.branchIds.length === 0) {
+          console.log(`직원 ${emp.name} (${emp.id}) - branchIds가 비어있음, 표시함`);
+          return true;
+        }
+        
+        const hasBranch = emp.branchIds.includes(selectedBranchId);
+        console.log(`직원 ${emp.name} (${emp.id}) - branchIds:`, emp.branchIds, '포함 여부:', hasBranch);
+        return hasBranch;
+      });
+      
+      console.log('필터링된 직원 수:', employeesData.length);
+      
+      // 이름순으로 정렬
+      employeesData.sort((a, b) => a.name.localeCompare(b.name));
 
+      console.log('로드된 직원 수:', employeesData.length);
       setEmployees(employeesData);
       
     } catch (error) {
@@ -250,7 +277,8 @@ export default function WorkTimeComparison({
     if ((selectedBranchId || (isManager && userBranch)) && selectedMonth) {
       loadEmployees();
     }
-  }, [selectedBranchId, isManager, userBranch, selectedMonth, loadEmployees]);
+  }, [selectedBranchId, isManager, userBranch, selectedMonth]); // loadEmployees 제거
+
 
   // 지점이나 직원이 변경될 때 스케줄 다시 로드
   useEffect(() => {
@@ -259,6 +287,11 @@ export default function WorkTimeComparison({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranchId, selectedEmployeeId, selectedMonth]);
+
+  // 메모 로드
+  useEffect(() => {
+    loadEmployeeMemos();
+  }, [selectedMonth]); // loadEmployeeMemos 대신 selectedMonth 사용
 
   // 직원이 변경될 때 실제근무데이터 초기화 및 기존 데이터 로드
   useEffect(() => {
@@ -454,40 +487,45 @@ export default function WorkTimeComparison({
     }
   }, [selectedMonth, selectedBranchId, isManager, userBranch]);
 
-  // 검토 상태를 DB에 저장
+  // 검토 상태를 DB에 저장 (지점별로 분리)
   const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '검토완료') => {
     try {
-      console.log('검토 상태 저장 시작:', { employeeId, status, selectedMonth });
+      console.log('🔵 검토 상태 저장 시작:', { employeeId, status, selectedMonth, selectedBranchId });
       
+      // 현재 선택된 지점에 대한 상태 저장
       const reviewStatusRecord = {
         employeeId,
         status,
         month: selectedMonth,
+        branchId: selectedBranchId,
         updatedAt: new Date()
       };
 
-      // 기존 상태가 있는지 확인
+      // 기존 상태가 있는지 확인 (지점별로)
       const existingQuery = query(
         collection(db, 'employeeReviewStatus'),
         where('employeeId', '==', employeeId),
-        where('month', '==', selectedMonth)
+        where('month', '==', selectedMonth),
+        where('branchId', '==', selectedBranchId)
       );
       
       const existingDocs = await getDocs(existingQuery);
-      console.log('기존 검토 상태 쿼리 결과:', existingDocs.docs.length, '개');
+      console.log('🔵 기존 검토 상태 쿼리 결과:', existingDocs.docs.length, '개');
       
       if (existingDocs.empty) {
         // 새로 추가
         await addDoc(collection(db, 'employeeReviewStatus'), reviewStatusRecord);
-        console.log('새로운 검토 상태 저장됨:', reviewStatusRecord);
+        console.log('✅ 새로운 검토 상태 저장됨:', reviewStatusRecord);
       } else {
         // 기존 데이터 업데이트
         const docId = existingDocs.docs[0].id;
         await updateDoc(doc(db, 'employeeReviewStatus', docId), reviewStatusRecord);
-        console.log('기존 검토 상태 업데이트됨:', reviewStatusRecord);
+        console.log('✅ 기존 검토 상태 업데이트됨:', reviewStatusRecord);
       }
+      
+      console.log('🔵 검토 상태 저장 완료, loadReviewStatus 호출 예정');
     } catch (error) {
-      console.error('검토 상태 저장 실패:', error);
+      console.error('❌ 검토 상태 저장 실패:', error);
       alert('검토 상태 저장에 실패했습니다: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
@@ -497,9 +535,10 @@ export default function WorkTimeComparison({
     try {
       if (!selectedMonth) return;
       
-      console.log('검토 상태 로드 시작 - 선택된 월:', selectedMonth);
+      console.log('🟡 검토 상태 로드 시작 - 선택된 월:', selectedMonth);
+      console.log('🟡 직원 목록 길이:', employeesList.length);
       
-      // 직원별급여처리와 동일한 로직: branchId 필터링 없이 월별로만 조회
+      // 해당 직원의 모든 지점의 검토 상태 조회
       const reviewStatusQuery = query(
         collection(db, 'employeeReviewStatus'),
         where('month', '==', selectedMonth)
@@ -513,11 +552,37 @@ export default function WorkTimeComparison({
         console.log('저장된 검토 상태 데이터:', data);
         return {
           employeeId: data.employeeId,
-          status: data.status as '검토전' | '검토중' | '검토완료'
+          branchId: data.branchId,
+          status: data.status as '검토전' | '검토중' | '검토완료' | '근무시간검토완료'
         };
       });
       
       console.log('DB에서 로드된 검토 상태:', savedReviewStatuses);
+      
+      // 김유정의 상태를 특별히 확인
+      const kimYoojungStatus = savedReviewStatuses.find(status => status.employeeId === 'sB7t9lJAdZr4slD2rEYf');
+      if (kimYoojungStatus) {
+        console.log('김유정의 저장된 상태:', kimYoojungStatus);
+        console.log('⚠️ 김유정에게 잘못된 상태가 저장되어 있습니다!');
+      } else {
+        console.log('김유정의 저장된 상태 없음');
+      }
+      
+      // 모든 잘못된 상태 확인
+      const wrongStatuses = savedReviewStatuses.filter(status => 
+        status.status === '검토중' || status.status === '근무시간검토완료'
+      );
+      if (wrongStatuses.length > 0) {
+        console.log('⚠️ 잘못된 상태 데이터 발견:', wrongStatuses);
+        console.log('이 상태들을 삭제해야 합니다!');
+      }
+      
+      // 직원 목록이 비어있으면 저장된 상태만 사용
+      if (employeesList.length === 0) {
+        console.log('직원 목록이 비어있음, 저장된 상태만 사용');
+        setEmployeeReviewStatus(savedReviewStatuses);
+        return;
+      }
       
       // 모든 직원에 대해 상태 설정
       const allReviewStatuses = await Promise.all(
@@ -533,6 +598,7 @@ export default function WorkTimeComparison({
           console.log(`직원 ${employee.name}의 저장된 상태 없음, 검토전으로 설정`);
           return {
             employeeId: employee.id,
+            branchId: selectedBranchId,
             status: '검토전' as '검토전' | '검토중' | '검토완료'
           };
         })
@@ -545,6 +611,12 @@ export default function WorkTimeComparison({
     }
   }, [selectedMonth, selectedBranchId, isManager, userBranch]);
 
+  // 직원 목록이 로드되면 검토 상태 로드
+  useEffect(() => {
+    if (employees.length > 0 && selectedMonth) {
+      loadReviewStatus(employees);
+    }
+  }, [employees, selectedMonth, loadReviewStatus]);
 
   const loadSchedules = async (month: string) => {
     try {
@@ -727,6 +799,15 @@ export default function WorkTimeComparison({
       return;
     }
 
+    // 근무시간 비교 시작 시 자동으로 검토중 상태로 변경
+    try {
+      console.log('🔄 근무시간 비교 시작 - 검토중 상태로 변경');
+      await saveReviewStatus(selectedEmployeeId, '검토중');
+      await loadReviewStatus(employees);
+    } catch (error) {
+      console.error('❌ 검토중 상태 변경 실패:', error);
+    }
+
     if (!actualWorkData.trim()) {
       // 실제근무 데이터가 없어도 스케줄 데이터만으로 리스트 표시
       // console.log('실제근무 데이터 없음, 스케줄 데이터만으로 리스트 생성');
@@ -892,7 +973,7 @@ export default function WorkTimeComparison({
           const employeeData = employeeSnapshot.docs[0].data();
           
           // 근로소득자인 경우에만 연장근무시간 계산
-          if (employeeData.type === '근로소득자') {
+          if (employeeData.type === '근로소득자' || employeeData.employmentType === '근로소득') {
             // 이번주 총 실제 근무시간 계산
             const totalActualHours = comparisons.reduce((sum, comp) => sum + comp.actualHours, 0);
             
@@ -1017,7 +1098,7 @@ export default function WorkTimeComparison({
         previousOvertime = overtimeSnapshot.docs[0].data().accumulatedOvertime || 0;
       } else {
         // 전주 누적 연장근무시간이 없고, 아직 팝업을 보여주지 않았다면 팝업 표시
-        // 단, 근로소득, 사업소득자만 해당
+        // 단, 근로소득, 사업소득만 해당
         if (!hasShownOvertimePopup && (employmentType === '근로소득' || employmentType === '사업소득')) {
           setPendingOvertimeCalculation({
             employeeId: employeeId,
@@ -1448,7 +1529,7 @@ export default function WorkTimeComparison({
               
               <h3 className="text-sm font-medium text-blue-800 mt-4 mb-2">사용 방법</h3>
               <div className="text-sm text-blue-700 space-y-1">
-                <p>1. 지점, 비교할 월 선택 후, 직원 선택</p>
+                <p>1. 직원 선택</p>
                 <p>2. POS에서 실제 근무 데이터 붙여넣기</p>
                 <p>3. 근무시간 비교 버튼 클릭해서 차이나는 시간을 조정</p>
                 <p>4. 모든 스케쥴 수정/확인 완료 시 검토완료 상태로 변경</p>
@@ -1458,57 +1539,123 @@ export default function WorkTimeComparison({
         </div>
       </div>
 
-      {/* 필터 선택 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {/* 지점 선택 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            지점 선택 <span className="text-red-500">*</span>
-          </label>
-          {isManager ? (
-            <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-700">
-              {userBranch?.name || '지점 정보 없음'}
+      {/* 선택된 월 표시 */}
+      {selectedMonth && (
+        <div className="mb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <div className="text-blue-600 font-medium">
+                📅 선택된 월: {selectedMonth}
+              </div>
             </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {filteredBranches.map((branch) => (
-                  <button
-                    key={branch.id}
-                    onClick={() => {
-                      setSelectedBranchId(branch.id);
-                      if (!hideEmployeeSelection) {
-                        setSelectedEmployeeId(''); // 지점 변경 시 직원 선택 초기화
-                      }
-                    }}
-                    className={`px-3 py-2 rounded-md font-medium text-sm transition-colors ${
-                      selectedBranchId === branch.id
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {branch.name}
-                  </button>
-                ))}
+          </div>
+        </div>
+      )}
+
+        {/* 전체 검토 상태 */}
+        {selectedEmployeeId && (
+          <div className="bg-white shadow rounded-lg overflow-hidden mb-6 w-full">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">전체 검토 상태</h3>
             </div>
-          )}
-        </div>
-
-        {/* 월 선택 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            월 선택 <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => {
-              setSelectedMonth(e.target.value);
-              loadSchedules(e.target.value);
-            }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
+            <div className="px-6 py-4 w-full">
+              {(() => {
+                const isPayrollConfirmed = payrollConfirmedEmployees.includes(selectedEmployeeId);
+                
+                // 해당 직원의 모든 지점 상태 조회
+                const employeeStatuses = employeeReviewStatus.filter(status => status.employeeId === selectedEmployeeId);
+                
+                return (
+                  <div className="space-y-4">
+                    {/* 급여확정 상태 */}
+                    {isPayrollConfirmed && (
+                      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                        <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                          급여확정완료
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* 지점별 검토 상태 */}
+                    {!isPayrollConfirmed && (
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-gray-700">지점별 검토 상태</h4>
+                        {employeeBranches.length > 0 ? (
+                          employeeBranches.map(branchId => {
+                            const branch = branches.find(b => b.id === branchId);
+                            const branchStatus = employeeStatuses.find(status => status.branchId === branchId);
+                            const status = branchStatus?.status || '검토전';
+                            
+                            return (
+                              <div key={branchId} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors w-full ${
+                                selectedBranchId === branchId 
+                                  ? 'border-blue-500 bg-blue-50' 
+                                  : 'border-gray-200 hover:bg-gray-50'
+                              }`}
+                              onClick={() => {
+                                setSelectedBranchId(branchId);
+                                console.log('지점 선택됨:', branchId, branch?.name);
+                              }}>
+                                <div className="flex items-center space-x-3 flex-1">
+                                  <span className={`text-sm font-medium ${
+                                    selectedBranchId === branchId ? 'text-blue-700' : 'text-gray-700'
+                                  }`}>
+                                    {branch?.name || `지점 ${branchId}`}
+                                  </span>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    status === '검토완료' ? 'bg-green-100 text-green-800' :
+                                    status === '검토중' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {status}
+                                  </span>
+                                </div>
+                                
+                                <div className="flex space-x-2">
+                                  {status === '검토완료' ? (
+                                    <button
+                                      onClick={async () => {
+                                        if (confirm(`${branch?.name} 지점의 검토완료를 취소하시겠습니까?`)) {
+                                          await saveReviewStatus(selectedEmployeeId, '검토중');
+                                          await loadReviewStatus(employees);
+                                        }
+                                      }}
+                                      className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700"
+                                    >
+                                      검토완료취소
+                                    </button>
+                                  ) : status === '검토중' ? (
+                                    <button
+                                      onClick={async () => {
+                                        if (confirm(`${branch?.name} 지점의 검토를 완료하시겠습니까?`)) {
+                                          await saveReviewStatus(selectedEmployeeId, '검토완료');
+                                          await loadReviewStatus(employees);
+                                        }
+                                      }}
+                                      className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
+                                    >
+                                      검토완료
+                                    </button>
+                                  ) : (
+                                    <span className="text-sm text-gray-500 px-3 py-1">
+                                      검토전
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-sm text-gray-500">지점 정보가 없습니다.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
 
       </div>
 
@@ -1741,7 +1888,10 @@ export default function WorkTimeComparison({
           disabled={loading || (() => {
             const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
             if (!selectedEmployee) return false;
-            const reviewStatus = employeeReviewStatus.find(status => status.employeeId === selectedEmployeeId);
+            // 현재 선택된 지점의 검토상태만 확인
+            const reviewStatus = employeeReviewStatus.find(status => 
+              status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+            );
             return reviewStatus?.status === '검토완료';
           })()}
           className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium"
@@ -1755,147 +1905,6 @@ export default function WorkTimeComparison({
         </button>
       </div>
 
-      {/* 전체 검토 상태 관리 */}
-      {selectedEmployeeId && (
-        <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">전체 검토 상태</h3>
-              <button
-                onClick={async () => {
-                  if (confirm(`${selectedMonth}월의 모든 잘못된 검토 상태를 초기화하시겠습니까?\n(실제근무 데이터가 없는 직원들의 검토완료 상태를 삭제합니다)`)) {
-                    try {
-                      // 현재 선택된 월의 모든 검토 상태 데이터 조회
-                      const reviewStatusQuery = query(
-                        collection(db, 'employeeReviewStatus'),
-                        where('month', '==', selectedMonth)
-                      );
-                      const reviewStatusSnapshot = await getDocs(reviewStatusQuery);
-                      
-                      let deletedCount = 0;
-                      
-                      for (const docSnapshot of reviewStatusSnapshot.docs) {
-                        const data = docSnapshot.data();
-                        
-                        // 해당 직원의 실제근무 데이터 확인
-                        const actualWorkQuery = query(
-                          collection(db, 'actualWorkRecords'),
-                          where('employeeId', '==', data.employeeId),
-                          where('month', '==', selectedMonth)
-                        );
-                        const actualWorkSnapshot = await getDocs(actualWorkQuery);
-                        
-                        // 실제근무 데이터가 없는데 검토완료 상태인 경우 삭제
-                        if (actualWorkSnapshot.empty && (data.status === '검토완료' || data.status === '근무시간검토완료')) {
-                          await deleteDoc(doc(db, 'employeeReviewStatus', docSnapshot.id));
-                          deletedCount++;
-                        }
-                      }
-                      
-                      alert(`${deletedCount}개의 잘못된 상태 데이터가 삭제되었습니다.`);
-                      
-                      // 상태 업데이트
-                      await loadReviewStatus(employees);
-                      
-                    } catch (error) {
-                      console.error('상태 초기화 실패:', error);
-                      alert('상태 초기화에 실패했습니다.');
-                    }
-                  }
-                }}
-                className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700"
-              >
-                전체 상태 초기화
-              </button>
-            </div>
-          </div>
-          <div className="px-6 py-4">
-            {(() => {
-              const reviewStatus = employeeReviewStatus.find(status => status.employeeId === selectedEmployeeId);
-              const isCompleted = reviewStatus?.status === '검토완료';
-              const isPayrollConfirmed = payrollConfirmedEmployees.includes(selectedEmployeeId);
-              
-              return (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      isCompleted ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {isCompleted ? '검토완료' : '검토중'}
-                    </span>
-                    {isPayrollConfirmed && (
-                      <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                        급여확정완료
-                      </span>
-                    )}
-                  </div>
-                  
-                  {!isPayrollConfirmed && (
-                    <div className="flex space-x-2">
-                      {isCompleted ? (
-                        <button
-                          onClick={async () => {
-                            if (confirm('전체 검토완료를 취소하시겠습니까?')) {
-                              await saveReviewStatus(selectedEmployeeId, '검토중');
-                              // 상태 업데이트
-                              await loadReviewStatus(employees);
-                            }
-                          }}
-                          className="bg-orange-600 text-white px-4 py-2 rounded text-sm hover:bg-orange-700"
-                        >
-                          검토완료취소
-                        </button>
-                      ) : (
-                        <button
-                          onClick={async () => {
-                            if (confirm('전체 검토완료로 설정하시겠습니까?')) {
-                              await saveReviewStatus(selectedEmployeeId, '검토완료');
-                              // 상태 업데이트
-                              await loadReviewStatus(employees);
-                            }
-                          }}
-                          className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700"
-                        >
-                          검토완료
-                        </button>
-                      )}
-                      <button
-                        onClick={async () => {
-                          if (confirm('검토 상태를 초기화하시겠습니까? (검토전으로 변경)')) {
-                            // DB에서 해당 직원의 검토 상태 데이터 삭제
-                            try {
-                              const reviewStatusQuery = query(
-                                collection(db, 'employeeReviewStatus'),
-                                where('employeeId', '==', selectedEmployeeId),
-                                where('month', '==', selectedMonth)
-                              );
-                              const reviewStatusSnapshot = await getDocs(reviewStatusQuery);
-                              
-                              for (const docSnapshot of reviewStatusSnapshot.docs) {
-                                await deleteDoc(doc(db, 'employeeReviewStatus', docSnapshot.id));
-                              }
-                              
-                              // 상태 업데이트
-                              await loadReviewStatus(employees);
-                              alert('검토 상태가 초기화되었습니다.');
-                            } catch (error) {
-                              console.error('상태 초기화 실패:', error);
-                              alert('상태 초기화에 실패했습니다.');
-                            }
-                          }
-                        }}
-                        className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700"
-                      >
-                        상태초기화
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
 
       {/* 비교 결과 */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -2105,7 +2114,7 @@ export default function WorkTimeComparison({
                                       return updated;
                                     } else {
                                       // 새로운 상태 추가
-                                      const newStatus = { employeeId: selectedEmployeeId, status: '검토중' as '검토전' | '검토중' | '검토완료' };
+                                      const newStatus = { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: '검토중' as '검토전' | '검토중' | '검토완료' };
                                       return [...prev, newStatus];
                                     }
                                   });
@@ -2146,7 +2155,7 @@ export default function WorkTimeComparison({
                                         return updated;
                                       } else {
                                         // 새로운 상태 추가
-                                        const newStatus = { employeeId: selectedEmployeeId, status: '검토중' as '검토전' | '검토중' | '검토완료' };
+                                        const newStatus = { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: '검토중' as '검토전' | '검토중' | '검토완료' };
                                         return [...prev, newStatus];
                                       }
                                     });
@@ -2171,7 +2180,7 @@ export default function WorkTimeComparison({
               </tbody>
               <tfoot className="bg-gray-50">
                 <tr className="font-semibold">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center" colSpan={2}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     합계
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
@@ -2366,7 +2375,6 @@ export default function WorkTimeComparison({
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

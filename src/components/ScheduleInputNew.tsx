@@ -2057,7 +2057,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                     <tr key={index}>
                       <td className="px-4 py-3 text-center text-sm font-medium text-gray-900">
                         {summary.employeeName}
-                        {summary.employmentType === '근로소득자' && summary.weeklyWorkHours && (
+                        {summary.employmentType === '근로소득' && summary.weeklyWorkHours && (
                           <span className="text-xs text-gray-500 ml-1">
                             ({summary.weeklyWorkHours})
                           </span>
