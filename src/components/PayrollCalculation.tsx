@@ -31,7 +31,7 @@ function calcWeeklyHolidayPay(i: WeeklyHolidayInput) {
   if (!eligible) return { eligible, hours: 0, pay: 0 };
 
   const weeklyHolidayHours = i.weeklyContractHours / i.weeklyWorkdays;
-  const pay = weeklyHolidayHours * i.hourlyWage;
+  const pay = Math.round(weeklyHolidayHours * i.hourlyWage);
 
   return { eligible, hours: weeklyHolidayHours, pay };
 }
@@ -838,7 +838,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
             
             // 🔥 수습기간이면 주휴수당도 90% 지급
             const adjustedPay = isWeekInProbation 
-              ? weeklyHolidayResult.pay * 0.9 
+              ? Math.round(weeklyHolidayResult.pay * 0.9)
               : weeklyHolidayResult.pay;
             
             weeklyHolidayDetails.push({
