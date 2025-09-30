@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, limit, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 
 interface Employee {
   id: string;
@@ -10,10 +10,10 @@ interface Employee {
   salaryType?: 'hourly' | 'monthly';
   hourlyWage?: number;
   monthlySalary?: number;
-  probationStartDate?: any;
-  probationEndDate?: any;
-  probationStart?: any;
-  probationEnd?: any;
+  probationStartDate?: Date | { toDate: () => Date };
+  probationEndDate?: Date | { toDate: () => Date };
+  probationStart?: Date | { toDate: () => Date };
+  probationEnd?: Date | { toDate: () => Date };
 }
 
 interface Branch {
