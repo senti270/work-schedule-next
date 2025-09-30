@@ -895,8 +895,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     if (employee.employmentType === '근로소득') {
       // 4대보험 계산 (간단한 예시)
       const baseAmount = Math.min(grossPay, 5000000); // 최대 500만원
-      insurance = baseAmount * 0.0765; // 7.65% (4대보험)
-      tax = baseAmount * 0.033; // 3.3% (소득세)
+      insurance = Math.round(baseAmount * 0.0765); // 7.65% (4대보험)
+      tax = Math.round(baseAmount * 0.033); // 3.3% (소득세)
       netPay = grossPay - (insurance + tax);
       console.log('PayrollCalculation - 근로소득 공제:', {
         grossPay: grossPay,
@@ -905,8 +905,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         netPay: netPay
       });
     } else if (employee.employmentType === '사업소득') {
-      tax = grossPay * 0.033; // 3.3% (소득세만)
-      netPay = grossPay * 0.967; // 96.7% (3.3% 공제)
+      tax = Math.round(grossPay * 0.033); // 3.3% (소득세만)
+      netPay = grossPay - tax; // 세금 차감
       console.log('PayrollCalculation - 사업소득 공제:', {
         grossPay: grossPay,
         tax: tax,
@@ -921,8 +921,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         netPay: netPay
       });
     } else if (employee.employmentType === '외국인') {
-      tax = grossPay * 0.033; // 3.3% (소득세만)
-      netPay = grossPay * 0.967; // 96.7% (3.3% 공제)
+      tax = Math.round(grossPay * 0.033); // 3.3% (소득세만)
+      netPay = grossPay - tax; // 세금 차감
       console.log('PayrollCalculation - 외국인 공제:', {
         grossPay: grossPay,
         tax: tax,
@@ -1361,7 +1361,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                     </div>
                   </div>
 
-                  {/* 지점별 급여 테이블 */}
+                  {/* 지점별 근무시간 테이블 */}
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -1374,9 +1374,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                           </th>
                           <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                             초과근무시간
-                          </th>
-                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            해당지점급여
                           </th>
                         </tr>
                       </thead>
@@ -1406,33 +1403,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                                 return overtimeHours.toFixed(1) + '시간';
                               })()}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
-                              {/* 해당 지점 급여 계산 */}
-                              {(() => {
-                                if (calc.salaryType === '시급' || calc.salaryType === 'hourly') {
-                                  // 주간근무시간 (기본값 40시간)
-                                  const weeklyWorkHours = 40;
-                                  // 하루근무시간 = 주간근무시간 / 8
-                                  const dailyWorkHours = weeklyWorkHours / 8;
-                                  // 해당월의 일수
-                                  const monthDate = typeof selectedMonth === 'string' ? new Date(selectedMonth) : selectedMonth;
-                                  const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
-                                  // 한달근무시간 = 하루근무시간 × 해당월의 일수
-                                  const monthlyWorkHours = dailyWorkHours * daysInMonth;
-                                  
-                                  const regularHours = Math.min(branch.workHours, monthlyWorkHours);
-                                  const overtimeHours = Math.max(0, branch.workHours - monthlyWorkHours);
-                                  const regularPay = regularHours * (calc.hourlyWage || 0);
-                                  const overtimePay = overtimeHours * (calc.hourlyWage || 0) * 1.5; // 1.5배
-                                  return (regularPay + overtimePay).toLocaleString() + '원';
-                                } else {
-                                  // 월급인 경우 지점별로 나누어 계산
-                                  const totalHours = calc.branches.reduce((sum, b) => sum + b.workHours, 0);
-                                  const branchRatio = totalHours > 0 ? branch.workHours / totalHours : 0;
-                                  return (calc.grossPay * branchRatio).toLocaleString() + '원';
-                                }
-                              })()}
-                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1458,17 +1428,57 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         <div className="mt-6 bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">상세 계산 내역</h3>
           {payrollCalculations.map((calc) => (
-            <div key={calc.employeeId} className="space-y-2 text-sm text-gray-700 mb-4 pb-4 border-b border-gray-100 last:border-b-0 last:mb-0 last:pb-0">
-              <p><strong>직원명:</strong> {calc.employeeName}</p>
-              <p><strong>고용형태:</strong> {calc.employmentType}</p>
-              <p><strong>급여형태:</strong> {calc.salaryType}</p>
-              {(calc.salaryType === '시급' || calc.salaryType === 'hourly') && <p><strong>시급:</strong> {calc.hourlyWage?.toLocaleString()}원/시간</p>}
-              {(calc.salaryType === '월급' || calc.salaryType === 'monthly') && <p><strong>월급:</strong> {calc.monthlySalary?.toLocaleString()}원/월</p>}
-              <p><strong>총 근무시간:</strong> {calc.totalWorkHours.toFixed(1)}시간</p>
-              <p><strong>총 휴게시간:</strong> {calc.totalBreakTime.toFixed(1)}시간</p>
-              <p><strong>실 근무시간:</strong> {calc.actualWorkHours.toFixed(1)}시간</p>
+            <div key={calc.employeeId} className="mb-6 pb-6 border-b border-gray-200 last:border-b-0 last:mb-0 last:pb-0">
+              {/* 기본 정보 테이블 */}
+              <div className="overflow-x-auto mb-4">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">직원명</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">고용형태</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">급여형태</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">시급/월급</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    <tr>
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{calc.employeeName}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{calc.employmentType}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{calc.salaryType}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">
+                        {(calc.salaryType === '시급' || calc.salaryType === 'hourly')
+                          ? `${calc.hourlyWage?.toLocaleString()}원/시간`
+                          : (calc.salaryType === '월급' || calc.salaryType === 'monthly')
+                          ? `${calc.monthlySalary?.toLocaleString()}원/월`
+                          : '-'}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 근무시간 테이블 */}
+              <div className="overflow-x-auto mb-4">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">총 근무시간</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">총 휴게시간</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">실 근무시간</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    <tr>
+                      <td className="px-4 py-2 text-sm text-gray-900">{calc.totalWorkHours.toFixed(1)}시간</td>
+                      <td className="px-4 py-2 text-sm text-gray-900">{calc.totalBreakTime.toFixed(1)}시간</td>
+                      <td className="px-4 py-2 text-sm text-gray-900">{calc.actualWorkHours.toFixed(1)}시간</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              {/* 주휴수당 상세 */}
               {calc.weeklyHolidayDetails && calc.weeklyHolidayDetails.length > 0 && (
-                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded">
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
                   <p className="text-blue-800 font-semibold mb-2">📅 주차별 주휴수당 계산 내역:</p>
                   <div className="space-y-1 text-xs">
                     {calc.weeklyHolidayDetails.map((detail, idx) => (
@@ -1490,14 +1500,30 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                   </div>
                 </div>
               )}
-              <p><strong>기본급:</strong> {calc.grossPay.toLocaleString()}원</p>
-              <p><strong>공제:</strong></p>
-              <ul className="list-disc list-inside ml-4">
-                {calc.deductions.insurance > 0 && <li>4대보험: {calc.deductions.insurance.toLocaleString()}원</li>}
-                {calc.deductions.tax > 0 && <li>사업소득공제: {calc.deductions.tax.toLocaleString()}원</li>}
-                <li>총 공제액: {calc.deductions.total.toLocaleString()}원</li>
-              </ul>
-              <p className="text-lg font-bold text-blue-700">실수령액: {calc.netPay.toLocaleString()}원</p>
+
+              {/* 급여 및 공제 테이블 */}
+              <div className="overflow-x-auto mb-4">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">기본급</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">4대보험</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">사업소득공제</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">총 공제액</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase bg-blue-50">실수령액</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    <tr>
+                      <td className="px-4 py-2 text-sm text-gray-900">{calc.grossPay.toLocaleString()}원</td>
+                      <td className="px-4 py-2 text-sm text-gray-900">{calc.deductions.insurance > 0 ? calc.deductions.insurance.toLocaleString() + '원' : '-'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-900">{calc.deductions.tax > 0 ? calc.deductions.tax.toLocaleString() + '원' : '-'}</td>
+                      <td className="px-4 py-2 text-sm text-red-600">{calc.deductions.total.toLocaleString()}원</td>
+                      <td className="px-4 py-2 text-sm font-bold text-blue-700 bg-blue-50">{calc.netPay.toLocaleString()}원</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
               
               {/* 급여확정/취소 버튼 */}
               <div className="mt-4 pt-4 border-t border-gray-200">
