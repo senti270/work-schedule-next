@@ -710,8 +710,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       });
       
       // 급여 = a × 시급 × 0.9 + b × 시급
-      const probationPay = probationHours * employee.hourlyWage * 0.9;
-      const regularPay = regularHours * employee.hourlyWage;
+      const probationPay = Math.round(probationHours * employee.hourlyWage * 0.9);
+      const regularPay = Math.round(regularHours * employee.hourlyWage);
       const basePay = probationPay + regularPay;
       
       // 주휴수당 계산 (근로소득 또는 사업소득 & 시급 & 주휴수당 미포함)
@@ -879,7 +879,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     } else if ((employee.salaryType === '월급' || employee.salaryType === 'monthly') && employee.monthlySalary) {
       if (isInProbation) {
         // 수습기간 중에는 월급의 90% 적용
-        grossPay = employee.monthlySalary * 0.9;
+        grossPay = Math.round(employee.monthlySalary * 0.9);
         console.log('PayrollCalculation - 수습기간 월급 적용:', employee.monthlySalary, '원 × 0.9 =', grossPay, '원');
       } else {
         grossPay = employee.monthlySalary;

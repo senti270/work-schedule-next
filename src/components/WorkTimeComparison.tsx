@@ -2014,7 +2014,13 @@ export default function WorkTimeComparison({
                     result.status === 'review_completed' || result.status === 'time_match'
                   ).length;
                   const totalCount = comparisonResults.length;
-                  return `${completedCount}/${totalCount} 항목 확인완료`;
+                  const allReviewCompleted = completedCount === totalCount && totalCount > 0;
+                  return (
+                    <span>
+                      {completedCount}/{totalCount} 항목 확인완료
+                      {allReviewCompleted && <span className="ml-2 text-green-600 font-semibold">✓ 전체 검토완료</span>}
+                    </span>
+                  );
                 })()}
               </div>
             </div>
@@ -2058,6 +2064,12 @@ export default function WorkTimeComparison({
                     ? 'bg-white' 
                     : 'bg-yellow-50';
                   
+                  // 전체 검토완료 여부 확인
+                  const completedCount = comparisonResults.filter(r => 
+                    r.status === 'review_completed' || r.status === 'time_match'
+                  ).length;
+                  const allReviewCompleted = completedCount === comparisonResults.length && comparisonResults.length > 0;
+                  
                   return (
                     <tr key={index} className={`hover:bg-gray-50 ${rowBgColor} border-t border-gray-200`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -2088,8 +2100,8 @@ export default function WorkTimeComparison({
                         })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        {result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
-                          // 확인완료 상태이거나 급여확정된 경우 수정 불가
+                        {result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) || allReviewCompleted ? (
+                          // 확인완료 상태이거나 급여확정된 경우 또는 전체 검토완료된 경우 수정 불가
                           <span className="text-gray-600">
                             {(() => {
                               const actualWorkHours = result.actualWorkHours || 0;

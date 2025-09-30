@@ -168,7 +168,10 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
           
           if (allCompleted) {
             status = '근무시간검토완료';
-          } else if (hasInProgress || hasAnyReviewStatus) {
+          } else if (hasInProgress) {
+            status = '근무시간검토중';
+          } else if (hasAnyReviewStatus) {
+            // 검토상태는 있지만 모두 완료되지 않은 경우
             status = '근무시간검토중';
           } else {
             status = '미처리';
