@@ -10,6 +10,10 @@ interface Employee {
   salaryType?: 'hourly' | 'monthly';
   hourlyWage?: number;
   monthlySalary?: number;
+  probationStartDate?: any;
+  probationEndDate?: any;
+  probationStart?: any;
+  probationEnd?: any;
 }
 
 interface Branch {
