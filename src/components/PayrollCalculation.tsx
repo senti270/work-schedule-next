@@ -110,6 +110,14 @@ interface PayrollCalculation {
   weeklyHolidayPay?: number;
   weeklyHolidayHours?: number;
   includesWeeklyHolidayInWage?: boolean;
+  weeklyHolidayDetails?: Array<{
+    weekStart: string;
+    weekEnd: string;
+    hours: number;
+    pay: number;
+    eligible: boolean;
+    reason?: string;
+  }>;
 }
 
 interface PayrollCalculationProps {
@@ -188,6 +196,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
             const contractsSnapshot = await getDocs(contractsQuery);
             
             if (!contractsSnapshot.empty) {
+              // 🔥 백승우 계약서 개수 확인
+              if (employee.name === '백승우') {
+                console.log('🔥🔥🔥 백승우 계약서 개수:', contractsSnapshot.docs.length);
+                contractsSnapshot.docs.forEach((doc, idx) => {
+                  console.log(`🔥 백승우 계약서 ${idx + 1}:`, doc.data());
+                });
+              }
+              
               // 최신 계약서 찾기 (createdAt 기준으로 정렬)
               const contracts = contractsSnapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() }) as { id: string; createdAt?: Date | { toDate: () => Date } | string; [key: string]: unknown })
@@ -196,13 +212,15 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                   const dateB = b.createdAt ? new Date(b.createdAt.toString()).getTime() : 0;
                   return dateB - dateA;
                 });
-              const contract = contracts[0] as { [key: string]: unknown; employmentType?: string; salaryType?: string; hourlyWage?: number; monthlySalary?: number; probationStartDate?: Date | { toDate: () => Date }; probationEndDate?: Date | { toDate: () => Date } };
+              const contract = contracts[0] as { [key: string]: unknown; employmentType?: string; salaryType?: string; hourlyWage?: number; monthlySalary?: number; salaryAmount?: number; probationStartDate?: Date | { toDate: () => Date }; probationEndDate?: Date | { toDate: () => Date } };
               
             console.log(`직원 ${employee.name} 계약서 정보:`, {
               employeeId: employee.id,
               contractEmploymentType: contract.employmentType,
               contractSalaryType: contract.salaryType,
               contractSalaryAmount: contract.salaryAmount,
+              contractHourlyWage: contract.hourlyWage,
+              contractMonthlySalary: contract.monthlySalary,
               probationStartDate: contract.probationStartDate,
               probationEndDate: contract.probationEndDate,
               probationStartType: typeof contract.probationStartDate,
@@ -210,6 +228,18 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
             });
             
             console.log(`직원 ${employee.name} 계약서 원본 데이터:`, contract);
+            
+            // 🔥 백승우 계약서 상세 디버깅
+            if (employee.name === '백승우') {
+              console.log('🔥🔥🔥 백승우 계약서 상세:', {
+                salaryType: contract.salaryType,
+                salaryAmount: contract.salaryAmount,
+                hourlyWage: contract.hourlyWage,
+                monthlySalary: contract.monthlySalary,
+                allContractKeys: Object.keys(contract),
+                contract: contract
+              });
+            }
               
               return {
                 ...employee,
@@ -217,8 +247,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                 salaryType: (contract.salaryType === 'hourly' ? '시급' : 
                            contract.salaryType === 'monthly' ? '월급' : 
                            contract.salaryType as string || '로드실패') as '시급' | '월급' | 'hourly' | 'monthly',
-                hourlyWage: contract.salaryType === 'hourly' ? (contract.hourlyWage as number) : (contract.salaryType === 'monthly' ? 0 : employee.hourlyWage),
-                monthlySalary: contract.salaryType === 'monthly' ? (contract.monthlySalary as number) : (contract.salaryType === 'hourly' ? 0 : employee.monthlySalary),
+                hourlyWage: contract.salaryType === 'hourly' ? (contract.salaryAmount as number) : (contract.salaryType === 'monthly' ? 0 : employee.hourlyWage),
+                monthlySalary: contract.salaryType === 'monthly' ? (contract.salaryAmount as number) : (contract.salaryType === 'hourly' ? 0 : employee.monthlySalary),
                 // 수습기간 정보는 employees 컬렉션에서 직접 가져오기
                 probationStartDate: employee.probationStartDate || contract.probationStartDate,
                 probationEndDate: employee.probationEndDate || contract.probationEndDate
@@ -467,13 +497,42 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     });
     
     console.log('🔥 급여 계산 조건 확인:', {
+      employeeName: employee.name,
       salaryType: employee.salaryType,
       hourlyWage: employee.hourlyWage,
+      monthlySalary: employee.monthlySalary,
+      employmentType: employee.employmentType,
+      actualWorkHours: actualWorkHours,
       condition: (employee.salaryType === '시급' || employee.salaryType === 'hourly') && employee.hourlyWage
     });
+    
+    // 🔥 백승우 디버깅
+    if (employee.name === '백승우') {
+      console.log('🔥🔥🔥 백승우 상세 정보:', {
+        name: employee.name,
+        employmentType: employee.employmentType,
+        salaryType: employee.salaryType,
+        hourlyWage: employee.hourlyWage,
+        monthlySalary: employee.monthlySalary,
+        actualWorkHours: actualWorkHours,
+        totalWorkHours: totalWorkHours,
+        probationHours: probationHours,
+        regularHours: regularHours
+      });
+    }
 
     // 급여 계산 (수습기간별로 나누어서 계산)
     let grossPay = 0;
+    let weeklyHolidayPay = 0;
+    let weeklyHolidayHours = 0;
+    const weeklyHolidayDetails: Array<{
+      weekStart: string;
+      weekEnd: string;
+      hours: number;
+      pay: number;
+      eligible: boolean;
+      reason?: string;
+    }> = [];
     
     // 수습기간 확인 (계약서에서 가져오기)
     let probationStartDate = employee.probationStartDate;
@@ -656,17 +715,32 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       let basePay = probationPay + regularPay;
       
       // 주휴수당 계산 (근로소득 또는 사업소득 & 시급 & 주휴수당 미포함)
-      let weeklyHolidayPay = 0;
-      let weeklyHolidayHours = 0;
       
       const shouldCalculateWeeklyHoliday = 
         (employee.employmentType === '근로소득' || employee.employmentType === '사업소득') &&
         !employee.includesWeeklyHolidayInWage;
       
+      console.log('🔥 주휴수당 계산 조건:', {
+        employeeName: employee.name,
+        employmentType: employee.employmentType,
+        includesWeeklyHolidayInWage: employee.includesWeeklyHolidayInWage,
+        shouldCalculateWeeklyHoliday: shouldCalculateWeeklyHoliday,
+        employeeSchedulesLength: employeeSchedules.length
+      });
+      
       if (shouldCalculateWeeklyHoliday) {
         // 주별로 주휴수당 계산 (employeeSchedules를 주별로 그룹핑)
+        // 🔥 schedule.date를 기준으로 해당 주의 월요일을 계산
         const weeklyScheduleGroups = employeeSchedules.reduce((groups, schedule) => {
-          const weekKey = schedule.weekStart.toISOString().split('T')[0];
+          // schedule.date를 기준으로 주 시작일(월요일) 계산
+          const scheduleDate = schedule.date ? new Date(schedule.date) : schedule.weekStart;
+          const dayOfWeek = scheduleDate.getDay(); // 0=일, 1=월, ..., 6=토
+          const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 월요일 기준으로 계산
+          
+          const monday = new Date(scheduleDate);
+          monday.setDate(monday.getDate() - daysFromMonday);
+          const weekKey = monday.toISOString().split('T')[0]; // 주 시작일(월요일)을 키로 사용
+          
           if (!groups[weekKey]) {
             groups[weekKey] = [];
           }
@@ -675,18 +749,69 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         }, {} as Record<string, typeof employeeSchedules>);
         
         // 각 주별로 주휴수당 계산
+        console.log('🔥 주휴수당 계산 시작 - 주별 그룹:', Object.keys(weeklyScheduleGroups));
+        
         Object.entries(weeklyScheduleGroups).forEach(([weekKey, weekSchedules]) => {
+          const weekStartDate = new Date(weekKey);
+          const weekEndDate = new Date(weekStartDate);
+          weekEndDate.setDate(weekEndDate.getDate() + 6); // 주 시작일 + 6일 = 일요일
+          
+          // 🔥 완전한 주인지 확인 (일요일로 끝나는지)
+          const isCompleteWeek = weekEndDate.getDay() === 0; // 0 = 일요일
+          
+          // 🔥 해당 월 내에 속하는지 확인
+          const monthDate = typeof selectedMonth === 'string' ? new Date(selectedMonth) : selectedMonth;
+          const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+          const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+          
+          // 🔥 주 끝(일요일)이 이번 달에 속하지 않으면 다음 달에 지급
+          const weekEndsInCurrentMonth = weekEndDate <= monthEnd;
+          
+          console.log(`🔥 주차 ${weekKey} 체크:`, {
+            weekStartDate: weekStartDate.toLocaleDateString(),
+            weekEndDate: weekEndDate.toLocaleDateString(),
+            weekEndDay: weekEndDate.getDay(),
+            isCompleteWeek: isCompleteWeek,
+            weekEndsInCurrentMonth: weekEndsInCurrentMonth,
+            monthEnd: monthEnd.toLocaleDateString()
+          });
+          
+          // 🔥 완전한 주이고, 일요일이 이번 달에 속할 때만 주휴수당 지급
+          if (!isCompleteWeek || !weekEndsInCurrentMonth) {
+            console.log(`🔥 주차 ${weekKey} 주휴수당 제외 (불완전한 주 또는 다음 달)`);
+            weeklyHolidayDetails.push({
+              weekStart: weekStartDate.toLocaleDateString('ko-KR'),
+              weekEnd: weekEndDate.toLocaleDateString('ko-KR'),
+              hours: 0,
+              pay: 0,
+              eligible: false,
+              reason: !isCompleteWeek ? '불완전한 주 (일요일로 끝나지 않음)' : '다음 달로 이월'
+            });
+            return; // 이 주는 주휴수당 계산하지 않음
+          }
+          
+          console.log(`🔥 주차 ${weekKey} 주휴수당 계산 진행`);
+          
           const weeklyContractHours = employee.weeklyContractHours || 40; // 기본 주 40시간
           const weeklyWorkdays = employee.weeklyWorkdays || 5; // 기본 주 5일
           const weeklyActualHours = weekSchedules.reduce((sum, s) => sum + s.actualWorkHours, 0);
           
-          // 소정근로일 모두 이행 여부 확인 (실제로는 더 복잡한 로직 필요)
-          const workedAllScheduledDays = weekSchedules.length >= weeklyWorkdays;
+          // 🔥 소정근로일 모두 이행 여부 확인 - 실제 스케줄이 있는 날짜 기준으로 판단
+          // weekSchedules에 스케줄이 있다는 것은 그 날 근무했다는 의미
+          const actualWorkdays = weekSchedules.length;
+          const workedAllScheduledDays = actualWorkdays > 0; // 스케줄이 하나라도 있으면 출근으로 인정
           
           // 첫 주 판단 (해당 월의 첫 주인지)
-          const monthStart = new Date(selectedMonth);
-          const weekStartDate = new Date(weekKey);
           const isFirstWeek = weekStartDate.getDate() <= 7;
+          
+          console.log(`🔥 주차 ${weekKey} 주휴수당 계산 입력:`, {
+            hourlyWage: employee.hourlyWage,
+            weeklyContractHours: weeklyActualHours,
+            weeklyWorkdays: weeklyWorkdays,
+            workedAllScheduledDays: workedAllScheduledDays,
+            schedulesCount: weekSchedules.length,
+            isFirstWeek: isFirstWeek
+          });
           
           const weeklyHolidayResult = calcWeeklyHolidayPay({
             hourlyWage: employee.hourlyWage,
@@ -698,9 +823,46 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
             requirePrevWeekAttendance: false
           });
           
+          console.log(`🔥 주차 ${weekKey} 주휴수당 계산 결과:`, weeklyHolidayResult);
+          
           if (weeklyHolidayResult.eligible) {
-            weeklyHolidayPay += weeklyHolidayResult.pay;
+            // 🔥 수습기간 중인 주인지 확인
+            const probationStart = probationStartDate && typeof probationStartDate === 'object' && 'toDate' in probationStartDate 
+              ? probationStartDate.toDate() 
+              : probationStartDate as Date | undefined;
+            const probationEnd = probationEndDate && typeof probationEndDate === 'object' && 'toDate' in probationEndDate 
+              ? probationEndDate.toDate() 
+              : probationEndDate as Date | undefined;
+            
+            // 주의 일요일이 수습기간에 속하는지 확인
+            const isWeekInProbation = probationStart && probationEnd && 
+              weekEndDate >= probationStart && weekEndDate <= probationEnd;
+            
+            // 🔥 수습기간이면 주휴수당도 90% 지급
+            const adjustedPay = isWeekInProbation 
+              ? weeklyHolidayResult.pay * 0.9 
+              : weeklyHolidayResult.pay;
+            
+            weeklyHolidayDetails.push({
+              weekStart: weekStartDate.toLocaleDateString('ko-KR'),
+              weekEnd: weekEndDate.toLocaleDateString('ko-KR'),
+              hours: weeklyHolidayResult.hours,
+              pay: adjustedPay,
+              eligible: true,
+              reason: isWeekInProbation ? '지급 (수습기간 90%)' : '지급'
+            });
+            
+            weeklyHolidayPay += adjustedPay;
             weeklyHolidayHours += weeklyHolidayResult.hours;
+          } else {
+            weeklyHolidayDetails.push({
+              weekStart: weekStartDate.toLocaleDateString('ko-KR'),
+              weekEnd: weekEndDate.toLocaleDateString('ko-KR'),
+              hours: 0,
+              pay: 0,
+              eligible: false,
+              reason: '주 15시간 미만 또는 출근 미충족'
+            });
           }
         });
       }
@@ -799,7 +961,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       // 주휴수당 추가
       weeklyHolidayPay: weeklyHolidayPay || 0,
       weeklyHolidayHours: weeklyHolidayHours || 0,
-      includesWeeklyHolidayInWage: employee.includesWeeklyHolidayInWage || false
+      includesWeeklyHolidayInWage: employee.includesWeeklyHolidayInWage || false,
+      weeklyHolidayDetails: weeklyHolidayDetails
     });
 
     setPayrollCalculations(calculations);
@@ -1306,10 +1469,28 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
               <p><strong>총 근무시간:</strong> {calc.totalWorkHours.toFixed(1)}시간</p>
               <p><strong>총 휴게시간:</strong> {calc.totalBreakTime.toFixed(1)}시간</p>
               <p><strong>실 근무시간:</strong> {calc.actualWorkHours.toFixed(1)}시간</p>
-              {calc.weeklyHolidayPay && calc.weeklyHolidayPay > 0 && (
-                <>
-                  <p className="text-blue-600"><strong>주휴수당:</strong> {calc.weeklyHolidayPay.toLocaleString()}원 ({calc.weeklyHolidayHours?.toFixed(1)}시간)</p>
-                </>
+              {calc.weeklyHolidayDetails && calc.weeklyHolidayDetails.length > 0 && (
+                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-blue-800 font-semibold mb-2">📅 주차별 주휴수당 계산 내역:</p>
+                  <div className="space-y-1 text-xs">
+                    {calc.weeklyHolidayDetails.map((detail, idx) => (
+                      <div key={idx} className={`flex justify-between ${detail.eligible ? 'text-blue-700' : 'text-gray-500'}`}>
+                        <span>{detail.weekStart} ~ {detail.weekEnd}:</span>
+                        <span>
+                          {detail.eligible ? (
+                            <>{detail.hours.toFixed(1)}시간 × {calc.hourlyWage?.toLocaleString()}원 = {detail.pay.toLocaleString()}원</>
+                          ) : (
+                            <span className="text-red-600">{detail.reason}</span>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="pt-2 mt-2 border-t border-blue-300 flex justify-between font-semibold text-blue-800">
+                      <span>주휴수당 합계:</span>
+                      <span>{calc.weeklyHolidayPay?.toLocaleString()}원 ({calc.weeklyHolidayHours?.toFixed(1)}시간)</span>
+                    </div>
+                  </div>
+                </div>
               )}
               <p><strong>기본급:</strong> {calc.grossPay.toLocaleString()}원</p>
               <p><strong>공제:</strong></p>

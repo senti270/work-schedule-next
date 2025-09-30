@@ -25,6 +25,7 @@ interface ActualWorkRecord {
   endTime: string;
   totalHours: number;
   employeeName?: string; // 파싱 후 매칭을 위해 추가
+  isNewFormat?: boolean; // 새로운 형식인지 여부 (휴게시간 이미 차감됨)
 }
 
 interface WorkTimeComparison {
@@ -683,45 +684,82 @@ export default function WorkTimeComparison({
         // console.log(`라인 ${index + 1}:`, columns);
         
         if (columns.length >= 8) {
-          // POS 데이터 형식: 첫 번째 날짜는 무시, 두 번째가 시작일시, 세 번째가 종료일시
-          const startTime = columns[1].trim(); // "2025-09-15 10:05:07"
-          const endTime = columns[2].trim(); // "2025-09-15 21:59:15"
+          // 🔥 두 가지 POS 데이터 형식 지원:
+          // 1. 기존: 첫 번째 날짜는 무시, 두 번째가 시작일시, 세 번째가 종료일시
+          // 2. 새로운: 근무일, 무시, 무시, 출근시간, 퇴근시간, 무시, 무시, 실근무시간
           
-          // 시작일시에서 날짜 추출 (YYYY-MM-DD 형식)
-          const date = startTime.split(' ')[0]; // "2025-09-15"
-          
-          // 여러 컬럼에서 시간 정보 찾기
+          let date = '';
+          let startTime = '';
+          let endTime = '';
           let totalTimeStr = '';
           let totalHours = 0;
           
-          // 7번째 컬럼부터 12번째 컬럼까지 시간 형식 찾기
-          for (let i = 6; i < Math.min(columns.length, 12); i++) {
-            const colValue = columns[i].trim();
-            if (colValue.includes(':') && colValue.match(/^\d+:\d+$/)) {
-              totalTimeStr = colValue;
-              // console.log(`시간 발견: 컬럼 ${i} = "${colValue}"`);
-              break;
+          // 🔥 새로운 형식 감지: 첫 번째 컬럼이 날짜 형식 (YYYY-MM-DD)인지 확인
+          const firstCol = columns[0].trim();
+          const isNewFormat = /^\d{4}-\d{2}-\d{2}$/.test(firstCol);
+          
+          if (isNewFormat) {
+            // 🔥 새로운 형식: 근무일, 무시, 무시, 출근시간, 퇴근시간, 무시, 무시, 실근무시간
+            date = firstCol; // "2025-09-01"
+            const startTimeRaw = columns[3]?.trim() || ''; // 출근시간 "11:00"
+            const endTimeRaw = columns[4]?.trim() || ''; // 퇴근시간 "15:00"
+            const actualWorkTimeRaw = columns[7]?.trim() || ''; // 실근무시간 "4"
+            
+            // 🔥 출근/퇴근 시간이 없으면 이 라인은 건너뛰기
+            if (!startTimeRaw || !endTimeRaw) {
+              return; // 이 라인 무시
+            }
+            
+            // 날짜에 시간 추가하여 전체 일시 형식으로 변환
+            startTime = `${date} ${startTimeRaw}:00`;
+            endTime = `${date} ${endTimeRaw}:00`;
+            
+            // 🔥 실근무시간을 그대로 사용 (휴게시간 차감 X)
+            if (actualWorkTimeRaw) {
+              const numericValue = parseFloat(actualWorkTimeRaw);
+              if (!isNaN(numericValue)) {
+                totalHours = numericValue;
+              }
+            }
+          } else {
+            // 🔥 기존 형식: 첫 번째 날짜는 무시, 두 번째가 시작일시, 세 번째가 종료일시
+            startTime = columns[1].trim(); // "2025-09-15 10:05:07"
+            endTime = columns[2].trim(); // "2025-09-15 21:59:15"
+            
+            // 시작일시에서 날짜 추출 (YYYY-MM-DD 형식)
+            date = startTime.split(' ')[0]; // "2025-09-15"
+            
+            // 7번째 컬럼부터 12번째 컬럼까지 시간 형식 찾기
+            for (let i = 6; i < Math.min(columns.length, 12); i++) {
+              const colValue = columns[i].trim();
+              if (colValue.includes(':') && colValue.match(/^\d+:\d+$/)) {
+                totalTimeStr = colValue;
+                break;
+              }
             }
           }
           
-          // 시간을 찾지 못한 경우 시작/종료 시간으로 계산
-          if (!totalTimeStr) {
-            try {
-              const start = new Date(startTime);
-              const end = new Date(endTime);
-              const diffMs = end.getTime() - start.getTime();
-              totalHours = diffMs / (1000 * 60 * 60); // 시간 단위로 변환
-              // console.log(`시간 계산: ${startTime} ~ ${endTime} = ${totalHours}시간`);
-            } catch (error) {
-              console.error('시간 계산 오류:', error);
+          // 🔥 새로운 형식이 아닐 때만 기존 시간 파싱 로직 실행
+          if (!isNewFormat) {
+            // 시간을 찾지 못한 경우 시작/종료 시간으로 계산
+            if (!totalTimeStr) {
+              try {
+                const start = new Date(startTime);
+                const end = new Date(endTime);
+                const diffMs = end.getTime() - start.getTime();
+                totalHours = diffMs / (1000 * 60 * 60); // 시간 단위로 변환
+                // console.log(`시간 계산: ${startTime} ~ ${endTime} = ${totalHours}시간`);
+              } catch (error) {
+                console.error('시간 계산 오류:', error);
+              }
             }
           }
 
           // console.log(`전체 컬럼 정보:`, columns.map((col, idx) => `${idx}: "${col}"`));
           // console.log(`파싱된 데이터: 날짜=${date}, 시작=${startTime}, 종료=${endTime}, 총시간=${totalTimeStr}`);
 
-          // 시간 문자열을 소수점 시간으로 변환 (예: "3:11" -> 3.18)
-          if (totalTimeStr) {
+          // 🔥 기존 형식일 때만 시간 문자열을 파싱
+          if (!isNewFormat && totalTimeStr) {
             try {
               // console.log(`시간 문자열 파싱: "${totalTimeStr}"`);
               
@@ -763,7 +801,8 @@ export default function WorkTimeComparison({
             date,
             startTime,
             endTime,
-            totalHours
+            totalHours,
+            isNewFormat: isNewFormat // 새로운 형식 여부 저장
           });
         } else {
           // console.log(`라인 ${index + 1} 컬럼 수 부족:`, columns.length);
@@ -873,7 +912,10 @@ export default function WorkTimeComparison({
       if (actualRecord) {
         // 휴게시간과 실근무시간 계산
         const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
-        const actualWorkHours = Math.max(0, actualRecord.totalHours - breakTime); // 실제 순 근무시간 (실제근무시간 - 휴게시간)
+        // 🔥 새로운 형식(엑셀)은 이미 휴게시간이 차감된 실근무시간이므로 다시 빼지 않음
+        const actualWorkHours = actualRecord.isNewFormat 
+          ? actualRecord.totalHours // 새로운 형식: 그대로 사용
+          : Math.max(0, actualRecord.totalHours - breakTime); // 기존 형식: 휴게시간 차감
         
         // 차이 계산: 실제순근무시간 - 스케줄시간 (많이 하면 +, 적게 하면 -)
         const difference = actualWorkHours - schedule.totalHours;
@@ -1868,6 +1910,51 @@ export default function WorkTimeComparison({
                     </button>
                   </div>
                 </div>
+                
+                <div className="mt-6">
+                  <p><strong>지점별로 관리하는 출퇴근시간관리엑셀에서 복사하기:</strong></p>
+                  <div className="mt-3 p-2 bg-white border border-blue-300 rounded text-xs">
+                    <p className="font-medium text-gray-700">복사 예시:</p>
+                    <p className="text-gray-600 font-mono">2025-09-01	월	1	11:00	15:00		4</p>
+                    <div className="mt-2">
+                      <button
+                        onClick={() => {
+                          const modal = document.createElement('div');
+                          modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                          modal.innerHTML = 
+                            '<div class="bg-white p-4 rounded-lg max-w-6xl max-h-[90vh] overflow-auto">' +
+                              '<div class="flex justify-between items-center mb-4">' +
+                                '<h3 class="text-lg font-semibold">출퇴근시간관리엑셀 화면 예시</h3>' +
+                                '<button onclick="this.closest(\'.fixed\').remove()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>' +
+                              '</div>' +
+                              '<div class="text-sm text-gray-600 mb-4">' +
+                                '<p><strong>복사할 영역:</strong> 엑셀에서 해당 직원의 전체 데이터 행을 선택하여 복사하세요.</p>' +
+                                '<p><strong>주의:</strong> 표 헤더는 제외하고 데이터 행만 복사해야 합니다.</p>' +
+                              '</div>' +
+                              '<div class="bg-gray-100 p-4 rounded border">' +
+                                '<p class="text-xs text-gray-500 mb-2">출퇴근시간관리엑셀 화면</p>' +
+                                '<div class="bg-white border rounded p-3">' +
+                                  '<img src="/images/excel-attendance-example.png" alt="출퇴근시간관리엑셀 화면 예시" class="w-full h-auto border rounded" onerror="console.log(\'이미지 로드 실패:\', this); this.style.display=\'none\';" />' +
+                                '</div>' +
+                                '<div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">' +
+                                  '<p class="font-medium text-yellow-800 mb-2">💡 복사 방법:</p>' +
+                                  '<ul class="text-yellow-700 space-y-1">' +
+                                    '<li>• 엑셀에서 해당 직원의 데이터 행들을 선택한 후 Ctrl+C로 복사하세요.</li>' +
+                                    '<li>• 형식: 날짜, 요일, 주차, 출근, 퇴근, 휴게-점심, 휴게-저녁, 근무시간</li>' +
+                                    '<li>• 출근/퇴근 시간이 없는 행은 자동으로 무시됩니다.</li>' +
+                                  '</ul>' +
+                                '</div>' +
+                              '</div>' +
+                            '</div>';
+                          document.body.appendChild(modal);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 text-xs underline"
+                      >
+                        📷 출퇴근시간관리엑셀 화면 예시 보기
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1876,7 +1963,7 @@ export default function WorkTimeComparison({
         <textarea
           value={actualWorkData}
           onChange={(e) => setActualWorkData(e.target.value)}
-          placeholder="POS ASP 시스템에서 복사한 실제근무 데이터를 붙여넣으세요..."
+          placeholder="POS ASP 시스템 또는 지점별로 관리하는 출퇴근시간관리엑셀에서 복사한 실제근무 데이터를 붙여넣으세요..."
           className="w-full h-40 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>

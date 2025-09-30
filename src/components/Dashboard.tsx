@@ -1402,6 +1402,16 @@ export default function Dashboard({ user }: DashboardProps) {
                     >
                       직원별급여처리
                     </button>
+                    <button
+                      onClick={() => handleSubTabChange('short-term-worker')}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                        activeSubTab === 'short-term-worker'
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      단기알바
+                    </button>
                     {!isManager && (
                       <>
                         <button
@@ -1441,6 +1451,17 @@ export default function Dashboard({ user }: DashboardProps) {
                   onMonthChange={setSelectedMonth}
                   onEmployeeChange={handleEmployeeChange}
                 />
+              )}
+
+              {activeSubTab === 'short-term-worker' && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">단기알바 관리</h3>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                    <p className="text-sm text-yellow-800">
+                      <strong>개발 예정:</strong> 단기알바 관리 기능이 곧 추가됩니다.
+                    </p>
+                  </div>
+                </div>
               )}
               
               {activeSubTab === 'tax-file' && (

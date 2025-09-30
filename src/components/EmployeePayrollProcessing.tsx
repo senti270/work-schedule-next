@@ -57,8 +57,10 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('전체');
   const [payrollStatuses, setPayrollStatuses] = useState<PayrollStatus[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'work-comparison' | 'payroll-calculation' | 'short-term-worker'>('work-comparison');
+  const [activeTab, setActiveTab] = useState<'work-comparison' | 'payroll-calculation'>('work-comparison');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(25); // 좌측 패널 너비 (%)
+  const [isResizing, setIsResizing] = useState(false);
   const [contracts, setContracts] = useState<{
     id: string;
     employeeId: string;
@@ -356,9 +358,9 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="flex gap-2">
         {/* 좌측: 직원 목록 */}
-        <div className="lg:col-span-1">
+        <div style={{ width: `${leftPanelWidth}%` }}>
           <div className="bg-white rounded-lg shadow">
             <div className="p-4 border-b border-gray-200">
               <h3 className="text-sm font-medium text-gray-900">직원 목록</h3>
@@ -494,8 +496,39 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
           </div>
         </div>
 
+        {/* 리사이저 */}
+        <div
+          className="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setIsResizing(true);
+            
+            const handleMouseMove = (e: MouseEvent) => {
+              const container = (e.target as HTMLElement)?.closest('.flex');
+              if (!container) return;
+              
+              const containerRect = container.getBoundingClientRect();
+              const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+              
+              // 최소 15%, 최대 40%로 제한
+              if (newWidth >= 15 && newWidth <= 40) {
+                setLeftPanelWidth(newWidth);
+              }
+            };
+            
+            const handleMouseUp = () => {
+              setIsResizing(false);
+              document.removeEventListener('mousemove', handleMouseMove);
+              document.removeEventListener('mouseup', handleMouseUp);
+            };
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+          }}
+        />
+
         {/* 우측: 탭 콘텐츠 */}
-        <div className="lg:col-span-3">
+        <div style={{ width: `${100 - leftPanelWidth}%` }}>
           {selectedEmployee ? (
             <>
               {/* 선택된 직원 표시 - 흰색 상자 바깥 */}
@@ -558,16 +591,6 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                   >
                     급여계산작업
                   </button>
-                  <button
-                    onClick={() => setActiveTab('short-term-worker')}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                      activeTab === 'short-term-worker'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    단기알바
-                  </button>
                 </nav>
               </div>
 
@@ -600,17 +623,6 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                       }}
                     />
                   </>
-                )}
-
-                {activeTab === 'short-term-worker' && (
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">단기알바 관리</h3>
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                      <p className="text-sm text-yellow-800">
-                        <strong>개발 예정:</strong> 단기알바 관리 기능이 곧 추가됩니다.
-                      </p>
-                    </div>
-                  </div>
                 )}
               </div>
               </div>

@@ -1849,7 +1849,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       <div className="font-medium">
                         {employee.branchNames && employee.branchNames.length > 0 ? (
                           <div className="space-y-1">
-                            {employee.branchNames.map((branchName, index) => (
+                            {[...new Set(employee.branchNames)].map((branchName, index) => (
                               <div key={index}>{branchName}</div>
                             ))}
                           </div>
