@@ -137,9 +137,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
               // 최신 계약서 찾기 (createdAt 기준으로 정렬)
               const contracts = contractsSnapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() }))
-                .sort((a: { createdAt?: any }, b: { createdAt?: any }) => {
-                  const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                  const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                .sort((a: { createdAt?: Date | { toDate: () => Date } | string }, b: { createdAt?: Date | { toDate: () => Date } | string }) => {
+                  const dateA = a.createdAt ? new Date(a.createdAt.toString()).getTime() : 0;
+                  const dateB = b.createdAt ? new Date(b.createdAt.toString()).getTime() : 0;
                   return dateB - dateA;
                 });
               const contract = contracts[0];
