@@ -101,9 +101,9 @@ export default function WorkTimeComparison({
   const [showDataCopyMethod, setShowDataCopyMethod] = useState(false); // 데이터 복사 방법 펼침 여부
   const [employeeBranches, setEmployeeBranches] = useState<string[]>([]); // 선택된 직원의 지점 목록
 
+  // 🔥 최적화: 컴포넌트 마운트 시 초기 설정
   useEffect(() => {
     loadBranches();
-    loadEmployees();
     // 현재 월을 기본값으로 설정 (props가 없을 때만)
     if (!propSelectedMonth) {
       const now = new Date();
@@ -114,7 +114,14 @@ export default function WorkTimeComparison({
     if (isManager && userBranch && !propSelectedBranchId) {
       setSelectedBranchId(userBranch.id);
     }
-  }, [isManager, userBranch, propSelectedMonth, propSelectedBranchId]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // 🔥 최적화: 지점/월 변경 시에만 직원 로드
+  useEffect(() => {
+    if (selectedBranchId && selectedMonth) {
+      loadEmployees();
+    }
+  }, [selectedBranchId, selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadEmployees = useCallback(async () => {
     console.log('loadEmployees 호출됨:', { selectedBranchId, selectedMonth });

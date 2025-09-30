@@ -293,16 +293,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   }, []);
 
-  // 직원 로드 useEffect (한 번만 실행)
-  useEffect(() => {
-    console.log('PayrollCalculation - useEffect 호출됨, loadEmployees 실행');
-    loadEmployees();
-  }, []); // 의존성 배열을 빈 배열로 변경
-  
-  // loadEmployees 함수가 변경될 때마다 호출되는지 확인
-  useEffect(() => {
-    console.log('PayrollCalculation - loadEmployees 함수 변경됨');
-  }, [loadEmployees]);
+  // 🔥 최적화: 직원 로드는 컴포넌트 마운트 시 한 번만
 
   // 주간 스케줄 로드
   const loadWeeklySchedules = useCallback(async () => {
@@ -1215,10 +1206,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   };
 
+  // 🔥 최적화: 초기 로드 (한 번만 실행)
   useEffect(() => {
     loadBranches();
     loadEmployees();
-  }, [loadBranches, loadEmployees]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 메모 로드
   useEffect(() => {
@@ -1234,17 +1226,19 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   }, [selectedEmployeeId, employeeMemos]);
 
-  // selectedEmployeeId가 변경될 때 급여계산 다시 실행
+  // 🔥 최적화: selectedEmployeeId 변경 시만 급여계산
   useEffect(() => {
     if (selectedEmployeeId && employees.length > 0 && weeklySchedules.length > 0) {
       calculatePayroll();
     }
-  }, [selectedEmployeeId, calculatePayroll]);
+  }, [selectedEmployeeId, employees.length, weeklySchedules.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 급여확정 상태 확인
+  // 🔥 최적화: 급여확정 상태는 필요한 값이 변경될 때만 확인
   useEffect(() => {
-    checkPayrollConfirmed();
-  }, [checkPayrollConfirmed]);
+    if (selectedEmployeeId && selectedMonth) {
+      checkPayrollConfirmed();
+    }
+  }, [selectedEmployeeId, selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // prop으로 받은 월이 변경될 때 로컬 상태 업데이트
   useEffect(() => {
@@ -1268,18 +1262,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   }, [isManager, userBranch, branches]);
 
+  // 🔥 최적화: 필요한 값이 변경될 때만 스케줄 로드
   useEffect(() => {
-    loadWeeklySchedules();
-  }, [loadWeeklySchedules]);
-
-  useEffect(() => {
-    if (selectedEmployeeId) {
-      const runCalculatePayroll = async () => {
-        await calculatePayroll();
-      };
-      runCalculatePayroll();
+    if (selectedMonth && selectedBranchId && selectedEmployeeId) {
+      loadWeeklySchedules();
     }
-  }, [calculatePayroll, selectedEmployeeId]);
+  }, [selectedMonth, selectedBranchId, selectedEmployeeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 🔥 최적화: 위의 useEffect와 중복 제거됨
 
 
   return (

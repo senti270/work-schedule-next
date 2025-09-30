@@ -289,17 +289,17 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     setSelectedMonth(currentMonth);
   }, []);
 
-  // 지점 목록 로드
+  // 🔥 최적화: 지점 목록은 컴포넌트 마운트 시 한 번만
   useEffect(() => {
     loadBranches();
-  }, [loadBranches]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 직원 목록 로드
+  // 🔥 최적화: 직원 목록은 월이 변경될 때만 로드
   useEffect(() => {
     if (selectedMonth) {
       loadEmployees();
     }
-  }, [selectedMonth, loadEmployees, loadContracts]);
+  }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 필터링된 직원 목록
   const filteredEmployees = employees.filter(employee => {
