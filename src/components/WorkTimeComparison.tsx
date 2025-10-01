@@ -693,12 +693,21 @@ export default function WorkTimeComparison({
     const lines = data.trim().split('\n');
     const records: ActualWorkRecord[] = [];
 
-    // console.log('실제근무 데이터 파싱 시작, 총 라인 수:', lines.length);
+    console.log('🔥🔥🔥 실제근무 데이터 파싱 시작, 총 라인 수:', lines.length);
 
-    lines.forEach((line) => {
+    lines.forEach((line, index) => {
       if (line.trim()) {
-        const columns = line.split('\t');
-        // console.log(`라인 ${index + 1}:`, columns);
+        // 🔥 탭 또는 여러 개의 공백으로 분리
+        let columns = line.split('\t');
+        
+        // 탭으로 분리되지 않으면 (columns.length === 1) 공백으로 시도
+        if (columns.length === 1) {
+          // 3개 이상의 연속된 공백을 구분자로 사용
+          columns = line.split(/\s{3,}/).filter(col => col.trim());
+        }
+        
+        console.log(`🔥 라인 ${index + 1}:`, columns);
+        console.log(`🔥 컬럼 개수: ${columns.length}`);
         
         if (columns.length >= 8) {
           // 🔥 두 가지 POS 데이터 형식 지원:
@@ -718,6 +727,7 @@ export default function WorkTimeComparison({
           const secondCol = columns[1]?.trim() || '';
           const isNewFormat = /^\d{4}-\d{2}-\d{2}$/.test(firstCol) && 
                               !secondCol.includes(':'); // 두 번째 컬럼에 시간 포함 안 되면 새 형식
+          console.log(`🔥 형식 감지: firstCol="${firstCol}", secondCol="${secondCol}", isNewFormat=${isNewFormat}`);
           
           if (isNewFormat) {
             // 🔥 새로운 형식: 근무일, 무시, 무시, 출근시간, 퇴근시간, 무시, 무시, 실근무시간
@@ -744,29 +754,45 @@ export default function WorkTimeComparison({
             }
           } else {
             // 🔥 기존 POS 형식: 무시, 근무시작일시, 근무종료일시, ..., 실제근무시간(7번째)
-            startTime = columns[1]?.trim() || ''; // "2025-09-15 10:05:07"
-            endTime = columns[2]?.trim() || ''; // "2025-09-15 21:59:15"
+            startTime = columns[1]?.trim() || ''; // "2025-09-30 15:17:27"
+            endTime = columns[2]?.trim() || ''; // "2025-09-30 22:59:24"
             
             // 시작일시에서 날짜 추출 (YYYY-MM-DD 형식)
             if (startTime) {
-              date = startTime.split(' ')[0]; // "2025-09-15"
+              date = startTime.split(' ')[0]; // "2025-09-30"
             }
             
-            // 🔥 7번째 컬럼(인덱스 6)에서 실제근무시간 가져오기 "7:42" 형식
+            // 🔥 7번째 컬럼(인덱스 6)에서 실제근무시간 가져오기 "7:42" 형식 (최우선)
             if (columns.length > 6) {
               const col7 = columns[6]?.trim() || '';
-              // HH:MM 형식 체크
-              if (col7.includes(':') && col7.match(/^\d+:\d+$/)) {
+              console.log(`🔥 7번째 컬럼(인덱스 6): "${col7}"`);
+              // HH:MM 형식 체크 (0:00이 아닌 경우만)
+              if (col7.includes(':') && col7.match(/^\d+:\d+$/) && col7 !== '0:00') {
                 totalTimeStr = col7;
+                console.log(`🔥 7번째 컬럼에서 시간 찾음: ${totalTimeStr}`);
               }
             }
             
-            // 7번째 컬럼에서 못 찾으면 8-12번째 컬럼에서 시간 형식 찾기
+            // 7번째 컬럼에서 못 찾으면 다른 컬럼에서 시간 형식 찾기
+            if (!totalTimeStr) {
+              // 먼저 4-5번째 컬럼 체크 (일부 POS는 여기에 시간이 있을 수 있음)
+              for (let i = 4; i <= 5; i++) {
+                const colValue = columns[i]?.trim() || '';
+                if (colValue.includes(':') && colValue.match(/^\d+:\d+$/) && colValue !== '0:00') {
+                  totalTimeStr = colValue;
+                  console.log(`🔥 ${i+1}번째 컬럼에서 시간 찾음: ${totalTimeStr}`);
+                  break;
+                }
+              }
+            }
+            
+            // 그래도 못 찾으면 8-12번째 컬럼에서 찾기
             if (!totalTimeStr) {
               for (let i = 7; i < Math.min(columns.length, 12); i++) {
                 const colValue = columns[i]?.trim() || '';
-                if (colValue.includes(':') && colValue.match(/^\d+:\d+$/)) {
+                if (colValue.includes(':') && colValue.match(/^\d+:\d+$/) && colValue !== '0:00') {
                   totalTimeStr = colValue;
+                  console.log(`🔥 ${i+1}번째 컬럼에서 시간 찾음: ${totalTimeStr}`);
                   break;
                 }
               }
@@ -795,21 +821,21 @@ export default function WorkTimeComparison({
           // 🔥 기존 형식일 때만 시간 문자열을 파싱
           if (!isNewFormat && totalTimeStr) {
             try {
-              // console.log(`시간 문자열 파싱: "${totalTimeStr}"`);
+              console.log(`🔥 시간 문자열 파싱: "${totalTimeStr}"`);
               
               // 여러 가지 시간 형식 시도
               if (totalTimeStr.includes(':')) {
                 const timeParts = totalTimeStr.split(':');
-                // console.log(`시간 파싱: ${totalTimeStr} -> parts:`, timeParts);
+                console.log(`🔥 시간 파싱: ${totalTimeStr} -> parts:`, timeParts);
                 
                 if (timeParts.length === 2) {
                   const hours = parseInt(timeParts[0], 10);
                   const minutes = parseInt(timeParts[1], 10);
-                  // console.log(`시간 변환: hours=${hours}, minutes=${minutes}`);
+                  console.log(`🔥 시간 변환: hours=${hours}, minutes=${minutes}`);
                   
                   if (!isNaN(hours) && !isNaN(minutes)) {
                     totalHours = hours + (minutes / 60);
-                    // console.log(`최종 계산: ${hours} + (${minutes}/60) = ${totalHours}`);
+                    console.log(`🔥 최종 계산: ${hours} + (${minutes}/60) = ${totalHours}`);
                   } else {
                     console.error('시간 파싱 실패: hours 또는 minutes가 NaN', { hours, minutes });
                   }
