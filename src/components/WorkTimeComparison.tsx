@@ -1696,7 +1696,9 @@ export default function WorkTimeComparison({
                               }`}
                               onClick={() => {
                                 setSelectedBranchId(branchId);
-                                console.log('지점 선택됨:', branchId, branch?.name);
+                                console.log('🔥 지점 선택됨:', branchId, branch?.name);
+                                // 🔥 지점 변경 시 해당 지점의 비교 데이터 다시 로드
+                                loadExistingComparisonData();
                               }}>
                                 <div className="flex items-center space-x-3 flex-1">
                                   <span className={`text-sm font-medium ${
@@ -1768,26 +1770,10 @@ export default function WorkTimeComparison({
                                       검토완료
                                     </button>
                                   ) : (
-                                    // 🔥 검토전 상태: 검토시작 버튼
-                                    <button
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        // 검토전 → 검토중으로 변경
-                                        setEmployeeReviewStatus(prev => {
-                                          return prev.map(s => 
-                                            s.employeeId === selectedEmployeeId && s.branchId === branchId
-                                              ? { ...s, status: '검토중' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' }
-                                              : s
-                                          );
-                                        });
-                                        
-                                        setComparisonResults([...comparisonResults]);
-                                        await saveReviewStatus(selectedEmployeeId, '검토중');
-                                      }}
-                                      className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
-                                    >
-                                      검토시작
-                                    </button>
+                                    // 🔥 검토전 상태: 버튼 없음 (근무시간 비교 버튼으로 검토중 전환)
+                                    <span className="text-sm text-gray-500 px-3 py-1">
+                                      검토전
+                                    </span>
                                   )}
                                 </div>
                               </div>
