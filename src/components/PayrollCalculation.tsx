@@ -1300,8 +1300,18 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     
     if (propSelectedEmployeeId) {
       setSelectedEmployeeId(propSelectedEmployeeId);
+      
+      // 🔥 직원 선택 시 해당 직원의 첫 번째 지점 자동 선택
+      const selectedEmployee = employees.find(emp => emp.id === propSelectedEmployeeId);
+      if (selectedEmployee) {
+        const employeeBranches = (selectedEmployee as any).branches || (selectedEmployee as any).branchIds || [];
+        if (employeeBranches.length > 0) {
+          setSelectedBranchId(employeeBranches[0]);
+          console.log('PayrollCalculation - 직원 선택 시 첫 번째 지점 자동 선택:', employeeBranches[0]);
+        }
+      }
     }
-  }, [propSelectedEmployeeId]);
+  }, [propSelectedEmployeeId, employees]);
 
   // 일반 사용자의 경우 자동으로 지점 선택
   useEffect(() => {

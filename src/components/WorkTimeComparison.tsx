@@ -2269,11 +2269,48 @@ export default function WorkTimeComparison({
                         })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {(result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && (
+                        {(result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && !allReviewCompleted && (
                           <div className="flex space-x-2">
                             {result.status === 'review_completed' ? (
-                              // 검토완료 상태: 확인완료 표시만
-                              <span className="text-green-600 text-xs font-medium">확인완료</span>
+                              // 🔥 검토완료 상태: 확인완료 취소 버튼
+                              <button
+                                onClick={async () => {
+                                  const updatedResults = [...comparisonResults];
+                                  updatedResults[index] = {
+                                    ...result,
+                                    status: 'review_required',
+                                    isModified: true
+                                  };
+                                  setComparisonResults(sortComparisonResults(updatedResults));
+                                  
+                                  // 🔥 전체 검토완료 여부 확인
+                                  const allCompleted = updatedResults.every(r => 
+                                    r.status === 'review_completed' || r.status === 'time_match'
+                                  );
+                                  const finalStatus: '검토전' | '검토중' | '검토완료' = allCompleted ? '검토완료' : '검토중';
+                                  
+                                  setEmployeeReviewStatus(prev => {
+                                    const existingIndex = prev.findIndex(status => 
+                                      status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+                                    );
+                                    
+                                    if (existingIndex >= 0) {
+                                      const updated = [...prev];
+                                      updated[existingIndex] = { ...updated[existingIndex], status: finalStatus };
+                                      return updated;
+                                    } else {
+                                      return [...prev, { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: finalStatus }];
+                                    }
+                                  });
+                                  
+                                  // DB에 저장
+                                  await saveModifiedData(updatedResults[index]);
+                                  await saveReviewStatus(selectedEmployeeId, finalStatus);
+                                }}
+                                className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700"
+                              >
+                                확인완료취소
+                              </button>
                             ) : (
                               // 미확인 상태: 확인 버튼
                               <button
