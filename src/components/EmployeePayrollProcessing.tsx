@@ -204,9 +204,10 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     }
   }, [selectedMonth, selectedBranchId]);
 
-  // selectedBranchId 자동 설정
+  // 🔥 최적화: selectedBranchId 자동 설정 (전지점 선택 시 유지)
   useEffect(() => {
-    if (selectedEmployee && selectedEmployee.branches && selectedEmployee.branches.length > 0 && !selectedBranchId) {
+    // 지점이 선택되지 않은 경우에만 자동 설정 (전지점 ''은 유효한 선택이므로 제외)
+    if (selectedEmployee && selectedEmployee.branches && selectedEmployee.branches.length > 0 && selectedBranchId === undefined) {
       setSelectedBranchId(selectedEmployee.branches[0]);
       console.log('EmployeePayrollProcessing - selectedBranchId 자동 설정:', selectedEmployee.branches[0]);
     }
