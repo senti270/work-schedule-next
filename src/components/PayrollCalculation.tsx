@@ -1465,7 +1465,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       {payrollCalculations.length > 0 && (
         <div className="mt-6 bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">상세 계산 내역</h3>
-          {payrollCalculations.map((calc) => (
+          {payrollCalculations.filter(calc => calc.employeeId === selectedEmployeeId).map((calc) => (
             <div key={calc.employeeId} className="mb-6 pb-6 border-b border-gray-200 last:border-b-0 last:mb-0 last:pb-0">
               {/* 기본 정보 테이블 */}
               <div className="overflow-x-auto mb-4">
@@ -1592,7 +1592,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           ))}
           
           {/* 수습기간별 상세 계산 내역 */}
-          {payrollCalculations.map((calc) => (
+          {payrollCalculations.filter(calc => calc.employeeId === selectedEmployeeId).map((calc) => (
             <div key={`probation-${calc.employeeId}`}>
               {(calc.probationHours || 0) > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
