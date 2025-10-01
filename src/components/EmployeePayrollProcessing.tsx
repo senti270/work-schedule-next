@@ -152,14 +152,22 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
           console.log(`${employee.name} 총 지점 수:`, employeeBranches.length);
           console.log(`${employee.name} 검토상태가 있는 지점 수:`, allReviewStatusSnapshot.docs.length);
           
-          // 모든 지점이 검토완료인지 확인 (검토상태가 없는 지점은 검토전으로 간주)
+          // 🔥 모든 지점이 검토완료인지 확인 (검토상태가 없는 지점은 검토전으로 간주)
           const allCompleted = employeeBranches.length > 0 && 
             employeeBranches.every(branchId => {
               const branchStatus = allReviewStatusSnapshot.docs.find(doc => doc.data().branchId === branchId);
-              return branchStatus && (branchStatus.data().status === '근무시간검토완료' || branchStatus.data().status === '급여확정완료');
+              // 🔥 '검토완료' 또는 '근무시간검토완료' 또는 '급여확정완료' 모두 인정
+              return branchStatus && (
+                branchStatus.data().status === '검토완료' || 
+                branchStatus.data().status === '근무시간검토완료' || 
+                branchStatus.data().status === '급여확정완료'
+              );
             });
           
-          const hasInProgress = allReviewStatusSnapshot.docs.some(doc => doc.data().status === '근무시간검토중');
+          // 🔥 검토중 상태 체크 ('검토중' 또는 '근무시간검토중')
+          const hasInProgress = allReviewStatusSnapshot.docs.some(doc => 
+            doc.data().status === '검토중' || doc.data().status === '근무시간검토중'
+          );
           const hasAnyReviewStatus = allReviewStatusSnapshot.docs.length > 0;
           
           console.log(`${employee.name} 모든 지점 검토완료:`, allCompleted);
