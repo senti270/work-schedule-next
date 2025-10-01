@@ -311,9 +311,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
 
   // 주간 스케줄 로드
   const loadWeeklySchedules = useCallback(async () => {
-    console.log('PayrollCalculation - loadWeeklySchedules 호출됨:', { selectedMonth, selectedBranchId, selectedEmployeeId });
     if (!selectedMonth || !selectedBranchId || !selectedEmployeeId) {
-      console.log('PayrollCalculation - loadWeeklySchedules 조건 불만족:', { selectedMonth, selectedBranchId, selectedEmployeeId });
       return;
     }
 
@@ -1297,17 +1295,16 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
 
   // prop으로 받은 직원 ID가 변경될 때 로컬 상태 업데이트
   useEffect(() => {
-    
     if (propSelectedEmployeeId) {
       setSelectedEmployeeId(propSelectedEmployeeId);
       
       // 🔥 직원 선택 시 해당 직원의 첫 번째 지점 자동 선택
       const selectedEmployee = employees.find(emp => emp.id === propSelectedEmployeeId);
       if (selectedEmployee) {
-        const employeeBranches = (selectedEmployee as any).branches || (selectedEmployee as any).branchIds || [];
+        const employeeData = selectedEmployee as Employee & { branches?: string[]; branchIds?: string[] };
+        const employeeBranches = employeeData.branches || employeeData.branchIds || [];
         if (employeeBranches.length > 0) {
           setSelectedBranchId(employeeBranches[0]);
-          console.log('PayrollCalculation - 직원 선택 시 첫 번째 지점 자동 선택:', employeeBranches[0]);
         }
       }
     }

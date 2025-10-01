@@ -1716,10 +1716,22 @@ export default function WorkTimeComparison({
                                 <div className="flex space-x-2">
                                   {status === '검토완료' ? (
                                     <button
-                                      onClick={async () => {
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
                                         if (confirm(`${branch?.name} 지점의 검토완료를 취소하시겠습니까?`)) {
+                                          // 🔥 상태를 '검토중'으로 변경
+                                          setEmployeeReviewStatus(prev => {
+                                            return prev.map(s => 
+                                              s.employeeId === selectedEmployeeId && s.branchId === branchId
+                                                ? { ...s, status: '검토중' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' }
+                                                : s
+                                            );
+                                          });
+                                          
+                                          // 🔥 비교 결과 테이블 강제 리렌더링을 위해 복사
+                                          setComparisonResults([...comparisonResults]);
+                                          
                                           await saveReviewStatus(selectedEmployeeId, '검토중');
-                                          await loadReviewStatus(employees);
                                         }
                                       }}
                                       className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700"
@@ -1728,10 +1740,27 @@ export default function WorkTimeComparison({
                                     </button>
                                   ) : status === '검토중' ? (
                                     <button
-                                      onClick={async () => {
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
                                         if (confirm(`${branch?.name} 지점의 검토를 완료하시겠습니까?`)) {
+                                          // 🔥 상태를 '검토완료'로 변경
+                                          setEmployeeReviewStatus(prev => {
+                                            return prev.map(s => 
+                                              s.employeeId === selectedEmployeeId && s.branchId === branchId
+                                                ? { ...s, status: '검토완료' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' }
+                                                : s
+                                            );
+                                          });
+                                          
+                                          // 🔥 비교 결과 테이블 강제 리렌더링을 위해 복사
+                                          setComparisonResults([...comparisonResults]);
+                                          
                                           await saveReviewStatus(selectedEmployeeId, '검토완료');
-                                          await loadReviewStatus(employees);
+                                          // 🔥 loadReviewStatus 제거: 이미 상태를 업데이트했으므로 불필요
+                                          // await loadReviewStatus(employees);
+                                          
+                                          // 🔥 비교 결과 테이블 강제 리렌더링
+                                          setComparisonResults([...comparisonResults]);
                                         }
                                       }}
                                       className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
@@ -2124,11 +2153,16 @@ export default function WorkTimeComparison({
                     ? 'bg-white' 
                     : 'bg-yellow-50';
                   
-                  // 전체 검토완료 여부 확인
+                  // 🔥 전체 검토완료 여부 확인 (지점별 검토상태도 체크)
+                  const currentBranchStatus = employeeReviewStatus.find(status => 
+                    status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+                  );
+                  const isBranchReviewCompleted = currentBranchStatus?.status === '검토완료';
+                  
                   const completedCount = comparisonResults.filter(r => 
                     r.status === 'review_completed' || r.status === 'time_match'
                   ).length;
-                  const allReviewCompleted = completedCount === comparisonResults.length && comparisonResults.length > 0;
+                  const allReviewCompleted = isBranchReviewCompleted || (completedCount === comparisonResults.length && comparisonResults.length > 0);
                   
                   return (
                     <tr key={index} className={`hover:bg-gray-50 ${rowBgColor} border-t border-gray-200`}>

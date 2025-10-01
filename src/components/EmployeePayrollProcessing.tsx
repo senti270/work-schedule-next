@@ -59,8 +59,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'work-comparison' | 'payroll-calculation'>('work-comparison');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [leftPanelWidth, setLeftPanelWidth] = useState(25); // 좌측 패널 너비 (%)
-  const [isResizing, setIsResizing] = useState(false);
+  const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(true); // 좌측 패널 표시 여부
   const [contracts, setContracts] = useState<{
     id: string;
     employeeId: string;
@@ -382,9 +381,31 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 relative">
+        {/* 접기/펼치기 버튼 */}
+        <button
+          onClick={() => setIsLeftPanelVisible(!isLeftPanelVisible)}
+          className="absolute left-0 top-0 z-10 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-r-lg shadow-lg transition-all"
+          style={{ 
+            left: isLeftPanelVisible ? '318px' : '0', // w-80 = 320px - 2px
+            transition: 'left 0.3s ease'
+          }}
+          title={isLeftPanelVisible ? '직원 목록 숨기기' : '직원 목록 보기'}
+        >
+          {isLeftPanelVisible ? (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          )}
+        </button>
+        
         {/* 좌측: 직원 목록 */}
-        <div style={{ width: `${leftPanelWidth}%` }}>
+        {isLeftPanelVisible && (
+        <div className="w-80 flex-shrink-0 transition-all duration-300">
           <div className="bg-white rounded-lg shadow">
             <div className="p-4 border-b border-gray-200">
               <h3 className="text-sm font-medium text-gray-900">직원 목록</h3>
@@ -519,40 +540,10 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
             </div>
           </div>
         </div>
-
-        {/* 리사이저 */}
-        <div
-          className="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            setIsResizing(true);
-            
-            const handleMouseMove = (e: MouseEvent) => {
-              const container = (e.target as HTMLElement)?.closest('.flex');
-              if (!container) return;
-              
-              const containerRect = container.getBoundingClientRect();
-              const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-              
-              // 최소 15%, 최대 40%로 제한
-              if (newWidth >= 15 && newWidth <= 40) {
-                setLeftPanelWidth(newWidth);
-              }
-            };
-            
-            const handleMouseUp = () => {
-              setIsResizing(false);
-              document.removeEventListener('mousemove', handleMouseMove);
-              document.removeEventListener('mouseup', handleMouseUp);
-            };
-            
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-          }}
-        />
+        )}
 
         {/* 우측: 탭 콘텐츠 */}
-        <div style={{ width: `${100 - leftPanelWidth}%` }}>
+        <div className={isLeftPanelVisible ? 'flex-1' : 'w-full'}>
           {selectedEmployee ? (
             <>
               {/* 선택된 직원 표시 - 흰색 상자 바깥 */}
