@@ -283,10 +283,22 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     }
   }, [isManager, userBranch]);
 
-  // 월 초기화
+  // 월 초기화 (매월 5일까지는 전달 급여)
   useEffect(() => {
     const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentDay = now.getDate();
+    
+    // 매월 5일까지는 전달 급여
+    let targetMonth: Date;
+    if (currentDay <= 5) {
+      // 전달로 설정
+      targetMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    } else {
+      // 이번 달
+      targetMonth = now;
+    }
+    
+    const currentMonth = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, '0')}`;
     setSelectedMonth(currentMonth);
   }, []);
 
