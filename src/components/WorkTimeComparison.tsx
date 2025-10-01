@@ -711,9 +711,13 @@ export default function WorkTimeComparison({
           let totalTimeStr = '';
           let totalHours = 0;
           
-          // 🔥 새로운 형식 감지: 첫 번째 컬럼이 날짜 형식 (YYYY-MM-DD)인지 확인
+          // 🔥 새로운 형식 감지: 
+          // - 첫 번째 컬럼이 날짜 형식 (YYYY-MM-DD)이고
+          // - 두 번째 컬럼이 날짜+시간이 아닌 경우 (새로운 형식)
           const firstCol = columns[0].trim();
-          const isNewFormat = /^\d{4}-\d{2}-\d{2}$/.test(firstCol);
+          const secondCol = columns[1]?.trim() || '';
+          const isNewFormat = /^\d{4}-\d{2}-\d{2}$/.test(firstCol) && 
+                              !secondCol.includes(':'); // 두 번째 컬럼에 시간 포함 안 되면 새 형식
           
           if (isNewFormat) {
             // 🔥 새로운 형식: 근무일, 무시, 무시, 출근시간, 퇴근시간, 무시, 무시, 실근무시간
@@ -739,19 +743,32 @@ export default function WorkTimeComparison({
               }
             }
           } else {
-            // 🔥 기존 형식: 첫 번째 날짜는 무시, 두 번째가 시작일시, 세 번째가 종료일시
-            startTime = columns[1].trim(); // "2025-09-15 10:05:07"
-            endTime = columns[2].trim(); // "2025-09-15 21:59:15"
+            // 🔥 기존 POS 형식: 무시, 근무시작일시, 근무종료일시, ..., 실제근무시간(7번째)
+            startTime = columns[1]?.trim() || ''; // "2025-09-15 10:05:07"
+            endTime = columns[2]?.trim() || ''; // "2025-09-15 21:59:15"
             
             // 시작일시에서 날짜 추출 (YYYY-MM-DD 형식)
-            date = startTime.split(' ')[0]; // "2025-09-15"
+            if (startTime) {
+              date = startTime.split(' ')[0]; // "2025-09-15"
+            }
             
-            // 7번째 컬럼부터 12번째 컬럼까지 시간 형식 찾기
-            for (let i = 6; i < Math.min(columns.length, 12); i++) {
-              const colValue = columns[i].trim();
-              if (colValue.includes(':') && colValue.match(/^\d+:\d+$/)) {
-                totalTimeStr = colValue;
-                break;
+            // 🔥 7번째 컬럼(인덱스 6)에서 실제근무시간 가져오기 "7:42" 형식
+            if (columns.length > 6) {
+              const col7 = columns[6]?.trim() || '';
+              // HH:MM 형식 체크
+              if (col7.includes(':') && col7.match(/^\d+:\d+$/)) {
+                totalTimeStr = col7;
+              }
+            }
+            
+            // 7번째 컬럼에서 못 찾으면 8-12번째 컬럼에서 시간 형식 찾기
+            if (!totalTimeStr) {
+              for (let i = 7; i < Math.min(columns.length, 12); i++) {
+                const colValue = columns[i]?.trim() || '';
+                if (colValue.includes(':') && colValue.match(/^\d+:\d+$/)) {
+                  totalTimeStr = colValue;
+                  break;
+                }
               }
             }
           }
