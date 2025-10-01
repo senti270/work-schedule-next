@@ -1370,7 +1370,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
           ) : payrollCalculations.length > 0 ? (
             <div className="p-6">
               {/* 직원 정보 (표 바깥) */}
-              {payrollCalculations.map((calc) => (
+              {payrollCalculations.filter(calc => calc.employeeId === selectedEmployeeId).map((calc) => (
                 <div key={calc.employeeId} className="mb-8">
                   <div className="bg-gray-50 p-4 rounded-lg mb-4">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
