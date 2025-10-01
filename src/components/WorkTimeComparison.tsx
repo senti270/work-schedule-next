@@ -1768,9 +1768,26 @@ export default function WorkTimeComparison({
                                       검토완료
                                     </button>
                                   ) : (
-                                    <span className="text-sm text-gray-500 px-3 py-1">
-                                      검토전
-                                    </span>
+                                    // 🔥 검토전 상태: 검토시작 버튼
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        // 검토전 → 검토중으로 변경
+                                        setEmployeeReviewStatus(prev => {
+                                          return prev.map(s => 
+                                            s.employeeId === selectedEmployeeId && s.branchId === branchId
+                                              ? { ...s, status: '검토중' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' }
+                                              : s
+                                          );
+                                        });
+                                        
+                                        setComparisonResults([...comparisonResults]);
+                                        await saveReviewStatus(selectedEmployeeId, '검토중');
+                                      }}
+                                      className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
+                                    >
+                                      검토시작
+                                    </button>
                                   )}
                                 </div>
                               </div>
