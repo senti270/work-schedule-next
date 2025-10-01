@@ -1666,6 +1666,8 @@ export default function WorkTimeComparison({
                 
                 // 해당 직원의 모든 지점 상태 조회
                 const employeeStatuses = employeeReviewStatus.filter(status => status.employeeId === selectedEmployeeId);
+                console.log(`🔥🔥🔥 ${employees.find(e => e.id === selectedEmployeeId)?.name} 전체 상태:`, employeeStatuses);
+                console.log(`🔥🔥🔥 직원 지점 목록:`, employeeBranches);
                 
                 return (
                   <div className="space-y-4">
@@ -1687,6 +1689,8 @@ export default function WorkTimeComparison({
                             const branch = branches.find(b => b.id === branchId);
                             const branchStatus = employeeStatuses.find(status => status.branchId === branchId);
                             const status = branchStatus?.status || '검토전';
+                            
+                            console.log(`🔥 지점 ${branch?.name} (${branchId}) 상태:`, status, 'branchStatus:', branchStatus);
                             
                             return (
                               <div key={branchId} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors w-full ${
@@ -1770,10 +1774,41 @@ export default function WorkTimeComparison({
                                       검토완료
                                     </button>
                                   ) : (
-                                    // 🔥 검토전 상태: 버튼 없음 (근무시간 비교 버튼으로 검토중 전환)
-                                    <span className="text-sm text-gray-500 px-3 py-1">
-                                      검토전
-                                    </span>
+                                    // 🔥 검토전 상태: 검토완료 버튼 표시 (비교 데이터가 있으면 바로 완료 가능)
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (confirm(`${branch?.name} 지점의 검토를 완료하시겠습니까?`)) {
+                                          // 🔥 상태를 '검토완료'로 변경
+                                          setEmployeeReviewStatus(prev => {
+                                            const existing = prev.find(s => 
+                                              s.employeeId === selectedEmployeeId && s.branchId === branchId
+                                            );
+                                            
+                                            if (existing) {
+                                              return prev.map(s => 
+                                                s.employeeId === selectedEmployeeId && s.branchId === branchId
+                                                  ? { ...s, status: '검토완료' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' }
+                                                  : s
+                                              );
+                                            } else {
+                                              // 상태가 없으면 새로 추가
+                                              return [...prev, { 
+                                                employeeId: selectedEmployeeId, 
+                                                branchId: branchId, 
+                                                status: '검토완료' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' 
+                                              }];
+                                            }
+                                          });
+                                          
+                                          setComparisonResults([...comparisonResults]);
+                                          await saveReviewStatus(selectedEmployeeId, '검토완료');
+                                        }
+                                      }}
+                                      className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
+                                    >
+                                      검토완료
+                                    </button>
                                   )}
                                 </div>
                               </div>
