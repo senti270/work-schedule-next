@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { updateEmployeeMonthlyStats } from '@/utils/monthlyStatsCache';
+import { cachedQuery, getCacheKey } from '@/utils/simpleCache';
 
 // 주휴수당 계산 타입
 type WeeklyHolidayInput = {
@@ -144,14 +146,20 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
   const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: string}>({});
   const [isPayrollConfirmed, setIsPayrollConfirmed] = useState(false);
 
-  // 지점 로드
+  // 🔥 최적화: 지점 로드 (캐싱 적용)
   const loadBranches = useCallback(async () => {
     try {
-      const branchesSnapshot = await getDocs(collection(db, 'branches'));
-      const branchesData = branchesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Branch[];
+      const branchesData = await cachedQuery(
+        getCacheKey.branches(),
+        async () => {
+          const branchesSnapshot = await getDocs(collection(db, 'branches'));
+          return branchesSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Branch[];
+        },
+        15 * 60 * 1000 // 15분 캐시 (지점은 자주 변경되지 않음)
+      );
       
       if (isManager) {
         setBranches(branchesData);
@@ -164,17 +172,23 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     }
   }, [isManager, userBranch]);
 
-  // 직원 로드
+  // 🔥 최적화: 직원 로드 (캐싱 적용)
   const loadEmployees = useCallback(async () => {
     try {
       console.log('PayrollCalculation - employees 컬렉션 조회 시작');
-      const employeesSnapshot = await getDocs(collection(db, 'employees'));
-      console.log('PayrollCalculation - employees 컬렉션 조회 완료:', employeesSnapshot.docs.length, '건');
       
-      const employeesData = employeesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Employee[];
+      const employeesData = await cachedQuery(
+        getCacheKey.employees(),
+        async () => {
+          const employeesSnapshot = await getDocs(collection(db, 'employees'));
+          console.log('PayrollCalculation - employees 컬렉션 조회 완료:', employeesSnapshot.docs.length, '건');
+          return employeesSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Employee[];
+        },
+        10 * 60 * 1000 // 10분 캐시
+      );
       
       const 유은서테스트직원 = employeesData.find(emp => emp.name === '유은서테스트');
       console.log('PayrollCalculation - 직원 원본 데이터 확인:', 유은서테스트직원);
@@ -1093,14 +1107,48 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         });
       } else {
         // 상태가 없으면 새로 생성
+        // 🔥 최적화: 자주 조회하는 데이터를 역정규화하여 포함
+        const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+        const selectedBranch = branches.find(br => br.id === selectedBranchId);
+        
         await addDoc(collection(db, 'employeeReviewStatus'), {
           employeeId: selectedEmployeeId,
+          employeeName: selectedEmployee?.name || '알 수 없음', // 🔥 역정규화
           branchId: selectedBranchId,
+          branchName: selectedBranch?.name || '알 수 없음', // 🔥 역정규화
           month: selectedMonth,
           status: '급여확정완료',
           createdAt: new Date(),
           updatedAt: new Date()
         });
+      }
+      
+      // 🔥 최적화: 급여확정 시 집계 데이터 캐싱
+      if (payrollCalculations.length > 0) {
+        const calc = payrollCalculations[0]; // 현재 선택된 직원의 계산 결과
+        const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+        const selectedBranch = branches.find(br => br.id === selectedBranchId);
+        
+        if (selectedEmployee && selectedBranch) {
+          await updateEmployeeMonthlyStats(
+            selectedEmployeeId,
+            selectedEmployee.name,
+            selectedBranchId,
+            selectedBranch.name,
+            selectedMonth,
+            {
+              totalWorkHours: calc.totalWorkHours,
+              totalBreakTime: calc.totalBreakTime,
+              actualWorkHours: calc.actualWorkHours,
+              overtimeHours: 0, // TODO: 계산 로직 추가
+              weeklyHolidayHours: calc.weeklyHolidayHours || 0,
+              weeklyHolidayPay: calc.weeklyHolidayPay || 0,
+              grossPay: calc.grossPay,
+              netPay: calc.netPay,
+              isConfirmed: true
+            }
+          );
+        }
       }
       
       alert('급여가 확정되었습니다.');

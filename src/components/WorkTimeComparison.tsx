@@ -522,7 +522,17 @@ export default function WorkTimeComparison({
       
       if (existingDocs.empty) {
         // 새로 추가
-        await addDoc(collection(db, 'employeeReviewStatus'), reviewStatusRecord);
+        // 🔥 최적화: 자주 조회하는 데이터를 역정규화하여 포함
+        const selectedEmployee = employees.find(emp => emp.id === employeeId);
+        const selectedBranch = branches.find(br => br.id === selectedBranchId);
+        
+        const optimizedReviewStatusRecord = {
+          ...reviewStatusRecord,
+          employeeName: selectedEmployee?.name || '알 수 없음', // 🔥 역정규화
+          branchName: selectedBranch?.name || '알 수 없음', // 🔥 역정규화
+        };
+        
+        await addDoc(collection(db, 'employeeReviewStatus'), optimizedReviewStatusRecord);
         console.log('✅ 새로운 검토 상태 저장됨:', reviewStatusRecord);
       } else {
         // 기존 데이터 업데이트
