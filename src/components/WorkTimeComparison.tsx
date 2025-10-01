@@ -2206,8 +2206,30 @@ export default function WorkTimeComparison({
                               updatedResults[index] = updatedResult;
                               setComparisonResults(sortComparisonResults(updatedResults));
                               
+                              // 🔥 전체 검토완료 여부 확인 (실근무시간 수정 시에도 체크)
+                              const allCompleted = updatedResults.every(r => 
+                                r.status === 'review_completed' || r.status === 'time_match'
+                              );
+                              const finalStatus: '검토전' | '검토중' | '검토완료' = allCompleted ? '검토완료' : '검토중';
+                              
+                              // 상태 업데이트
+                              setEmployeeReviewStatus(prev => {
+                                const existingIndex = prev.findIndex(status => 
+                                  status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+                                );
+                                
+                                if (existingIndex >= 0) {
+                                  const updated = [...prev];
+                                  updated[existingIndex] = { ...updated[existingIndex], status: finalStatus };
+                                  return updated;
+                                } else {
+                                  return [...prev, { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: finalStatus }];
+                                }
+                              });
+                              
                               // DB에 저장
                               await saveModifiedData(updatedResult);
+                              await saveReviewStatus(selectedEmployeeId, finalStatus);
                             }}
                             className="w-20 px-2 py-1 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="0:00"
@@ -2264,24 +2286,32 @@ export default function WorkTimeComparison({
                                   };
                                   setComparisonResults(sortComparisonResults(updatedResults));
                                   
+                                  // 🔥 전체 검토완료 여부 확인
+                                  const allCompleted = updatedResults.every(r => 
+                                    r.status === 'review_completed' || r.status === 'time_match'
+                                  );
+                                  const finalStatus: '검토전' | '검토중' | '검토완료' = allCompleted ? '검토완료' : '검토중';
+                                  
                                   setEmployeeReviewStatus(prev => {
-                                    const existingIndex = prev.findIndex(status => status.employeeId === selectedEmployeeId);
+                                    const existingIndex = prev.findIndex(status => 
+                                      status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+                                    );
                                     
                                     if (existingIndex >= 0) {
                                       // 기존 상태 업데이트
                                       const updated = [...prev];
-                                      updated[existingIndex] = { ...updated[existingIndex], status: '검토중' as '검토전' | '검토중' | '검토완료' };
+                                      updated[existingIndex] = { ...updated[existingIndex], status: finalStatus };
                                       return updated;
                                     } else {
                                       // 새로운 상태 추가
-                                      const newStatus = { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: '검토중' as '검토전' | '검토중' | '검토완료' };
+                                      const newStatus = { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: finalStatus };
                                       return [...prev, newStatus];
                                     }
                                   });
                                   
                                   // DB에 저장
                                   await saveModifiedData(updatedResults[index]);
-                                  await saveReviewStatus(selectedEmployeeId, '검토중');
+                                  await saveReviewStatus(selectedEmployeeId, finalStatus);
                                 }}
                                 className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
                               >
@@ -2305,24 +2335,32 @@ export default function WorkTimeComparison({
                                     };
                                     setComparisonResults(sortComparisonResults(updatedResults));
                                     
+                                    // 🔥 전체 검토완료 여부 확인
+                                    const allCompleted = updatedResults.every(r => 
+                                      r.status === 'review_completed' || r.status === 'time_match'
+                                    );
+                                    const finalStatus: '검토전' | '검토중' | '검토완료' = allCompleted ? '검토완료' : '검토중';
+                                    
                                     setEmployeeReviewStatus(prev => {
-                                      const existingIndex = prev.findIndex(status => status.employeeId === selectedEmployeeId);
+                                      const existingIndex = prev.findIndex(status => 
+                                        status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+                                      );
                                       
                                       if (existingIndex >= 0) {
                                         // 기존 상태 업데이트
                                         const updated = [...prev];
-                                        updated[existingIndex] = { ...updated[existingIndex], status: '검토중' as '검토전' | '검토중' | '검토완료' };
+                                        updated[existingIndex] = { ...updated[existingIndex], status: finalStatus };
                                         return updated;
                                       } else {
                                         // 새로운 상태 추가
-                                        const newStatus = { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: '검토중' as '검토전' | '검토중' | '검토완료' };
+                                        const newStatus = { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: finalStatus };
                                         return [...prev, newStatus];
                                       }
                                     });
                                     
                                     // DB에 저장
                                     await saveModifiedData(updatedResults[index]);
-                                    await saveReviewStatus(selectedEmployeeId, '검토중');
+                                    await saveReviewStatus(selectedEmployeeId, finalStatus);
                                   }
                                 }}
                                 className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
