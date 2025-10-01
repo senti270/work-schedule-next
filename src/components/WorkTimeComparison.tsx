@@ -2198,7 +2198,8 @@ export default function WorkTimeComparison({
                               const updatedResult = {
                                 ...result,
                                 actualWorkHours: newHours,
-                                actualHours: newHours + (result.breakTime || 0), // 실제근무시간 = 실근무시간 + 휴게시간
+                                // 🔥 actualHours(POS 원본)는 변경하지 않음! 실제시간 유지
+                                // actualHours: newHours + (result.breakTime || 0), // 삭제됨
                                 difference: newHours - result.scheduledHours,
                                 isModified: true
                               };
