@@ -324,22 +324,21 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       setLoading(true);
       console.log('PayrollCalculation - 주간 스케줄 로드 시작...');
       
-      // 해당 월의 선택된 직원의 실제 근무 기록 조회
+      // 🔥 workTimeComparisonResults에서 데이터 조회
       const schedulesQuery = query(
-        collection(db, 'actualWorkRecords'),
-        where('branchId', '==', selectedBranchId),
+        collection(db, 'workTimeComparisonResults'),
         where('month', '==', selectedMonth),
         where('employeeId', '==', selectedEmployeeId)
       );
       
       const schedulesSnapshot = await getDocs(schedulesQuery);
-      console.log('PayrollCalculation - 주간 스케줄 쿼리 결과:', schedulesSnapshot.docs.length, '건');
+      console.log('PayrollCalculation - 근무시간비교 결과 쿼리 (모든 지점):', schedulesSnapshot.docs.length, '건');
       
       // 쿼리 조건 확인
       console.log('PayrollCalculation - 쿼리 조건:', {
-        branchId: selectedBranchId,
         month: selectedMonth,
-        employeeId: selectedEmployeeId
+        employeeId: selectedEmployeeId,
+        note: '지점 필터 제거 - 모든 지점 데이터 조회'
       });
       
       // 모든 주간 스케줄 데이터 확인
