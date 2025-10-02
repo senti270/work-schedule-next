@@ -321,9 +321,12 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   };
 
   const getSchedulesForDate = (date: Date) => {
-    return schedules.filter(schedule => 
-      schedule.date.toDateString() === date.toDateString()
-    );
+    // 🔥 타임존 이슈 해결: 날짜만 비교 (시간 무시)
+    const targetDateString = date.toISOString().split('T')[0];
+    return schedules.filter(schedule => {
+      const scheduleDateString = schedule.date.toISOString().split('T')[0];
+      return scheduleDateString === targetDateString;
+    });
   };
 
   const goToPreviousWeek = () => {

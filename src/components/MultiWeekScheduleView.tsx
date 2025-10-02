@@ -450,6 +450,18 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
           updatedAt: new Date()
         });
       } else {
+        // 🔥 중복 체크: 같은 직원, 같은 날짜, 같은 지점에 이미 스케줄이 있는지 확인
+        const existingSchedule = schedules.find(schedule => 
+          schedule.employeeId === editingSchedule.employeeId &&
+          schedule.branchId === editingSchedule.branchId &&
+          schedule.date.toDateString() === editingSchedule.date.toDateString()
+        );
+        
+        if (existingSchedule) {
+          alert('해당 직원의 해당 날짜에 이미 스케줄이 있습니다. 기존 스케줄을 수정하거나 삭제 후 다시 시도해주세요.');
+          return;
+        }
+        
         // 추가
         await addDoc(collection(db, 'schedules'), {
           employeeId: editingSchedule.employeeId,
