@@ -2140,6 +2140,14 @@ export default function WorkTimeComparison({
 
 
       {/* 비교 결과 */}
+      {(() => {
+        // 🔥 통일된 편집 가능 여부 조건
+        const currentBranchStatus = employeeReviewStatus.find(status => 
+          status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+        );
+        const isEditable = currentBranchStatus?.status !== '검토완료';
+        
+        return (
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">
@@ -2216,8 +2224,9 @@ export default function WorkTimeComparison({
                   );
                   const isBranchReviewCompleted = currentBranchStatus?.status === '검토완료';
                   
+                  // 🔥 "확인완료"만 완료로 간주 ("시간일치"는 제외)
                   const completedCount = comparisonResults.filter(r => 
-                    r.status === 'review_completed' || r.status === 'time_match'
+                    r.status === 'review_completed'
                   ).length;
                   const allReviewCompleted = isBranchReviewCompleted || (completedCount === comparisonResults.length && comparisonResults.length > 0);
                   
@@ -2251,8 +2260,8 @@ export default function WorkTimeComparison({
                         })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        {result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) || allReviewCompleted ? (
-                          // 확인완료 상태이거나 급여확정된 경우 또는 전체 검토완료된 경우 수정 불가
+                        {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
+                          // 🔥 검토완료 상태이거나, 항목이 확인완료이거나, 급여확정된 경우 수정 불가
                           <span className="text-gray-600">
                             {(() => {
                               const actualWorkHours = result.actualWorkHours || 0;
@@ -2360,7 +2369,8 @@ export default function WorkTimeComparison({
                         })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {(result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && !allReviewCompleted && (
+                        {/* 🔥 검토완료가 아니고, 급여확정도 안 되었을 때만 버튼 표시 */}
+                        {isEditable && (result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && (
                           <div className="flex space-x-2">
                             {result.status === 'review_completed' ? (
                               // 🔥 검토완료 상태: 확인완료 취소 버튼
@@ -2443,7 +2453,7 @@ export default function WorkTimeComparison({
                                 }}
                                 className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
                               >
-                                검토완료
+                                확인완료
                               </button>
                             )}
                             {result.status === 'review_required' && (
@@ -2624,31 +2634,33 @@ export default function WorkTimeComparison({
             </div>
           </div>
         )}
+        
+        {/* 요약 통계 */}
+        {comparisonResults.length > 0 && (
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {comparisonResults.filter(r => r.status === 'time_match').length}
+              </div>
+              <div className="text-sm text-green-600">시간일치</div>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600">
+                {comparisonResults.filter(r => r.status === 'review_required').length}
+              </div>
+              <div className="text-sm text-orange-600">확인필요</div>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">
+                {comparisonResults.filter(r => r.status === 'review_completed').length}
+              </div>
+              <div className="text-sm text-purple-600">확인완료</div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* 요약 통계 */}
-      {comparisonResults.length > 0 && (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">
-              {comparisonResults.filter(r => r.status === 'time_match').length}
-            </div>
-            <div className="text-sm text-green-600">시간일치</div>
-          </div>
-          <div className="bg-orange-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-orange-600">
-              {comparisonResults.filter(r => r.status === 'review_required').length}
-            </div>
-            <div className="text-sm text-orange-600">확인필요</div>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">
-              {comparisonResults.filter(r => r.status === 'review_completed').length}
-            </div>
-            <div className="text-sm text-purple-600">확인완료</div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 전월 이월 연장근무시간 입력 팝업 */}
       {showOvertimePopup && (

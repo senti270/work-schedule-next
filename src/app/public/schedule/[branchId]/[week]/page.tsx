@@ -406,7 +406,14 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
             <div className="flex items-center space-x-2 md:space-x-4">
               <button
                 onClick={goToPreviousWeek}
-                className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm md:text-base font-medium text-gray-700"
+                disabled={(() => {
+                  // 🔥 2025년 9월 1일 이전으로는 이동 불가
+                  const prevWeek = new Date(currentWeekStart);
+                  prevWeek.setDate(prevWeek.getDate() - 7);
+                  const minDate = new Date('2025-09-01');
+                  return prevWeek < minDate;
+                })()}
+                className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm md:text-base font-medium text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
               >
                 ← 이전주
               </button>

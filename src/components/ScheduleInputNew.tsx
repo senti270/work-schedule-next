@@ -347,19 +347,34 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const weekStart = weekDates[0];
       const weekEnd = weekDates[6];
       
-      const noteQuery = query(
-        collection(db, 'weeklyNotes'),
-        where('branchId', '==', selectedBranchId),
-        where('weekStart', '>=', weekStart),
-        where('weekStart', '<=', weekEnd)
-      );
+      // 🔥 모든 주간비고를 가져온 후 정확히 일치하는 것만 찾기
+      const querySnapshot = await getDocs(collection(db, 'weeklyNotes'));
+      const existingNote = querySnapshot.docs.find(docSnapshot => {
+        const data = docSnapshot.data();
+        const noteWeekStart = data.weekStart?.toDate ? data.weekStart.toDate() : new Date(data.weekStart);
+        const noteWeekEnd = data.weekEnd?.toDate ? data.weekEnd.toDate() : new Date(data.weekEnd);
+        
+        return data.branchId === selectedBranchId &&
+               noteWeekStart.toDateString() === weekStart.toDateString() &&
+               noteWeekEnd.toDateString() === weekEnd.toDateString();
+      });
       
-      const noteSnapshot = await getDocs(noteQuery);
-      if (!noteSnapshot.empty) {
-        const noteData = noteSnapshot.docs[0].data();
+      if (existingNote) {
+        const noteData = existingNote.data();
         setWeeklyNote(noteData.note || '');
+        setCurrentWeeklyNote({
+          id: existingNote.id,
+          branchId: selectedBranchId,
+          branchName: noteData.branchName || '',
+          weekStart: noteData.weekStart?.toDate ? noteData.weekStart.toDate() : new Date(noteData.weekStart),
+          weekEnd: noteData.weekEnd?.toDate ? noteData.weekEnd.toDate() : new Date(noteData.weekEnd),
+          note: noteData.note || '',
+          createdAt: noteData.createdAt?.toDate ? noteData.createdAt.toDate() : new Date(),
+          updatedAt: noteData.updatedAt?.toDate ? noteData.updatedAt.toDate() : new Date()
+        });
       } else {
         setWeeklyNote('');
+        setCurrentWeeklyNote(null);
       }
     } catch (error) {
       console.error('주간 비고 로드 중 오류:', error);
@@ -734,16 +749,33 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       if (!branch) return;
       
-      if (currentWeeklyNote) {
+      // 🔥 항상 DB에서 다시 조회하여 문서가 실제로 존재하는지 확인
+      const querySnapshot = await getDocs(collection(db, 'weeklyNotes'));
+      const existingNote = querySnapshot.docs.find(docSnapshot => {
+        const data = docSnapshot.data();
+        const noteWeekStart = data.weekStart?.toDate ? data.weekStart.toDate() : new Date(data.weekStart);
+        const noteWeekEnd = data.weekEnd?.toDate ? data.weekEnd.toDate() : new Date(data.weekEnd);
+        
+        return data.branchId === selectedBranchId &&
+               noteWeekStart.toDateString() === weekStart.toDateString() &&
+               noteWeekEnd.toDateString() === weekEnd.toDateString();
+      });
+      
+      if (existingNote) {
         // 기존 비고 수정
-        await updateDoc(doc(db, 'weeklyNotes', currentWeeklyNote.id), {
+        await updateDoc(doc(db, 'weeklyNotes', existingNote.id), {
           note: weeklyNote,
           updatedAt: new Date()
         });
         
         setCurrentWeeklyNote({
-          ...currentWeeklyNote,
+          id: existingNote.id,
+          branchId: selectedBranchId,
+          branchName: branch.name,
+          weekStart: weekStart,
+          weekEnd: weekEnd,
           note: weeklyNote,
+          createdAt: existingNote.data().createdAt?.toDate() || new Date(),
           updatedAt: new Date()
         });
       } else {

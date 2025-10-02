@@ -1558,7 +1558,12 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
                   <p className="text-blue-800 font-semibold mb-2">📅 주차별 주휴수당 계산 내역:</p>
                   <div className="space-y-1 text-xs">
-                    {calc.weeklyHolidayDetails.map((detail, idx) => (
+                    {/* 🔥 날짜순으로 정렬 */}
+                    {[...calc.weeklyHolidayDetails].sort((a, b) => {
+                      const dateA = new Date(a.weekStart);
+                      const dateB = new Date(b.weekStart);
+                      return dateA.getTime() - dateB.getTime();
+                    }).map((detail, idx) => (
                       <div key={idx} className={`flex justify-between ${detail.eligible ? 'text-blue-700' : 'text-gray-500'}`}>
                         <span>{detail.weekStart} ~ {detail.weekEnd}:</span>
                         <span>
@@ -1584,17 +1589,37 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">기본급</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">4대보험</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">사업소득공제</th>
+                      {/* 시급일 때만 주휴수당 컬럼 표시 */}
+                      {calc.salaryType === '시급' && (
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">주휴수당</th>
+                      )}
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        {calc.employmentType === '근로소득' ? '4대보험' : '사업소득공제'}
+                      </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">총 공제액</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase bg-blue-50">실수령액</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     <tr>
-                      <td className="px-4 py-2 text-sm text-gray-900">{calc.grossPay.toLocaleString()}원</td>
-                      <td className="px-4 py-2 text-sm text-gray-900">{calc.deductions.insurance > 0 ? calc.deductions.insurance.toLocaleString() + '원' : '-'}</td>
-                      <td className="px-4 py-2 text-sm text-gray-900">{calc.deductions.tax > 0 ? calc.deductions.tax.toLocaleString() + '원' : '-'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-900">
+                        {calc.salaryType === '시급' 
+                          ? (calc.grossPay - (calc.weeklyHolidayPay || 0)).toLocaleString() + '원'
+                          : calc.grossPay.toLocaleString() + '원'
+                        }
+                      </td>
+                      {/* 시급일 때만 주휴수당 셀 표시 */}
+                      {calc.salaryType === '시급' && (
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {calc.weeklyHolidayPay ? calc.weeklyHolidayPay.toLocaleString() + '원' : '-'}
+                        </td>
+                      )}
+                      <td className="px-4 py-2 text-sm text-gray-900">
+                        {calc.employmentType === '근로소득' 
+                          ? (calc.deductions.insurance > 0 ? calc.deductions.insurance.toLocaleString() + '원' : '-')
+                          : (calc.deductions.tax > 0 ? calc.deductions.tax.toLocaleString() + '원' : '-')
+                        }
+                      </td>
                       <td className="px-4 py-2 text-sm text-red-600">{calc.deductions.total.toLocaleString()}원</td>
                       <td className="px-4 py-2 text-sm font-bold text-blue-700 bg-blue-50">{calc.netPay.toLocaleString()}원</td>
                     </tr>
