@@ -149,6 +149,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
   // 🔥 최적화: 지점 로드 (캐싱 적용)
   const loadBranches = useCallback(async () => {
     try {
+      console.log('🔥 PayrollCalculation - loadBranches 시작');
       const branchesData = await cachedQuery(
         getCacheKey.branches(),
         async () => {
@@ -161,11 +162,15 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         15 * 60 * 1000 // 15분 캐시 (지점은 자주 변경되지 않음)
       );
       
+      console.log('🔥 PayrollCalculation - 지점 데이터 로드됨:', branchesData.length, '개');
+      
       if (isManager) {
         setBranches(branchesData);
+        console.log('🔥 PayrollCalculation - 매니저: 모든 지점 설정됨');
       } else if (userBranch) {
         const userBranchData = branchesData.filter(branch => branch.id === userBranch);
         setBranches(userBranchData);
+        console.log('🔥 PayrollCalculation - 일반사용자: 사용자 지점만 설정됨', userBranchData.length, '개');
       }
     } catch (error) {
       console.error('지점 로드 실패:', error);
@@ -418,6 +423,22 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       return;
     }
     
+    // 🔥 지점 데이터가 없으면 직접 로드
+    let branchesData = branches;
+    if (branchesData.length === 0) {
+      console.log('🔥 PayrollCalculation - 지점 데이터 없음, 직접 로드 시작');
+      try {
+        const branchesSnapshot = await getDocs(collection(db, 'branches'));
+        branchesData = branchesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Branch[];
+        console.log('🔥 PayrollCalculation - 직접 로드된 지점 데이터:', branchesData.length, '개');
+      } catch (error) {
+        console.error('지점 데이터 직접 로드 실패:', error);
+      }
+    }
+    
     if (!weeklySchedules.length) {
       setNoScheduleData(true);
       setPayrollCalculations([]);
@@ -465,8 +486,19 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     const branchWorkHours = employeeSchedules.reduce((acc, schedule) => {
       const branchId = schedule.branchId;
       if (!acc[branchId]) {
-        // 지점 이름을 branches 배열에서 찾아서 설정
-        const branch = branches.find(b => b.id === branchId);
+        // 지점 이름을 branchesData 배열에서 찾아서 설정
+        const branch = branchesData.find(b => b.id === branchId);
+        
+        // 🔥 디버깅: 지점명 찾기 로그
+        console.log(`🔥 PayrollCalculation - 지점명 찾기:`, {
+          branchId: branchId,
+          branchesLength: branchesData.length,
+          branchesIds: branchesData.map(b => b.id),
+          foundBranch: branch,
+          scheduleBranchName: schedule.branchName,
+          finalBranchName: branch?.name || schedule.branchName || '지점명 없음'
+        });
+        
         acc[branchId] = {
           branchId,
           branchName: branch?.name || schedule.branchName || '지점명 없음',

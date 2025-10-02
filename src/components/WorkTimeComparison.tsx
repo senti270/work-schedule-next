@@ -532,8 +532,9 @@ export default function WorkTimeComparison({
           branchName: selectedBranch?.name || '알 수 없음', // 🔥 역정규화
         };
         
-        await addDoc(collection(db, 'employeeReviewStatus'), optimizedReviewStatusRecord);
-        console.log('✅ 새로운 검토 상태 저장됨:', reviewStatusRecord);
+        const docRef = await addDoc(collection(db, 'employeeReviewStatus'), optimizedReviewStatusRecord);
+        console.log('✅ 새로운 검토 상태 저장됨:', optimizedReviewStatusRecord);
+        console.log('✅ 저장된 문서 ID:', docRef.id);
       } else {
         // 기존 데이터 업데이트
         const docId = existingDocs.docs[0].id;
@@ -553,8 +554,9 @@ export default function WorkTimeComparison({
     try {
       if (!selectedMonth) return;
       
-      console.log('🟡 검토 상태 로드 시작 - 선택된 월:', selectedMonth);
-      console.log('🟡 직원 목록 길이:', employeesList.length);
+      console.log('🔥🔥🔥 ============================================');
+      console.log('🔥🔥🔥 loadReviewStatus 시작 - 선택된 월:', selectedMonth);
+      console.log('🔥🔥🔥 직원 목록 길이:', employeesList.length);
       
       // 해당 직원의 모든 지점의 검토 상태 조회
       const reviewStatusQuery = query(
@@ -567,7 +569,7 @@ export default function WorkTimeComparison({
       
       const savedReviewStatuses = reviewStatusSnapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('저장된 검토 상태 데이터:', data);
+        console.log('🔥🔥🔥 저장된 검토 상태 데이터:', data);
         return {
           employeeId: data.employeeId,
           branchId: data.branchId,
@@ -575,16 +577,11 @@ export default function WorkTimeComparison({
         };
       });
       
-      console.log('DB에서 로드된 검토 상태:', savedReviewStatuses);
+      console.log('🔥🔥🔥 DB에서 로드된 검토 상태 총', savedReviewStatuses.length, '건:', savedReviewStatuses);
       
       // 김유정의 상태를 특별히 확인
-      const kimYoojungStatus = savedReviewStatuses.find(status => status.employeeId === 'sB7t9lJAdZr4slD2rEYf');
-      if (kimYoojungStatus) {
-        console.log('김유정의 저장된 상태:', kimYoojungStatus);
-        console.log('⚠️ 김유정에게 잘못된 상태가 저장되어 있습니다!');
-      } else {
-        console.log('김유정의 저장된 상태 없음');
-      }
+      const kimYoojungStatuses = savedReviewStatuses.filter(status => status.employeeId === 'sB7t9lJAdZr4slD2rEYf');
+      console.log('🔥🔥🔥 김유정의 모든 저장된 상태:', kimYoojungStatuses);
       
       // 모든 잘못된 상태 확인
       const wrongStatuses = savedReviewStatuses.filter(status => 
@@ -605,25 +602,29 @@ export default function WorkTimeComparison({
       // 모든 직원에 대해 상태 설정
       const allReviewStatuses = await Promise.all(
         employeesList.map(async (employee) => {
-          // DB에 저장된 상태가 있으면 사용
-          const savedStatus = savedReviewStatuses.find(status => status.employeeId === employee.id);
-          if (savedStatus) {
-            console.log(`직원 ${employee.name}의 저장된 상태 사용:`, savedStatus.status);
-            return savedStatus;
+          // DB에 저장된 상태들을 모두 가져오기
+          const savedStatuses = savedReviewStatuses.filter(status => status.employeeId === employee.id);
+          
+          if (savedStatuses.length > 0) {
+            // 저장된 상태가 있으면 모든 지점 상태 반환
+            console.log(`직원 ${employee.name}의 저장된 상태 ${savedStatuses.length}개 사용:`, savedStatuses.map(s => s.status));
+            return savedStatuses;
           }
           
           // DB에 상태가 없으면 기본적으로 검토전으로 설정
           console.log(`직원 ${employee.name}의 저장된 상태 없음, 검토전으로 설정`);
-          return {
+          return [{
             employeeId: employee.id,
             branchId: selectedBranchId,
             status: '검토전' as '검토전' | '검토중' | '검토완료'
-          };
+          }];
         })
       );
       
-      setEmployeeReviewStatus(allReviewStatuses);
-      console.log('최종 검토 상태 설정됨:', allReviewStatuses);
+      // 배열의 배열을 평면화
+      const flattenedStatuses = allReviewStatuses.flat();
+      setEmployeeReviewStatus(flattenedStatuses);
+      console.log('최종 검토 상태 설정됨:', flattenedStatuses);
     } catch (error) {
       console.error('검토 상태 로드 실패:', error);
     }
@@ -1778,31 +1779,49 @@ export default function WorkTimeComparison({
                                     <button
                                       onClick={async (e) => {
                                         e.stopPropagation();
+                                        console.log('🔥🔥🔥 검토완료 버튼 클릭됨 (검토전 상태)');
+                                        console.log('🔥🔥🔥 branchId:', branchId, 'branch name:', branch?.name);
+                                        console.log('🔥🔥🔥 selectedEmployeeId:', selectedEmployeeId);
+                                        console.log('🔥🔥🔥 selectedBranchId:', selectedBranchId);
+                                        
                                         if (confirm(`${branch?.name} 지점의 검토를 완료하시겠습니까?`)) {
+                                          console.log('🔥🔥🔥 확인 클릭됨!');
+                                          
                                           // 🔥 상태를 '검토완료'로 변경
                                           setEmployeeReviewStatus(prev => {
                                             const existing = prev.find(s => 
                                               s.employeeId === selectedEmployeeId && s.branchId === branchId
                                             );
                                             
+                                            console.log('🔥🔥🔥 기존 상태:', existing);
+                                            
                                             if (existing) {
-                                              return prev.map(s => 
+                                              const updated = prev.map(s => 
                                                 s.employeeId === selectedEmployeeId && s.branchId === branchId
                                                   ? { ...s, status: '검토완료' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' }
                                                   : s
                                               );
+                                              console.log('🔥🔥🔥 기존 상태 업데이트:', updated);
+                                              return updated;
                                             } else {
                                               // 상태가 없으면 새로 추가
-                                              return [...prev, { 
+                                              const newStatus = { 
                                                 employeeId: selectedEmployeeId, 
                                                 branchId: branchId, 
                                                 status: '검토완료' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' 
-                                              }];
+                                              };
+                                              console.log('🔥🔥🔥 새로운 상태 추가:', newStatus);
+                                              return [...prev, newStatus];
                                             }
                                           });
                                           
                                           setComparisonResults([...comparisonResults]);
+                                          
+                                          console.log('🔥🔥🔥 saveReviewStatus 호출 직전, branchId:', branchId);
                                           await saveReviewStatus(selectedEmployeeId, '검토완료');
+                                          console.log('🔥🔥🔥 saveReviewStatus 호출 완료');
+                                        } else {
+                                          console.log('🔥🔥🔥 확인 취소됨');
                                         }
                                       }}
                                       className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"

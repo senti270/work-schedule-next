@@ -37,10 +37,22 @@ interface Branch {
 }
 
 const TaxFileGeneration: React.FC = () => {
-  // 현재 월을 기본값으로 설정
+  // 🔥 매월 5일까지는 전달 급여를 기본값으로 설정
   const getCurrentMonth = () => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentDay = now.getDate();
+    
+    // 매월 5일까지는 전달 급여
+    let targetMonth: Date;
+    if (currentDay <= 5) {
+      // 전달로 설정
+      targetMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    } else {
+      // 이번 달
+      targetMonth = now;
+    }
+    
+    return `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, '0')}`;
   };
   
   const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonth());
@@ -84,17 +96,27 @@ const TaxFileGeneration: React.FC = () => {
     
     setLoading(true);
     try {
+      console.log('🔥 세무사 전송파일 - 급여확정 데이터 조회 시작:', selectedMonth);
+      
       const confirmedPayrollsQuery = query(
         collection(db, 'confirmedPayrolls'),
         where('month', '==', selectedMonth)
       );
       const confirmedPayrollsSnapshot = await getDocs(confirmedPayrollsQuery);
       
-      const confirmedPayrollsData = confirmedPayrollsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        confirmedAt: doc.data().confirmedAt?.toDate() || new Date()
-      })) as ConfirmedPayroll[];
+      console.log('🔥 세무사 전송파일 - 조회된 데이터:', confirmedPayrollsSnapshot.docs.length, '건');
+      
+      const confirmedPayrollsData = confirmedPayrollsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('🔥 급여확정 데이터:', data);
+        return {
+          id: doc.id,
+          ...data,
+          confirmedAt: data.confirmedAt?.toDate() || new Date()
+        };
+      }) as ConfirmedPayroll[];
+      
+      console.log('🔥 세무사 전송파일 - 최종 데이터:', confirmedPayrollsData);
       
       setConfirmedPayrolls(confirmedPayrollsData);
     } catch (error) {
