@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface ConfirmedPayroll {
@@ -15,6 +15,7 @@ interface ConfirmedPayroll {
   grossPay: number;
   deductions: number;
   netPay: number;
+  memo?: string; // 비고란 추가
   branches: {
     branchId: string;
     branchName: string;
@@ -61,6 +62,7 @@ const TaxFileGeneration: React.FC = () => {
   const [confirmedPayrolls, setConfirmedPayrolls] = useState<ConfirmedPayroll[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingMemo, setEditingMemo] = useState<{[key: string]: string}>({});
 
   // 지점 로드
   const loadBranches = useCallback(async () => {
@@ -137,6 +139,33 @@ const TaxFileGeneration: React.FC = () => {
     loadConfirmedPayrolls();
   }, [loadConfirmedPayrolls]);
 
+  // 비고 저장 함수
+  const saveMemo = async (payrollId: string, memo: string) => {
+    try {
+      await updateDoc(doc(db, 'confirmedPayrolls', payrollId), {
+        memo: memo,
+        updatedAt: new Date()
+      });
+      
+      // 로컬 상태 업데이트
+      setConfirmedPayrolls(prev => 
+        prev.map(p => p.id === payrollId ? { ...p, memo } : p)
+      );
+      
+      // 편집 상태 초기화
+      setEditingMemo(prev => {
+        const newState = { ...prev };
+        delete newState[payrollId];
+        return newState;
+      });
+      
+      alert('비고가 저장되었습니다.');
+    } catch (error) {
+      console.error('비고 저장 실패:', error);
+      alert('비고 저장에 실패했습니다.');
+    }
+  };
+
   // 지점별 필터링된 데이터
   const filteredPayrolls = selectedBranchId 
     ? confirmedPayrolls.filter(payroll => payroll.branchId === selectedBranchId)
@@ -146,13 +175,15 @@ const TaxFileGeneration: React.FC = () => {
   const tableData = filteredPayrolls.map(payroll => {
     const employee = employees.find(emp => emp.id === payroll.employeeId);
     return {
+      id: payroll.id,
       residentNumber: employee?.residentNumber || '정보없음',
       bankName: employee?.bankName || '정보없음',
       bankCode: employee?.bankCode || '정보없음',
       accountNumber: employee?.accountNumber || '정보없음',
       netPay: payroll.netPay,
       employeeName: payroll.employeeName,
-      grossPay: payroll.grossPay
+      grossPay: payroll.grossPay,
+      memo: payroll.memo || ''
     };
   });
 
@@ -251,6 +282,9 @@ const TaxFileGeneration: React.FC = () => {
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       신고총액(월급여)
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      비고
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -276,6 +310,25 @@ const TaxFileGeneration: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
                         {row.grossPay.toLocaleString()}원
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            value={editingMemo[row.id] !== undefined ? editingMemo[row.id] : row.memo}
+                            onChange={(e) => setEditingMemo(prev => ({ ...prev, [row.id]: e.target.value }))}
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            placeholder="비고 입력"
+                          />
+                          {editingMemo[row.id] !== undefined && editingMemo[row.id] !== row.memo && (
+                            <button
+                              onClick={() => saveMemo(row.id, editingMemo[row.id])}
+                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium whitespace-nowrap"
+                            >
+                              저장
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
