@@ -235,9 +235,13 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       
       allSchedules.forEach(schedule => {
         // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
+        const scheduleDate = schedule.date.toISOString().split('T')[0];
+        const weekStartStr = weekStart.toISOString().split('T')[0];
+        const weekEndStr = weekEnd.toISOString().split('T')[0];
+        
         if (schedule.branchId !== resolvedParams.branchId && 
-            schedule.date >= weekStart && 
-            schedule.date <= weekEnd) {
+            scheduleDate >= weekStartStr && 
+            scheduleDate <= weekEndStr) {
           
           const dateString = schedule.date.toISOString().split('T')[0];
           const key = `${schedule.employeeId}-${dateString}`;

@@ -219,9 +219,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       allSchedules.forEach(schedule => {
         // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
+        const scheduleDate = schedule.date.toISOString().split('T')[0];
+        const weekStartStr = weekStart.toISOString().split('T')[0];
+        const weekEndStr = weekEnd.toISOString().split('T')[0];
+        
         if (schedule.branchId !== selectedBranchId && 
-            schedule.date >= weekStart && 
-            schedule.date <= weekEnd) {
+            scheduleDate >= weekStartStr && 
+            scheduleDate <= weekEndStr) {
           
           const dateString = schedule.date.toISOString().split('T')[0];
           const key = `${schedule.employeeId}-${dateString}`;
@@ -509,7 +513,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   // 공유 URL 복사 기능
   const handleCopyShareUrl = async () => {
     try {
-      getWeekDates();
+      const weekDates = getWeekDates();
       const branch = branches.find(b => b.id === selectedBranchId);
       
       if (!branch) {
@@ -517,18 +521,32 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         return;
       }
 
+      // 날짜 포맷팅 (10월 6일-10월 12일 형식)
+      const formatDate = (date: Date) => {
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `${month}월 ${day}일`;
+      };
+
+      const weekStart = weekDates[0];
+      const weekEnd = weekDates[6];
+      const dateRange = `${formatDate(weekStart)}-${formatDate(weekEnd)}`;
+
       // 공유 URL 생성
       const weekString = currentWeekStart.toISOString().split('T')[0];
       const shareUrl = `${window.location.origin}/public/schedule/${selectedBranchId || 'all'}/${weekString}`;
 
+      // 포맷된 텍스트 생성
+      const shareText = `${branch.name}, ${dateRange} 스케쥴\n${shareUrl}`;
+
       // 클립보드에 URL 복사
       try {
-        await navigator.clipboard.writeText(shareUrl);
+        await navigator.clipboard.writeText(shareText);
         alert('공유 URL이 클립보드에 복사되었습니다!');
       } catch {
         // 클립보드 복사 실패 시 대체 방법
         const textArea = document.createElement('textarea');
-        textArea.value = shareUrl;
+        textArea.value = shareText;
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
@@ -553,16 +571,30 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         return;
       }
 
+      // 날짜 포맷팅 (10월 6일-10월 12일 형식)
+      const formatDate = (date: Date) => {
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `${month}월 ${day}일`;
+      };
+
+      const weekStart = weekDates[0];
+      const weekEnd = weekDates[6];
+      const dateRange = `${formatDate(weekStart)}-${formatDate(weekEnd)}`;
+
       // 공유 URL 생성
       const weekString = currentWeekStart.toISOString().split('T')[0];
       const shareUrl = `${window.location.origin}/public/schedule/${selectedBranchId || 'all'}/${weekString}`;
+
+      // 포맷된 텍스트 생성
+      const shareText = `${branch.name}, ${dateRange} 스케쥴\n${shareUrl}`;
 
       // Web Share API 지원 확인
       if (navigator.share) {
         try {
           await navigator.share({
             title: `${branch.name} 주간 스케줄`,
-            text: `${branch.name} 주간 스케줄을 확인해보세요!`,
+            text: shareText,
             url: shareUrl
           });
           return; // Web Share API 성공 시 여기서 종료
@@ -575,31 +607,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           }
         }
       }
-
-      // 현재 주간 스케줄 데이터 생성
-      const scheduleData = employees.map(employee => {
-        const dailySchedules = weekDates.map(date => {
-          const schedule = getScheduleForDate(employee.id, date);
-          return schedule ? formatScheduleForDisplay(schedule) : '-';
-        });
-        
-        return {
-          employeeName: employee.name,
-          schedules: dailySchedules
-        };
-      });
-
-      // 공유할 텍스트 생성
-      let shareText = `📅 ${branch.name} 주간 스케줄 (${weekDates[0].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} ~ ${weekDates[6].toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })})\n\n`;
-      
-      // 주간 비고가 있으면 추가
-      if (weeklyNote.trim()) {
-        shareText += `📝 주간 비고: ${weeklyNote.trim()}\n\n`;
-      }
-      
-      shareText += scheduleData.map(emp => 
-        `${emp.employeeName}: ${emp.schedules.join(' | ')}`
-      ).join('\n') + `\n\n🔗 공유 링크: ${shareUrl}`;
 
       // Web Share API를 지원하지 않거나 실패한 경우 클립보드 복사
       try {
