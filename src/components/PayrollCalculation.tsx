@@ -1538,15 +1538,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">총 근무시간</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">총 휴게시간</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">실 근무시간</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     <tr>
-                      <td className="px-4 py-2 text-sm text-gray-900">{calc.totalWorkHours.toFixed(1)}시간</td>
-                      <td className="px-4 py-2 text-sm text-gray-900">{calc.totalBreakTime.toFixed(1)}시간</td>
                       <td className="px-4 py-2 text-sm text-gray-900">{calc.actualWorkHours.toFixed(1)}시간</td>
                     </tr>
                   </tbody>
