@@ -55,6 +55,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('전체');
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState<string>('전체');
   const [payrollStatuses, setPayrollStatuses] = useState<PayrollStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'work-comparison' | 'payroll-calculation'>('work-comparison');
@@ -353,7 +354,27 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     const matchesBranch = selectedBranchId === '' || 
       (employee.branches && employee.branches.includes(selectedBranchId));
     
-    return matchesSearch && matchesStatus && matchesBranch;
+    // 고용형태 필터링
+    const matchesEmploymentType = employmentTypeFilter === '전체' || (() => {
+      const contract = contracts.find(contract => contract.employeeId === employee.id);
+      if (!contract) return employmentTypeFilter === '근로계약정보 없음';
+      
+      const employmentType = contract.employmentType;
+      switch (employmentType) {
+        case '근로소득':
+          return employmentTypeFilter === '근로소득자';
+        case '사업소득':
+          return employmentTypeFilter === '사업소득자';
+        case '외국인':
+          return employmentTypeFilter === '외국인';
+        case '일용직':
+          return employmentTypeFilter === '일용직';
+        default:
+          return employmentTypeFilter === employmentType;
+      }
+    })();
+    
+    return matchesSearch && matchesStatus && matchesBranch && matchesEmploymentType;
   });
 
   // 직원 선택 핸들러
@@ -484,6 +505,23 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                         <option value="급여계산완료">급여계산완료</option>
                         <option value="급여확정완료">급여확정완료</option>
                       </select>
+              </div>
+              
+              {/* 고용형태 필터 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">고용형태 필터</label>
+                <select
+                  value={employmentTypeFilter}
+                  onChange={(e) => setEmploymentTypeFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="전체">전체</option>
+                  <option value="근로소득자">근로소득자</option>
+                  <option value="사업소득자">사업소득자</option>
+                  <option value="외국인">외국인</option>
+                  <option value="일용직">일용직</option>
+                  <option value="근로계약정보 없음">근로계약정보 없음</option>
+                </select>
               </div>
             </div>
             
