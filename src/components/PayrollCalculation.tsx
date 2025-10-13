@@ -748,10 +748,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       const regularPay = Math.round(regularHours * employee.hourlyWage);
       const basePay = probationPay + regularPay;
       
-      // 주휴수당 계산 (근로소득 또는 사업소득 & 시급 & 주휴수당 미포함)
+      // 주휴수당 계산 (근로소득, 사업소득, 외국인 & 시급 & 주휴수당 미포함)
       
       const shouldCalculateWeeklyHoliday = 
-        (employee.employmentType === '근로소득' || employee.employmentType === '사업소득') &&
+        (employee.employmentType === '근로소득' || employee.employmentType === '사업소득' || employee.employmentType === '외국인') &&
         !employee.includesWeeklyHolidayInWage;
       
       console.log('🔥 주휴수당 계산 조건:', {

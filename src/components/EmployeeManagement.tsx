@@ -343,6 +343,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     const start = new Date(startDate);
     const end = new Date(start);
     end.setMonth(end.getMonth() + periodMonths);
+    // 수습기간 종료일은 시작일 전날이므로 1일을 빼줍니다
+    end.setDate(end.getDate() - 1);
     
     return end.toISOString().split('T')[0];
   };
