@@ -576,20 +576,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       });
     }
     
-    // 🔥 임향순 디버깅
-    if (employee.name === '임향순') {
-      console.log('🔥🔥🔥 임향순 상세 정보:', {
-        name: employee.name,
-        employmentType: employee.employmentType,
-        salaryType: employee.salaryType,
-        hourlyWage: employee.hourlyWage,
-        monthlySalary: employee.monthlySalary,
-        actualWorkHours: actualWorkHours,
-        totalWorkHours: totalWorkHours,
-        probationHours: probationHours,
-        regularHours: regularHours
-      });
-    }
 
     // 급여 계산 (수습기간별로 나누어서 계산)
     let grossPay = 0;
@@ -995,17 +981,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       // 기본 월급 계산
       let baseSalary = employee.monthlySalary;
       
-      // 🔥 임향순 월급 계산 디버깅
-      if (employee.name === '임향순') {
-        console.log('🔥🔥🔥 임향순 월급 계산 정보:', {
-          employeeName: employee.name,
-          monthlySalary: employee.monthlySalary,
-          probationStart: probationStart?.toISOString?.() || probationStart,
-          probationEnd: probationEnd?.toISOString?.() || probationEnd,
-          isMonthInProbation: isMonthInProbation,
-          baseSalary: baseSalary
-        });
-      }
       if (isMonthInProbation) {
         // 수습기간 중에는 월급의 90% 적용
         baseSalary = Math.round(employee.monthlySalary * 0.9);
@@ -1150,7 +1125,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     });
 
     setPayrollCalculations(calculations);
-  }, [employees, weeklySchedules, selectedEmployeeId]);
+  }, [selectedEmployeeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 메모 로드 (WorkTimeComparison과 동일한 방식)
   const loadMemo = useCallback(async () => {
@@ -1460,7 +1435,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     if (selectedEmployeeId && employees.length > 0 && weeklySchedules.length > 0) {
       calculatePayroll();
     }
-  }, [selectedEmployeeId, employees.length, weeklySchedules.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedEmployeeId, employees, weeklySchedules, calculatePayroll]);
 
   // 🔥 최적화: 급여확정 상태는 필요한 값이 변경될 때만 확인
   useEffect(() => {
