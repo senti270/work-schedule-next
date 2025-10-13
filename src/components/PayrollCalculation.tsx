@@ -187,10 +187,16 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         async () => {
           const employeesSnapshot = await getDocs(collection(db, 'employees'));
           console.log('PayrollCalculation - employees 컬렉션 조회 완료:', employeesSnapshot.docs.length, '건');
-          return employeesSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as Employee[];
+          return employeesSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              // Timestamp를 Date로 변환
+              probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : data.probationStartDate,
+              probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : data.probationEndDate
+            };
+          }) as Employee[];
         },
         10 * 60 * 1000 // 10분 캐시
       );
@@ -202,6 +208,16 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         probationEndDate: 유은서테스트직원?.probationEndDate,
         probationStart: 유은서테스트직원?.probationStart,
         probationEnd: 유은서테스트직원?.probationEnd
+      });
+      
+      // 🔥 끄엉 직원 수습기간 정보 확인
+      const 끄엉직원 = employeesData.find(emp => emp.name === '끄엉');
+      console.log('🔥🔥🔥 끄엉 직원 데이터 확인:', 끄엉직원);
+      console.log('🔥🔥🔥 끄엉 수습기간 정보:', {
+        probationStartDate: 끄엉직원?.probationStartDate,
+        probationEndDate: 끄엉직원?.probationEndDate,
+        probationStartDateType: typeof 끄엉직원?.probationStartDate,
+        probationEndDateType: typeof 끄엉직원?.probationEndDate
       });
 
       // 각 직원의 최신 계약서 정보 가져오기
