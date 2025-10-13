@@ -932,7 +932,45 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       });
       
     } else if ((employee.salaryType === '월급' || employee.salaryType === 'monthly') && employee.monthlySalary) {
-      if (isInProbation) {
+      // 월급인 경우 계산
+      console.log('PayrollCalculation - 월급 계산 시작:', {
+        employeeName: employee.name,
+        monthlySalary: employee.monthlySalary,
+        probationStartDate: probationStartDate,
+        probationEndDate: probationEndDate
+      });
+      
+      // Timestamp 객체를 Date 객체로 변환
+      const probationStart = probationStartDate && typeof probationStartDate === 'object' && 'toDate' in probationStartDate 
+        ? probationStartDate.toDate() 
+        : probationStartDate as Date | undefined;
+      const probationEnd = probationEndDate && typeof probationEndDate === 'object' && 'toDate' in probationEndDate 
+        ? probationEndDate.toDate() 
+        : probationEndDate as Date | undefined;
+      
+      // 현재 월이 수습기간에 해당하는지 확인
+      let isMonthInProbation = false;
+      if (probationStart && probationEnd && selectedMonth) {
+        const monthDate = new Date(selectedMonth);
+        const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+        const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+        
+        // 월의 시작일 또는 종료일이 수습기간에 포함되면 수습기간으로 판단
+        isMonthInProbation = (monthStart >= probationStart && monthStart <= probationEnd) ||
+                             (monthEnd >= probationStart && monthEnd <= probationEnd) ||
+                             (monthStart <= probationStart && monthEnd >= probationEnd);
+        
+        console.log('PayrollCalculation - 월급 수습기간 판단:', {
+          selectedMonth: selectedMonth,
+          monthStart: monthStart.toISOString().split('T')[0],
+          monthEnd: monthEnd.toISOString().split('T')[0],
+          probationStart: probationStart.toISOString().split('T')[0],
+          probationEnd: probationEnd.toISOString().split('T')[0],
+          isMonthInProbation: isMonthInProbation
+        });
+      }
+      
+      if (isMonthInProbation) {
         // 수습기간 중에는 월급의 90% 적용
         grossPay = Math.round(employee.monthlySalary * 0.9);
         console.log('PayrollCalculation - 수습기간 월급 적용:', employee.monthlySalary, '원 × 0.9 =', grossPay, '원');
