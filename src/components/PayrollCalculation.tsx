@@ -986,15 +986,43 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     let netPay = 0;
 
     if (employee.employmentType === '근로소득') {
-      // 4대보험 계산 (간단한 예시)
-      const baseAmount = Math.min(grossPay, 5000000); // 최대 500만원
-      insurance = Math.round(baseAmount * 0.0765); // 7.65% (4대보험)
-      tax = Math.round(baseAmount * 0.033); // 3.3% (소득세)
+      // 4대보험 계산 (2025년 기준)
+      const nationalPension = Math.round(grossPay * 0.045);      // 국민연금 4.5%
+      const healthInsurance = Math.round(grossPay * 0.03545);    // 건강보험 3.545%
+      const longTermCare = Math.round(healthInsurance * 0.1295); // 장기요양보험 (건강보험의 12.95%)
+      const employmentInsurance = Math.round(grossPay * 0.009);  // 고용보험 0.9%
+      
+      insurance = nationalPension + healthInsurance + longTermCare + employmentInsurance;
+      
+      // 소득세 간이세액표 적용 (부양가족 1명 기준, 간단한 구간별 계산)
+      let incomeTax = 0;
+      if (grossPay <= 1060000) {
+        incomeTax = 0;
+      } else if (grossPay <= 2100000) {
+        incomeTax = Math.round((grossPay - 1060000) * 0.02);
+      } else if (grossPay <= 3160000) {
+        incomeTax = Math.round(20800 + (grossPay - 2100000) * 0.04);
+      } else if (grossPay <= 5000000) {
+        incomeTax = Math.round(63200 + (grossPay - 3160000) * 0.06);
+      } else {
+        incomeTax = Math.round(173600 + (grossPay - 5000000) * 0.08);
+      }
+      
+      const localIncomeTax = Math.round(incomeTax * 0.1); // 지방소득세 (소득세의 10%)
+      tax = incomeTax + localIncomeTax;
+      
       netPay = grossPay - (insurance + tax);
-      console.log('PayrollCalculation - 근로소득 공제:', {
+      
+      console.log('PayrollCalculation - 근로소득 공제 상세:', {
         grossPay: grossPay,
-        insurance: insurance,
-        tax: tax,
+        nationalPension: nationalPension,
+        healthInsurance: healthInsurance,
+        longTermCare: longTermCare,
+        employmentInsurance: employmentInsurance,
+        totalInsurance: insurance,
+        incomeTax: incomeTax,
+        localIncomeTax: localIncomeTax,
+        totalTax: tax,
         netPay: netPay
       });
     } else if (employee.employmentType === '사업소득') {
