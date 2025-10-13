@@ -76,35 +76,57 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     updatedAt: Date;
   }[]>([]);
 
-  // 근로계약 정보 로드
+  // 근로계약 정보 로드 (해당월에 유효한 계약만)
   const loadContracts = useCallback(async () => {
+    if (!selectedMonth) return;
+    
     try {
-      console.log('근로계약 정보 로드 시작');
+      console.log('근로계약 정보 로드 시작:', selectedMonth);
       const contractsSnapshot = await getDocs(collection(db, 'employmentContracts'));
-      const contractsData = contractsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          employeeId: data.employeeId,
-          employeeName: data.employeeName,
-          employmentType: data.employmentType,
-          salaryType: data.salaryType,
-          hourlyWage: data.hourlyWage,
-          monthlySalary: data.monthlySalary,
-          probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : data.probationStartDate,
-          probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : data.probationEndDate,
-          startDate: data.startDate?.toDate ? data.startDate.toDate() : data.startDate,
-          endDate: data.endDate?.toDate ? data.endDate.toDate() : data.endDate,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt
-        };
-      });
-      console.log('근로계약 정보 로드 완료:', contractsData.length, '개');
+      
+      // 해당월에 유효한 계약만 필터링
+      const targetDate = new Date(selectedMonth);
+      const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+      const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+      
+      const contractsData = contractsSnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            employeeId: data.employeeId,
+            employeeName: data.employeeName,
+            employmentType: data.employmentType,
+            salaryType: data.salaryType,
+            hourlyWage: data.hourlyWage,
+            monthlySalary: data.monthlySalary,
+            probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : data.probationStartDate,
+            probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : data.probationEndDate,
+            startDate: data.startDate?.toDate ? data.startDate.toDate() : data.startDate,
+            endDate: data.endDate?.toDate ? data.endDate.toDate() : data.endDate,
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
+            updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt
+          };
+        })
+        .filter(contract => {
+          // 계약 시작일이 해당월 이전이고, 종료일이 없거나 해당월 이후인 경우
+          const startDate = contract.startDate;
+          const endDate = contract.endDate;
+          
+          if (!startDate) return false;
+          
+          const isStartValid = startDate <= monthEnd;
+          const isEndValid = !endDate || endDate >= monthStart;
+          
+          return isStartValid && isEndValid;
+        });
+      
+      console.log('해당월 유효한 근로계약 정보 로드 완료:', contractsData.length, '개');
       setContracts(contractsData);
     } catch (error) {
       console.error('근로계약 정보 로드 실패:', error);
     }
-  }, []);
+  }, [selectedMonth]);
 
   // 급여 처리 상태 로드 (해당월, 해당직원 기준)
   const loadPayrollStatuses = useCallback(async (employeesData: Employee[]) => {
@@ -511,20 +533,38 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
                             {(() => {
-                              // 근로계약정보가 있는지 확인
-                              const hasContract = contracts.some(contract => contract.employeeId === employee.id);
-                              if (!hasContract) {
+                              // 해당 직원의 근로계약정보에서 고용형태 가져오기
+                              const contract = contracts.find(contract => contract.employeeId === employee.id);
+                              if (!contract) {
                                 return '근로계약정보 없음';
                               }
-                              return employee.employmentType && employee.employmentType !== '정규직' && employee.employmentType !== '아르바이트' 
-                                ? employee.employmentType 
-                                : '근로소득';
-                            })()} | {(() => {
-                              const hasContract = contracts.some(contract => contract.employeeId === employee.id);
-                              if (!hasContract) {
+                              
+                              // 근로계약정보의 employmentType 사용
+                              const employmentType = contract.employmentType;
+                              if (!employmentType) {
                                 return '미설정';
                               }
-                              return employee.salaryType || '시급';
+                              
+                              // 고용형태 표시명 변환
+                              switch (employmentType) {
+                                case '근로소득':
+                                  return '근로소득자';
+                                case '사업소득':
+                                  return '사업소득자';
+                                case '외국인':
+                                  return '외국인';
+                                case '일용직':
+                                  return '일용직';
+                                default:
+                                  return employmentType;
+                              }
+                            })()} | {(() => {
+                              // 해당 직원의 근로계약정보에서 급여형태 가져오기
+                              const contract = contracts.find(contract => contract.employeeId === employee.id);
+                              if (!contract) {
+                                return '미설정';
+                              }
+                              return contract.salaryType || '시급';
                             })()}
                           </div>
                         </div>
