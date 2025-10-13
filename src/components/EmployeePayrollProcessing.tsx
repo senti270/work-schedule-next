@@ -77,58 +77,6 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     updatedAt: Date;
   }[]>([]);
 
-  // 근로계약 정보 로드 (해당월에 유효한 계약만)
-  const loadContracts = useCallback(async () => {
-    if (!selectedMonth) return;
-    
-    try {
-      console.log('근로계약 정보 로드 시작:', selectedMonth);
-      const contractsSnapshot = await getDocs(collection(db, 'employmentContracts'));
-      
-      // 해당월에 유효한 계약만 필터링
-      const targetDate = new Date(selectedMonth);
-      const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-      const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-      
-      const contractsData = contractsSnapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            employeeId: data.employeeId,
-            employeeName: data.employeeName,
-            employmentType: data.employmentType,
-            salaryType: data.salaryType,
-            hourlyWage: data.hourlyWage,
-            monthlySalary: data.monthlySalary,
-            probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : data.probationStartDate,
-            probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : data.probationEndDate,
-            startDate: data.startDate?.toDate ? data.startDate.toDate() : data.startDate,
-            endDate: data.endDate?.toDate ? data.endDate.toDate() : data.endDate,
-            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
-            updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt
-          };
-        })
-        .filter(contract => {
-          // 계약 시작일이 해당월 이전이고, 종료일이 없거나 해당월 이후인 경우
-          const startDate = contract.startDate;
-          const endDate = contract.endDate;
-          
-          if (!startDate) return false;
-          
-          const isStartValid = startDate <= monthEnd;
-          const isEndValid = !endDate || endDate >= monthStart;
-          
-          return isStartValid && isEndValid;
-        });
-      
-      console.log('해당월 유효한 근로계약 정보 로드 완료:', contractsData.length, '개');
-      setContracts(contractsData);
-    } catch (error) {
-      console.error('근로계약 정보 로드 실패:', error);
-    }
-  }, [selectedMonth]);
-
   // 급여 처리 상태 로드 (해당월, 해당직원 기준)
   const loadPayrollStatuses = useCallback(async (employeesData: Employee[]) => {
     try {
@@ -158,27 +106,13 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
         let status: '미처리' | '근무시간검토중' | '근무시간검토완료' | '급여확정완료' = '미처리';
         
         if (payrollSnapshot.docs.length > 0) {
-          // 급여확정완료
           status = '급여확정완료';
           console.log(`${employee.name} 최종 상태: 급여확정완료`);
         } else if (allReviewStatusSnapshot.docs.length > 0) {
-          // 근무시간비교 검토상태 확인
-          const reviewStatuses = allReviewStatusSnapshot.docs.map(doc => {
-            const data = doc.data();
-            console.log(`${employee.name} 지점 ${data.branchId} 상태:`, data.status);
-            return data.status;
-          });
-          
-          // 직원의 모든 지점 확인 (검토상태가 없는 지점도 고려)
           const employeeBranches = employee.branches || [];
-          console.log(`${employee.name} 총 지점 수:`, employeeBranches.length);
-          console.log(`${employee.name} 검토상태가 있는 지점 수:`, allReviewStatusSnapshot.docs.length);
-          
-          // 🔥 모든 지점이 검토완료인지 확인 (검토상태가 없는 지점은 검토전으로 간주)
           const allCompleted = employeeBranches.length > 0 && 
             employeeBranches.every(branchId => {
               const branchStatus = allReviewStatusSnapshot.docs.find(doc => doc.data().branchId === branchId);
-              // 🔥 '검토완료' 또는 '근무시간검토완료' 또는 '급여확정완료' 모두 인정
               return branchStatus && (
                 branchStatus.data().status === '검토완료' || 
                 branchStatus.data().status === '근무시간검토완료' || 
@@ -186,43 +120,31 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
               );
             });
           
-          // 🔥 검토중 상태 체크 ('검토중' 또는 '근무시간검토중')
           const hasInProgress = allReviewStatusSnapshot.docs.some(doc => 
             doc.data().status === '검토중' || doc.data().status === '근무시간검토중'
           );
-          const hasAnyReviewStatus = allReviewStatusSnapshot.docs.length > 0;
-          
-          console.log(`${employee.name} 모든 지점 검토완료:`, allCompleted);
-          console.log(`${employee.name} 검토중 지점 있음:`, hasInProgress);
-          console.log(`${employee.name} 검토상태 있는 지점 있음:`, hasAnyReviewStatus);
           
           if (allCompleted) {
             status = '근무시간검토완료';
           } else if (hasInProgress) {
             status = '근무시간검토중';
-          } else if (hasAnyReviewStatus) {
-            // 검토상태는 있지만 모두 완료되지 않은 경우
-            status = '근무시간검토중';
           } else {
             status = '미처리';
           }
+          
           console.log(`${employee.name} 최종 상태:`, status);
-        } else {
-          // 근무시간비교 검토상태가 없으면 미처리
-          status = '미처리';
-          console.log(`${employee.name} 최종 상태: 미처리 (검토상태 없음)`);
         }
         
         statuses.push({
           employeeId: employee.id,
           month: selectedMonth,
-          branchId: selectedBranchId || '',
-          status,
+          branchId: selectedBranchId,
+          status: status,
           lastUpdated: new Date()
         });
       }
       
-      console.log('\n=== 최종 상태 목록 ===');
+      console.log('=== 최종 상태 목록 ===');
       statuses.forEach(s => {
         const employee = employeesData.find(e => e.id === s.employeeId);
         console.log(`${employee?.name}: ${s.status}`);
@@ -234,31 +156,32 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     }
   }, [selectedMonth, selectedBranchId]);
 
-  // 🔥 최적화: selectedBranchId 자동 설정 제거
-  // 사용자가 선택한 지점 필터를 유지하고, 직원 선택 시 자동으로 변경하지 않음
-  // useEffect(() => {
-  //   if (selectedEmployee && selectedEmployee.branches && selectedEmployee.branches.length > 0 && selectedBranchId === undefined) {
-  //     setSelectedBranchId(selectedEmployee.branches[0]);
-  //     console.log('EmployeePayrollProcessing - selectedBranchId 자동 설정:', selectedEmployee.branches[0]);
-  //   }
-  // }, [selectedEmployee, selectedBranchId]);
-
-  // 직원 목록 로드 (현재 재직중인 전직원)
-  const loadEmployees = useCallback(async () => {
+  // 🔥 통합 데이터 로드 (무한루프 방지)
+  const loadAllData = useCallback(async () => {
     if (!selectedMonth) return;
-
+    
+    setLoading(true);
     try {
-      setLoading(true);
+      console.log('=== 데이터 로드 시작:', selectedMonth, '===');
       
-      // 현재 재직중인 전직원 로드 (퇴사일이 없거나 미래인 직원)
+      // 해당월 계산
+      const targetDate = new Date(selectedMonth);
+      const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+      const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
       const now = new Date();
-      const employeesQuery = query(
-        collection(db, 'employees'),
-        orderBy('name')
-      );
       
-      const employeesSnapshot = await getDocs(employeesQuery);
+      // 🔥 병렬로 조회 (JOIN 대신)
+      const [employeesSnapshot, contractsSnapshot] = await Promise.all([
+        getDocs(query(collection(db, 'employees'), orderBy('name'))),
+        getDocs(collection(db, 'employmentContracts'))
+      ]);
       
+      console.log('Firestore 조회 완료:', {
+        직원수: employeesSnapshot.docs.length,
+        계약수: contractsSnapshot.docs.length
+      });
+      
+      // 1. 직원 데이터 변환 (재직중인 직원만)
       const allEmployees = employeesSnapshot.docs
         .map(doc => {
           const data = doc.data();
@@ -274,39 +197,78 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
           };
         })
         .filter(employee => {
-          // 재직중인 직원만 필터링 (퇴사일이 없거나 미래인 경우)
+          // 재직중인 직원만
           return !employee.resignationDate || employee.resignationDate > now;
         });
-
-      setEmployees(allEmployees);
       
+      console.log('재직중인 직원:', allEmployees.length, '명');
+      
+      // 2. 계약 데이터 변환 (해당월에 유효한 계약만)
+      const validContracts = contractsSnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            employeeId: data.employeeId,
+            employeeName: data.employeeName,
+            employmentType: data.employmentType,
+            salaryType: data.salaryType,
+            hourlyWage: data.hourlyWage,
+            monthlySalary: data.monthlySalary,
+            probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : data.probationStartDate,
+            probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : data.probationEndDate,
+            startDate: data.startDate?.toDate ? data.startDate.toDate() : data.startDate,
+            endDate: data.endDate?.toDate ? data.endDate.toDate() : data.endDate,
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
+            updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt
+          };
+        })
+        .filter(contract => {
+          // 해당월에 유효한 계약만
+          const startDate = contract.startDate;
+          const endDate = contract.endDate;
+          
+          if (!startDate) return false;
+          
+          const isStartValid = startDate <= monthEnd;
+          const isEndValid = !endDate || endDate >= monthStart;
+          
+          return isStartValid && isEndValid;
+        });
+      
+      console.log('해당월 유효한 계약:', validContracts.length, '건');
+      
+      // 3. 메모리 JOIN: 유효한 계약이 있는 직원만 필터링
+      const employeesWithContracts = allEmployees.filter(employee =>
+        validContracts.some(contract => contract.employeeId === employee.id)
+      );
+      
+      console.log('계약이 있는 직원:', employeesWithContracts.length, '명');
+      
+      // 4. 한 번에 상태 업데이트 (무한루프 방지!)
+      setEmployees(employeesWithContracts);
+      setContracts(validContracts);
+      
+      // 5. 급여 처리 상태 로드
+      await loadPayrollStatuses(employeesWithContracts);
+      
+      console.log('=== 데이터 로드 완료 ===');
     } catch (error) {
-      console.error('직원 목록 로드 실패:', error);
+      console.error('데이터 로드 실패:', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth]);
+  }, [selectedMonth, loadPayrollStatuses]);
 
-  // 근로계약 정보가 로드되면 직원 목록을 필터링
-  useEffect(() => {
-    if (contracts.length > 0 && employees.length > 0) {
-      const filteredEmployees = employees.filter(employee => {
-        // 해당월에 유효한 근로계약이 있는 직원만 필터링
-        return contracts.some(contract => contract.employeeId === employee.id);
-      });
-      
-      console.log('근로계약 기반 직원 필터링:', {
-        전체직원: employees.length,
-        필터링후: filteredEmployees.length,
-        계약수: contracts.length
-      });
-      
-      setEmployees(filteredEmployees);
-      
-      // 급여 처리 상태 로드
-      loadPayrollStatuses(filteredEmployees);
-    }
-  }, [contracts, employees, loadPayrollStatuses]);
+  // 🔥 최적화: selectedBranchId 자동 설정 제거
+  // 사용자가 선택한 지점 필터를 유지하고, 직원 선택 시 자동으로 변경하지 않음
+  // useEffect(() => {
+  //   if (selectedEmployee && selectedEmployee.branches && selectedEmployee.branches.length > 0 && selectedBranchId === undefined) {
+  //     setSelectedBranchId(selectedEmployee.branches[0]);
+  //     console.log('EmployeePayrollProcessing - selectedBranchId 자동 설정:', selectedEmployee.branches[0]);
+  //   }
+  // }, [selectedEmployee, selectedBranchId]);
+
 
   // 지점 목록 로드
   const loadBranches = useCallback(async () => {
@@ -352,13 +314,12 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     loadBranches();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 🔥 최적화: 직원 목록은 월이 변경될 때만 로드
+  // 🔥 최적화: 월이 변경될 때 통합 데이터 로드 (무한루프 방지)
   useEffect(() => {
     if (selectedMonth) {
-      loadContracts();
-      loadEmployees();
+      loadAllData();
     }
-  }, [selectedMonth, loadContracts, loadEmployees]);
+  }, [selectedMonth, loadAllData]);
 
   // 필터링된 직원 목록
   const filteredEmployees = employees.filter(employee => {
@@ -728,7 +689,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                       selectedMonth={selectedMonth}
                       onPayrollStatusChange={() => {
                         // 급여확정 상태 변경 시 직원 목록과 상태 다시 로드
-                        loadEmployees();
+                        loadAllData();
                       }}
                     />
                   </>

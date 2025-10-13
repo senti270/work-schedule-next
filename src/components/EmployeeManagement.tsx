@@ -812,6 +812,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         const updateData: Record<string, unknown> = {
           ...formData,
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
+          resignationDate: formData.resignationDate ? new Date(formData.resignationDate) : null,
+          memo: formData.memo || '', // 메모 필드 추가
           updatedAt: new Date()
         };
         
@@ -841,6 +843,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           phone: formData.phone || '',
           residentNumber: formData.residentNumber || '',
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
+          resignationDate: formData.resignationDate ? new Date(formData.resignationDate) : null,
           // 급여관리용 은행 정보
           bankName: formData.bankName || '',
           bankCode: formData.bankCode || '',
@@ -849,6 +852,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           // 수습기간 관리
           probationPeriod: formData.probationPeriod || 3,
           isOnProbation: formData.isOnProbation || false,
+          // 메모
+          memo: formData.memo || '',
           // 스케줄 노출 여부
           hideFromSchedule: formData.hideFromSchedule || false,
           createdAt: new Date(),
@@ -1344,6 +1349,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       }
       
       await loadContracts(currentEmployee.id);
+      await loadEmployees(); // 전체 직원 목록 다시 로드
       resetContractForm();
     } catch (error) {
       console.error('근로계약 저장 중 오류:', error);
@@ -1376,6 +1382,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         if (selectedEmployee) {
           await loadContracts(selectedEmployee.id);
         }
+        await loadEmployees(); // 전체 직원 목록 다시 로드
       } catch (error) {
         console.error('근로계약서 삭제 중 오류:', error);
       }
@@ -1587,6 +1594,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         setContracts(updatedContracts);
         setContractsKey(prev => prev + 1); // 강제 리렌더링
         console.log('레코드 삭제 후 즉시 상태 업데이트 완료, 남은 계약서 수:', updatedContracts.length);
+        
+        // 전체 직원 목록 다시 로드
+        await loadEmployees();
           
           alert('계약서 레코드가 성공적으로 삭제되었습니다.');
         } catch (error) {
@@ -1617,6 +1627,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         setContracts(updatedContracts);
         setContractsKey(prev => prev + 1); // 강제 리렌더링
         console.log('파일 삭제 후 즉시 상태 업데이트 완료, 남은 계약서 수:', updatedContracts.length);
+        
+        // 전체 직원 목록 다시 로드
+        await loadEmployees();
         
         alert('근로계약이 성공적으로 삭제되었습니다.');
       } catch (error) {
