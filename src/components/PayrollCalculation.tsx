@@ -98,6 +98,18 @@ interface PayrollCalculation {
     insurance: number;
     tax: number;
     total: number;
+    // 4대보험 상세 (근로소득자만)
+    insuranceDetails?: {
+      nationalPension: number;
+      healthInsurance: number;
+      longTermCare: number;
+      employmentInsurance: number;
+    };
+    // 소득세 상세 (근로소득자만)
+    taxDetails?: {
+      incomeTax: number;
+      localIncomeTax: number;
+    };
   };
   netPay: number;
   branches: {
@@ -438,8 +450,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
 
   // 급여 계산
   const calculatePayroll = useCallback(async () => {
+    console.log('🔥 calculatePayroll 시작:', {
+      employeesLength: employees.length,
+      selectedEmployeeId: selectedEmployeeId,
+      weeklySchedulesLength: weeklySchedules.length
+    });
     
     if (!employees.length || !selectedEmployeeId) {
+      console.log('🔥 calculatePayroll 조건 미충족으로 종료');
       return;
     }
     
@@ -1021,6 +1039,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     let insurance = 0;
     let tax = 0;
     let netPay = 0;
+    
+    // 4대보험 및 소득세 상세 정보 (전역 스코프)
+    let insuranceDetails: {nationalPension: number, healthInsurance: number, longTermCare: number, employmentInsurance: number} | undefined;
+    let taxDetails: {incomeTax: number, localIncomeTax: number} | undefined;
 
     if (employee.employmentType === '근로소득') {
       // 4대보험 계산 (2025년 기준)
@@ -1028,6 +1050,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       const healthInsurance = Math.round(grossPay * 0.03545);    // 건강보험 3.545%
       const longTermCare = Math.round(healthInsurance * 0.1295); // 장기요양보험 (건강보험의 12.95%)
       const employmentInsurance = Math.round(grossPay * 0.009);  // 고용보험 0.9%
+      
+      // 4대보험 상세 정보 저장
+      insuranceDetails = {
+        nationalPension,
+        healthInsurance,
+        longTermCare,
+        employmentInsurance
+      };
       
       insurance = nationalPension + healthInsurance + longTermCare + employmentInsurance;
       
@@ -1046,6 +1076,13 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       }
       
       const localIncomeTax = Math.round(incomeTax * 0.1); // 지방소득세 (소득세의 10%)
+      
+      // 소득세 상세 정보 저장
+      taxDetails = {
+        incomeTax,
+        localIncomeTax
+      };
+      
       tax = incomeTax + localIncomeTax;
       
       netPay = grossPay - (insurance + tax);
@@ -1105,7 +1142,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       deductions: {
         insurance,
         tax,
-        total: totalDeductions
+        total: totalDeductions,
+        insuranceDetails,
+        taxDetails
       },
       netPay,
       branches: Object.values(branchWorkHours),
@@ -1125,6 +1164,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
     });
 
     setPayrollCalculations(calculations);
+    console.log('🔥 calculatePayroll 완료:', {
+      calculationsLength: calculations.length,
+      calculations: calculations
+    });
   }, [selectedEmployeeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 메모 로드 (WorkTimeComparison과 동일한 방식)
@@ -1770,10 +1813,21 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                         </td>
                       )}
                       <td className="px-4 py-2 text-sm text-gray-900">
-                        {calc.employmentType === '근로소득' 
-                          ? (calc.deductions.insurance > 0 ? calc.deductions.insurance.toLocaleString() + '원' : '-')
-                          : (calc.deductions.tax > 0 ? calc.deductions.tax.toLocaleString() + '원' : '-')
-                        }
+                        {calc.employmentType === '근로소득' && calc.deductions.insuranceDetails ? (
+                          <div className="text-xs">
+                            <div>국민연금: {calc.deductions.insuranceDetails.nationalPension.toLocaleString()}원</div>
+                            <div>건강보험: {calc.deductions.insuranceDetails.healthInsurance.toLocaleString()}원</div>
+                            <div>장기요양: {calc.deductions.insuranceDetails.longTermCare.toLocaleString()}원</div>
+                            <div>고용보험: {calc.deductions.insuranceDetails.employmentInsurance.toLocaleString()}원</div>
+                            <div className="font-medium pt-1 border-t">
+                              합계: {calc.deductions.insurance.toLocaleString()}원
+                            </div>
+                          </div>
+                        ) : calc.employmentType === '근로소득' ? (
+                          calc.deductions.insurance > 0 ? calc.deductions.insurance.toLocaleString() + '원' : '-'
+                        ) : (
+                          calc.deductions.tax > 0 ? calc.deductions.tax.toLocaleString() + '원' : '-'
+                        )}
                       </td>
                       <td className="px-4 py-2 text-sm text-red-600">{calc.deductions.total.toLocaleString()}원</td>
                       <td className="px-4 py-2 text-sm font-bold text-blue-700 bg-blue-50">{calc.netPay.toLocaleString()}원</td>
