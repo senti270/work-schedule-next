@@ -420,6 +420,31 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         <div key={index} className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">{calc.employeeName} 급여 계산</h3>
           
+          {/* 근로계약정보 */}
+          <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h4 className="text-sm font-medium text-gray-800 mb-2">근로계약정보</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">고용형태:</span>
+                <span className="ml-2 font-medium text-gray-900">{calc.employmentType}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">급여타입:</span>
+                <span className="ml-2 font-medium text-gray-900">
+                  {calc.salaryType === 'hourly' ? '시급' : calc.salaryType === 'monthly' ? '월급' : calc.salaryType}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-600">급여액:</span>
+                <span className="ml-2 font-medium text-gray-900">{calc.salaryAmount?.toLocaleString()}원</span>
+              </div>
+              <div>
+                <span className="text-gray-600">주간근무시간:</span>
+                <span className="ml-2 font-medium text-gray-900">{calc.weeklyWorkHours || 40}시간</span>
+              </div>
+            </div>
+          </div>
+          
           {/* 수습기간 정보 */}
           {(calc.probationHours || 0) > 0 && (
             <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -450,6 +475,17 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
             <div className="bg-blue-50 p-4 rounded-lg">
               <h4 className="font-medium text-blue-800 text-sm">실 근무시간</h4>
               <p className="text-2xl font-bold text-blue-900">{calc.actualWorkHours.toFixed(1)}h</p>
+              {/* 지점별 근무시간 상세 */}
+              {calc.branches && calc.branches.length > 0 && (
+                <div className="mt-2 text-xs text-blue-700">
+                  {calc.branches.map((branch, index) => (
+                    <div key={index} className="flex justify-between">
+                      <span>{branch.branchName}:</span>
+                      <span className="font-medium">{branch.workHours.toFixed(1)}h</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
               <h4 className="font-medium text-green-800 text-sm">총 지급액</h4>

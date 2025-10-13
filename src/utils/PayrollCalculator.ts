@@ -32,6 +32,7 @@ export interface PayrollResult {
   employmentType: string;
   salaryType?: string;
   salaryAmount?: number;
+  weeklyWorkHours?: number;
   totalWorkHours: number;
   totalBreakTime: number;
   actualWorkHours: number;
