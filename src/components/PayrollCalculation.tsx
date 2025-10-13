@@ -4,22 +4,17 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { PayrollCalculator, PayrollResult } from '@/utils/PayrollCalculator';
 
-interface Branch {
-  id: string;
-  name: string;
-}
-
 interface Employee {
   id: string;
   name: string;
   employmentType: string;
   salaryType?: string;
-  hourlyWage?: number;
-  monthlySalary?: number;
+  salaryAmount?: number;
   probationStartDate?: Date;
   probationEndDate?: Date;
   includesWeeklyHolidayInWage?: boolean;
   weeklyWorkHours?: number;
+  branches: string[];
 }
 
 interface Schedule {
@@ -34,18 +29,14 @@ interface Schedule {
 interface PayrollCalculationProps {
   selectedMonth: string;
   selectedEmployeeId: string;
-  selectedBranchId?: string;
   employees: Employee[];
-  branches: Branch[];
   onPayrollStatusChange?: () => void;
 }
 
 const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
   selectedMonth,
   selectedEmployeeId,
-  selectedBranchId,
   employees,
-  branches,
   onPayrollStatusChange
 }) => {
   const [loading, setLoading] = useState(false);
@@ -430,25 +421,25 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           <h3 className="text-lg font-semibold mb-4">{calc.employeeName} 급여 계산</h3>
           
           {/* 수습기간 정보 */}
-          {calc.probationHours > 0 && (
+          {(calc.probationHours || 0) > 0 && (
             <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <h4 className="text-sm font-medium text-yellow-800 mb-2">수습기간 적용</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-yellow-700">수습시간:</span>
-                  <span className="ml-2 font-medium text-yellow-900">{calc.probationHours.toFixed(1)}시간</span>
+                  <span className="ml-2 font-medium text-yellow-900">{(calc.probationHours || 0).toFixed(1)}시간</span>
                 </div>
                 <div>
                   <span className="text-yellow-700">수습급여:</span>
-                  <span className="ml-2 font-medium text-yellow-900">{calc.probationPay.toLocaleString()}원 (90%)</span>
+                  <span className="ml-2 font-medium text-yellow-900">{(calc.probationPay || 0).toLocaleString()}원 (90%)</span>
                 </div>
                 <div>
                   <span className="text-yellow-700">정규시간:</span>
-                  <span className="ml-2 font-medium text-yellow-900">{calc.regularHours.toFixed(1)}시간</span>
+                  <span className="ml-2 font-medium text-yellow-900">{(calc.regularHours || 0).toFixed(1)}시간</span>
                 </div>
                 <div>
                   <span className="text-yellow-700">정규급여:</span>
-                  <span className="ml-2 font-medium text-yellow-900">{calc.regularPay.toLocaleString()}원 (100%)</span>
+                  <span className="ml-2 font-medium text-yellow-900">{(calc.regularPay || 0).toLocaleString()}원 (100%)</span>
                 </div>
               </div>
             </div>

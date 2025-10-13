@@ -763,17 +763,15 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                   <>
                     {console.log('EmployeePayrollProcessing - PayrollCalculation 렌더링 조건:', { activeTab, selectedEmployeeId, selectedMonth })}
                     {console.log('🔥 PayrollCalculation에 전달되는 employees:', employees.length, employees)}
-                    <PayrollCalculation
-                      selectedEmployeeId={selectedEmployeeId}
-                      selectedMonth={selectedMonth}
-                      selectedBranchId={selectedBranchId}
-                      employees={employees}
-                      branches={branches}
-                      onPayrollStatusChange={() => {
-                        // 급여확정 상태 변경 시 직원 목록과 상태 다시 로드
-                        loadAllData();
-                      }}
-                    />
+            <PayrollCalculation
+              selectedEmployeeId={selectedEmployeeId}
+              selectedMonth={selectedMonth}
+              employees={employees}
+              onPayrollStatusChange={() => {
+                // 급여확정 상태 변경 시 직원 목록과 상태 다시 로드
+                loadAllData();
+              }}
+            />
                   </>
                 )}
               </div>
