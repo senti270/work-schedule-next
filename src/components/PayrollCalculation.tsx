@@ -659,62 +659,65 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       });
       
       if (employeeSchedules && Array.isArray(employeeSchedules)) {
+        console.log(`🔥🔥🔥 ${employee.name} 수습기간 계산 시작:`, {
+          probationStart: probationStart?.toISOString().split('T')[0],
+          probationEnd: probationEnd?.toISOString().split('T')[0],
+          schedulesCount: employeeSchedules.length
+        });
+        
         employeeSchedules.forEach((schedule, index) => {
-          // 다른 날짜 필드들 확인
-          const scheduleDate = schedule.date ? new Date(schedule.date) : schedule.weekStart;
-          const startDate = schedule.startDate;
-          const createdAt = schedule.createdAt;
-          const actualWorkHours = schedule.actualWorkHours || 0;
+          // schedule.date를 Date 객체로 변환 (문자열이면 변환, Date 객체면 그대로)
+          let scheduleDate: Date | null = null;
           
-          // 사용 가능한 날짜 필드 확인
-          console.log(`🔥 PayrollCalculation - 스케줄 [${index}] 날짜 필드들:`, {
-            weekStart: scheduleDate,
-            startDate: startDate,
-            createdAt: createdAt,
-            scheduleKeys: Object.keys(schedule)
-          });
-          
-          // fullSchedule 객체의 모든 필드 상세 확인
-          console.log(`🔥 PayrollCalculation - 스케줄 [${index}] 전체 객체:`, schedule);
-          
-          // 스케줄 객체의 모든 날짜 관련 필드 확인
-          console.log(`🔥 PayrollCalculation - 스케줄 [${index}] 날짜 필드들 상세:`, {
-            weekStart: schedule.weekStart,
-            startDate: schedule.startDate,
-            createdAt: schedule.createdAt,
-            date: schedule.date,
-            workDate: schedule.workDate,
-            scheduleDate: schedule.scheduleDate,
-            weekStartDate: schedule.weekStartDate,
-            allKeys: Object.keys(schedule)
-          });
-          
-          // 수습기간 여부 판단 (여러 날짜 필드 시도)
-          let isInProbation = false;
-          if (probationStart && probationEnd) {
-            if (scheduleDate && scheduleDate instanceof Date) {
-              isInProbation = scheduleDate >= probationStart && scheduleDate <= probationEnd;
-            } else if (startDate && startDate instanceof Date) {
-              isInProbation = startDate >= probationStart && startDate <= probationEnd;
+          if (schedule.date) {
+            if (typeof schedule.date === 'string') {
+              scheduleDate = new Date(schedule.date);
+            } else if (schedule.date instanceof Date) {
+              scheduleDate = schedule.date;
             }
           }
           
-          console.log(`PayrollCalculation - 스케줄 [${index}] 수습기간 판단:`, {
-            scheduleDate: scheduleDate,
-            scheduleDateString: scheduleDate?.toISOString?.()?.split('T')[0],
-            actualWorkHours: actualWorkHours,
-            isInProbation: isInProbation,
-            probationStart: probationStart,
-            probationEnd: probationEnd,
-            probationStartString: probationStart?.toISOString().split('T')[0],
-            probationEndString: probationEnd?.toISOString().split('T')[0]
-          });
+          // date 필드가 없으면 weekStart 사용 (폴백)
+          if (!scheduleDate && schedule.weekStart) {
+            scheduleDate = schedule.weekStart;
+            console.warn(`⚠️ 스케줄 [${index}]에 date 필드가 없어서 weekStart를 사용합니다.`);
+          }
+          
+          const actualWorkHours = schedule.actualWorkHours || 0;
+          
+          // 수습기간 여부 판단
+          let isInProbation = false;
+          if (probationStart && probationEnd && scheduleDate) {
+            // 날짜만 비교 (시간 제거)
+            const scheduleDateOnly = new Date(scheduleDate.toISOString().split('T')[0]);
+            const probationStartOnly = new Date(probationStart.toISOString().split('T')[0]);
+            const probationEndOnly = new Date(probationEnd.toISOString().split('T')[0]);
+            
+            isInProbation = scheduleDateOnly >= probationStartOnly && scheduleDateOnly <= probationEndOnly;
+            
+            console.log(`🔥 스케줄 [${index}] 수습기간 판단:`, {
+              date: schedule.date,
+              scheduleDateOnly: scheduleDateOnly.toISOString().split('T')[0],
+              probationStartOnly: probationStartOnly.toISOString().split('T')[0],
+              probationEndOnly: probationEndOnly.toISOString().split('T')[0],
+              isInProbation: isInProbation,
+              actualWorkHours: actualWorkHours
+            });
+          }
           
           if (isInProbation) {
             probationHours += actualWorkHours;
+            console.log(`  ✅ 수습기간 시간 추가: +${actualWorkHours}시간 (누적: ${probationHours}시간)`);
           } else {
             regularHours += actualWorkHours;
+            console.log(`  ✅ 정규 시간 추가: +${actualWorkHours}시간 (누적: ${regularHours}시간)`);
           }
+        });
+        
+        console.log(`🔥🔥🔥 ${employee.name} 수습기간 계산 완료:`, {
+          probationHours: probationHours,
+          regularHours: regularHours,
+          totalHours: probationHours + regularHours
         });
       }
       
