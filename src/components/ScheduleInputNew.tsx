@@ -43,6 +43,7 @@ interface Employee {
   resignationDate?: Date;
   branchNames?: string[]; // 소속 지점명들
   weeklyWorkHours?: number; // 주간 근무시간
+  hideFromSchedule?: boolean; // 스케줄 미노출 여부
 }
 
 interface EmployeeBranch {
@@ -697,7 +698,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           hireDate: hireDate,
           resignationDate: resignationDate,
           branchNames: branchNames,
-          weeklyWorkHours: data.weeklyWorkHours || 40
+          weeklyWorkHours: data.weeklyWorkHours || 40,
+          hideFromSchedule: data.hideFromSchedule || false
         };
       }) as Employee[];
       
@@ -706,8 +708,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const weekStart = weekDates[0]; // 월요일
       const weekEnd = weekDates[6]; // 일요일
       
-      // 해당 주간에 근무 중인 직원만 필터링 (입사일/퇴사일 기준)
+      // 해당 주간에 근무 중인 직원만 필터링 (입사일/퇴사일 기준) + 스케줄미노출 직원 제외
       const workingEmployees = employeesData.filter(emp => {
+        // 스케줄 미노출 직원 제외
+        if (emp.hideFromSchedule) {
+          return false;
+        }
+        
         // 입사일 체크 (입사일이 없으면 제한 없음)
         if (emp.hireDate && emp.hireDate > weekEnd) {
           return false; // 주간 종료일 이후 입사 -> 제외

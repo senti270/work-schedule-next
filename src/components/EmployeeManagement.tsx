@@ -31,6 +31,8 @@ interface Employee {
   branchNames?: string[]; // 소속 지점명들
   // 메모
   memo?: string; // 직원 메모
+  // 스케줄 노출 여부
+  hideFromSchedule?: boolean; // 스케줄 관리 화면에서 숨김 여부
   createdAt: Date;
   updatedAt: Date;
 }
@@ -138,7 +140,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     probationPeriod: 3,
     isOnProbation: false,
     // 메모
-    memo: ''
+    memo: '',
+    // 스케줄 노출 여부
+    hideFromSchedule: false
   });
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
 
@@ -845,6 +849,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           // 수습기간 관리
           probationPeriod: formData.probationPeriod || 3,
           isOnProbation: formData.isOnProbation || false,
+          // 스케줄 노출 여부
+          hideFromSchedule: formData.hideFromSchedule || false,
           createdAt: new Date(),
           updatedAt: new Date()
         };
@@ -888,7 +894,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         probationPeriod: 3,
         isOnProbation: false,
         // 메모
-        memo: ''
+        memo: '',
+        // 스케줄 노출 여부
+        hideFromSchedule: false
       });
       setSelectedBranches([]);
       setShowForm(false);
@@ -966,6 +974,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       isOnProbation: employee.isOnProbation || false,
       // 메모
       memo: employee.memo || '',
+      // 스케줄 노출 여부
+      hideFromSchedule: employee.hideFromSchedule || false,
       // 퇴사일
       resignationDate: employee.resignationDate ? employee.resignationDate.toISOString().split('T')[0] : ''
     });
@@ -1042,7 +1052,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       probationPeriod: 3,
       isOnProbation: false,
       // 메모
-      memo: ''
+      memo: '',
+      // 스케줄 노출 여부
+      hideFromSchedule: false
     });
     
     // 지점 매니저인 경우 자신의 지점을 기본으로 선택
@@ -2195,6 +2207,25 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                             </div>
                           </div>
                           
+                          {/* 스케줄 노출 설정 */}
+                          <div className="border-t border-gray-200 pt-4">
+                            <h4 className="text-md font-medium text-gray-900 mb-4">스케줄 설정</h4>
+                            <div>
+                              <label className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  checked={formData.hideFromSchedule}
+                                  onChange={(e) => setFormData({ ...formData, hideFromSchedule: e.target.checked })}
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="text-sm font-medium text-gray-700">스케줄 미노출</span>
+                              </label>
+                              <p className="text-xs text-gray-500 mt-1 ml-6">
+                                체크 시 스케줄 관리 화면에서 이 직원이 표시되지 않습니다.
+                              </p>
+                            </div>
+                          </div>
+                          
                           <div className="flex gap-2 pt-4">
                             <button
                               type="submit"
@@ -2387,6 +2418,22 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                           placeholder="직원에 대한 메모나 특이사항을 입력하세요..."
                           rows={3}
                         />
+                      </div>
+                      
+                      {/* 스케줄 노출 설정 */}
+                      <div>
+                        <label className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.hideFromSchedule}
+                            onChange={(e) => setFormData({ ...formData, hideFromSchedule: e.target.checked })}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-gray-700">스케줄 미노출</span>
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1 ml-6">
+                          체크 시 스케줄 관리 화면에서 이 직원이 표시되지 않습니다.
+                        </p>
                       </div>
                     </div>
                     
@@ -2756,6 +2803,25 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       placeholder="직원에 대한 메모나 특이사항을 입력하세요..."
                       rows={3}
                     />
+                  </div>
+                </div>
+                
+                {/* 스케줄 노출 설정 */}
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="text-md font-medium text-gray-900 mb-4">스케줄 설정</h4>
+                  <div>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.hideFromSchedule}
+                        onChange={(e) => setFormData({ ...formData, hideFromSchedule: e.target.checked })}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">스케줄 미노출</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      체크 시 스케줄 관리 화면에서 이 직원이 표시되지 않습니다.
+                    </p>
                   </div>
                 </div>
                 
