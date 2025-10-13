@@ -270,7 +270,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                 monthlySalary: contract.salaryType === 'monthly' ? (contract.salaryAmount as number) : (contract.salaryType === 'hourly' ? 0 : employee.monthlySalary),
                 // 수습기간 정보는 employees 컬렉션에서 직접 가져오기
                 probationStartDate: employee.probationStartDate || contract.probationStartDate,
-                probationEndDate: employee.probationEndDate || contract.probationEndDate
+                probationEndDate: employee.probationEndDate || contract.probationEndDate,
+                // 주휴수당 포함 여부 (계약서에서 가져오기)
+                includesWeeklyHolidayInWage: contract.includeHolidayAllowance as boolean || false
               };
             }
             
