@@ -11,7 +11,10 @@ interface Employee {
   id: string;
   name: string;
   employmentType: string;
-  salaryType: string;
+  salaryType?: string;
+  salaryAmount?: number;
+  weeklyWorkHours?: number;
+  includesWeeklyHolidayInWage?: boolean;
   branches: string[];
   probationStartDate?: Date;
   probationEndDate?: Date;
@@ -188,8 +191,9 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
           return {
             id: doc.id,
             name: data.name,
-            employmentType: data.type || data.employmentType,
+            // employmentType은 employmentContracts에서 가져오므로 여기서는 제거
             salaryType: data.salaryType,
+            weeklyWorkHours: data.weeklyWorkHours, // 기본값 설정을 위해 추가
             branches: data.branches && data.branches.length > 0 ? data.branches : (data.branchId ? [data.branchId] : []),
             probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : data.probationStartDate,
             probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : data.probationEndDate,
@@ -207,14 +211,16 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
       const validContracts = contractsSnapshot.docs
         .map(doc => {
           const data = doc.data();
+          console.log('🔥 계약서 데이터:', doc.id, data);
           return {
             id: doc.id,
             employeeId: data.employeeId,
             employeeName: data.employeeName,
             employmentType: data.employmentType,
             salaryType: data.salaryType,
-            hourlyWage: data.hourlyWage,
-            monthlySalary: data.monthlySalary,
+            salaryAmount: data.salaryAmount,
+            weeklyWorkHours: data.weeklyWorkHours,
+            includeHolidayAllowance: data.includeHolidayAllowance,
             probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : data.probationStartDate,
             probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : data.probationEndDate,
             startDate: data.startDate?.toDate ? data.startDate.toDate() : data.startDate,
@@ -238,12 +244,70 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
       
       console.log('해당월 유효한 계약:', validContracts.length, '건');
       
-      // 3. 메모리 JOIN: 유효한 계약이 있는 직원만 필터링
-      const employeesWithContracts = allEmployees.filter(employee =>
-        validContracts.some(contract => contract.employeeId === employee.id)
-      );
+      // 3. 메모리 JOIN: 유효한 계약이 있는 직원만 필터링하고 계약서 정보 병합
+      const employeesWithContracts = allEmployees
+        .filter(employee =>
+          validContracts.some(contract => contract.employeeId === employee.id)
+        )
+        .map(employee => {
+          const contract = validContracts.find(c => c.employeeId === employee.id);
+          return {
+            ...employee,
+            // 계약서에서 급여 정보 가져오기
+            employmentType: contract?.employmentType || '',
+            salaryType: contract?.salaryType || employee.salaryType,
+            salaryAmount: contract?.salaryAmount || 0,
+            weeklyWorkHours: contract?.weeklyWorkHours || employee.weeklyWorkHours || 40,
+            includesWeeklyHolidayInWage: contract?.includeHolidayAllowance || false,
+            // 수습기간: 무조건 직원 기본 정보에서 가져오기 (계약서에는 없음)
+            probationStartDate: employee.probationStartDate,
+            probationEndDate: employee.probationEndDate
+          };
+        });
       
       console.log('계약이 있는 직원:', employeesWithContracts.length, '명');
+      console.log('계약이 있는 직원 목록:', employeesWithContracts.map(emp => ({
+        name: emp.name,
+        employmentType: emp.employmentType,
+        salaryType: emp.salaryType,
+        salaryAmount: emp.salaryAmount
+      })));
+      
+      // 나인 직원의 계약서 정보 상세 확인
+      console.log('🔥 전체 직원 목록:', allEmployees.map(emp => ({ id: emp.id, name: emp.name })));
+      console.log('🔥 유효한 계약 목록:', validContracts.map(c => ({ 
+        id: c.id, 
+        employeeId: c.employeeId, 
+        employeeName: c.employeeName,
+        salaryAmount: c.salaryAmount,
+        salaryType: c.salaryType,
+        startDate: c.startDate,
+        endDate: c.endDate
+      })));
+      
+      const nainEmployee = allEmployees.find(emp => emp.name === '나인');
+      if (nainEmployee) {
+        console.log('🔥 나인 직원 기본 정보:', nainEmployee);
+        const nainContract = validContracts.find(c => c.employeeId === nainEmployee.id);
+        console.log('🔥 나인 직원 계약서:', nainContract);
+      } else {
+        console.log('🔥 나인 직원을 allEmployees에서 찾을 수 없음');
+      }
+      
+      const nainEmployeeWithContract = employeesWithContracts.find(emp => emp.name === '나인');
+      if (nainEmployeeWithContract) {
+        console.log('🔥 나인 직원 계약서 상세:', {
+          employee: nainEmployeeWithContract,
+          contract: validContracts.find(c => c.employeeId === nainEmployeeWithContract.id)
+        });
+        console.log('🔥 나인 직원 수습기간 데이터:', {
+          probationStartDate: nainEmployeeWithContract.probationStartDate,
+          probationEndDate: nainEmployeeWithContract.probationEndDate,
+          selectedMonth: selectedMonth
+        });
+      } else {
+        console.log('🔥 나인 직원이 employeesWithContracts에 없음');
+      }
       
       // 4. 한 번에 상태 업데이트 (무한루프 방지!)
       setEmployees(employeesWithContracts);
@@ -320,6 +384,14 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
       loadAllData();
     }
   }, [selectedMonth, loadAllData]);
+  
+  // 🔥 임시: 직원 데이터가 없을 때 강제로 로드
+  useEffect(() => {
+    if (selectedMonth && employees.length === 0) {
+      console.log('🔥 직원 데이터가 없어서 강제로 loadAllData 호출');
+      loadAllData();
+    }
+  }, [selectedMonth, employees.length, loadAllData]);
 
   // 필터링된 직원 목록
   const filteredEmployees = employees.filter(employee => {
@@ -579,7 +651,15 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                               if (!contract) {
                                 return '미설정';
                               }
-                              return contract.salaryType || '시급';
+                              // 급여타입 한글 변환
+                              switch (contract.salaryType) {
+                                case 'hourly':
+                                  return '시급';
+                                case 'monthly':
+                                  return '월급';
+                                default:
+                                  return contract.salaryType || '시급';
+                              }
                             })()}
                           </div>
                         </div>
@@ -682,11 +762,13 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                 {activeTab === 'payroll-calculation' && (
                   <>
                     {console.log('EmployeePayrollProcessing - PayrollCalculation 렌더링 조건:', { activeTab, selectedEmployeeId, selectedMonth })}
+                    {console.log('🔥 PayrollCalculation에 전달되는 employees:', employees.length, employees)}
                     <PayrollCalculation
-                      userBranch={selectedBranchId}
-                      isManager={isManager}
                       selectedEmployeeId={selectedEmployeeId}
                       selectedMonth={selectedMonth}
+                      selectedBranchId={selectedBranchId}
+                      employees={employees}
+                      branches={branches}
                       onPayrollStatusChange={() => {
                         // 급여확정 상태 변경 시 직원 목록과 상태 다시 로드
                         loadAllData();

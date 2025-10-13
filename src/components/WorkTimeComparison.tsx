@@ -1719,7 +1719,7 @@ export default function WorkTimeComparison({
                                     {status}
                                   </span>
                                 </div>
-                                
+                                {/* byjy. if status==급여확정완료, 검토완료취소 button 비활성화  */}
                                 <div className="flex space-x-2">
                                   {status === '검토완료' ? (
                                     <button
