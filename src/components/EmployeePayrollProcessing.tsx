@@ -250,9 +250,6 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     try {
       setLoading(true);
       
-      // 근로계약 정보 먼저 로드
-      await loadContracts();
-      
       // 현재 재직중인 전직원 로드 (퇴사일이 없거나 미래인 직원)
       const now = new Date();
       const employeesQuery = query(
@@ -262,7 +259,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
       
       const employeesSnapshot = await getDocs(employeesQuery);
       
-      const employeesData = employeesSnapshot.docs
+      const allEmployees = employeesSnapshot.docs
         .map(doc => {
           const data = doc.data();
           return {
@@ -281,17 +278,35 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
           return !employee.resignationDate || employee.resignationDate > now;
         });
 
-      setEmployees(employeesData);
-      
-      // 급여 처리 상태 로드
-      await loadPayrollStatuses(employeesData);
+      setEmployees(allEmployees);
       
     } catch (error) {
       console.error('직원 목록 로드 실패:', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, loadContracts, loadPayrollStatuses]);
+  }, [selectedMonth]);
+
+  // 근로계약 정보가 로드되면 직원 목록을 필터링
+  useEffect(() => {
+    if (contracts.length > 0 && employees.length > 0) {
+      const filteredEmployees = employees.filter(employee => {
+        // 해당월에 유효한 근로계약이 있는 직원만 필터링
+        return contracts.some(contract => contract.employeeId === employee.id);
+      });
+      
+      console.log('근로계약 기반 직원 필터링:', {
+        전체직원: employees.length,
+        필터링후: filteredEmployees.length,
+        계약수: contracts.length
+      });
+      
+      setEmployees(filteredEmployees);
+      
+      // 급여 처리 상태 로드
+      loadPayrollStatuses(filteredEmployees);
+    }
+  }, [contracts, employees, loadPayrollStatuses]);
 
   // 지점 목록 로드
   const loadBranches = useCallback(async () => {
@@ -340,9 +355,10 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
   // 🔥 최적화: 직원 목록은 월이 변경될 때만 로드
   useEffect(() => {
     if (selectedMonth) {
+      loadContracts();
       loadEmployees();
     }
-  }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedMonth, loadContracts, loadEmployees]);
 
   // 필터링된 직원 목록
   const filteredEmployees = employees.filter(employee => {
