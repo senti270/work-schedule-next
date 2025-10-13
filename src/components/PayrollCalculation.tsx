@@ -120,6 +120,9 @@ interface PayrollCalculation {
     eligible: boolean;
     reason?: string;
   }>;
+  // 무급휴가 관련 (근로소득자+월급제 전용)
+  unpaidLeaveDays?: number; // 무급휴가 일수
+  unpaidLeaveDeduction?: number; // 무급휴가 차감액
 }
 
 interface PayrollCalculationProps {
@@ -585,6 +588,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       eligible: boolean;
       reason?: string;
     }> = [];
+    // 무급휴가 관련 변수 (전체 스코프에서 사용)
+    let unpaidLeaveDays = 0;
+    let unpaidLeaveDeduction = 0;
     
     // 수습기간 확인 (계약서에서 가져오기)
     let probationStartDate = employee.probationStartDate;
@@ -970,13 +976,41 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
         });
       }
       
+      // 기본 월급 계산
+      let baseSalary = employee.monthlySalary;
       if (isMonthInProbation) {
         // 수습기간 중에는 월급의 90% 적용
-        grossPay = Math.round(employee.monthlySalary * 0.9);
-        console.log('PayrollCalculation - 수습기간 월급 적용:', employee.monthlySalary, '원 × 0.9 =', grossPay, '원');
+        baseSalary = Math.round(employee.monthlySalary * 0.9);
+        console.log('PayrollCalculation - 수습기간 월급 적용:', employee.monthlySalary, '원 × 0.9 =', baseSalary, '원');
       } else {
-        grossPay = employee.monthlySalary;
         console.log('PayrollCalculation - 정규 월급 적용:', employee.monthlySalary, '원');
+      }
+      
+      // 무급휴가 차감 (근로소득자+월급제만)
+      
+      if (employee.employmentType === '근로소득') {
+        // 무급휴가 일수는 급여메모나 별도 입력에서 가져올 수 있음 (현재는 0으로 초기화)
+        // TODO: 실제 무급휴가 일수 입력 UI 추가 필요
+        unpaidLeaveDays = 0; // 임시로 0으로 설정
+        
+        if (unpaidLeaveDays > 0) {
+          // 일할 계산 (월 기준일수를 30일로 가정)
+          const dailyRate = baseSalary / 30;
+          unpaidLeaveDeduction = Math.round(dailyRate * unpaidLeaveDays);
+          grossPay = baseSalary - unpaidLeaveDeduction;
+          
+          console.log('PayrollCalculation - 무급휴가 차감:', {
+            baseSalary: baseSalary,
+            unpaidLeaveDays: unpaidLeaveDays,
+            dailyRate: dailyRate,
+            unpaidLeaveDeduction: unpaidLeaveDeduction,
+            finalGrossPay: grossPay
+          });
+        } else {
+          grossPay = baseSalary;
+        }
+      } else {
+        grossPay = baseSalary;
       }
     }
 
@@ -1081,7 +1115,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
       weeklyHolidayPay: weeklyHolidayPay || 0,
       weeklyHolidayHours: weeklyHolidayHours || 0,
       includesWeeklyHolidayInWage: employee.includesWeeklyHolidayInWage || false,
-      weeklyHolidayDetails: weeklyHolidayDetails
+      weeklyHolidayDetails: weeklyHolidayDetails,
+      // 무급휴가 관련 (근로소득자+월급제 전용)
+      unpaidLeaveDays: unpaidLeaveDays || 0,
+      unpaidLeaveDeduction: unpaidLeaveDeduction || 0
     });
 
     setPayrollCalculations(calculations);
@@ -1660,6 +1697,39 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({ userBranch, isM
                     <div className="pt-2 mt-2 border-t border-blue-300 flex justify-between font-semibold text-blue-800">
                       <span>주휴수당 합계:</span>
                       <span>{calc.weeklyHolidayPay?.toLocaleString()}원 ({calc.weeklyHolidayHours?.toFixed(1)}시간)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 무급휴가 입력 (근로소득자+월급제만) */}
+              {calc.employmentType === '근로소득' && calc.salaryType === '월급' && (
+                <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h4 className="text-sm font-medium text-yellow-800 mb-2">무급휴가 관리</h4>
+                  <div className="flex items-center space-x-4">
+                    <div>
+                      <label className="block text-xs text-yellow-700 mb-1">무급휴가 일수</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="30"
+                        value={calc.unpaidLeaveDays || 0}
+                        onChange={(e) => {
+                          const days = parseInt(e.target.value) || 0;
+                          // TODO: 무급휴가 일수 변경 시 재계산 로직 추가
+                          console.log('무급휴가 일수 변경:', days);
+                        }}
+                        className="w-20 px-2 py-1 border border-yellow-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-yellow-700 mb-1">차감액</label>
+                      <span className="text-sm font-medium text-yellow-800">
+                        {calc.unpaidLeaveDeduction ? calc.unpaidLeaveDeduction.toLocaleString() + '원' : '0원'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-yellow-600">
+                      * 월급 기준으로 일할 계산됩니다 (월급 ÷ 30일)
                     </div>
                   </div>
                 </div>
