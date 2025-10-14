@@ -26,6 +26,7 @@ interface ActualWorkRecord {
   totalHours: number;
   employeeName?: string; // 파싱 후 매칭을 위해 추가
   isNewFormat?: boolean; // 새로운 형식인지 여부 (휴게시간 이미 차감됨)
+  posTimeRange?: string; // POS 원본 시간 범위 (예: "10:02-22:32")
 }
 
 interface WorkTimeComparison {
@@ -36,11 +37,13 @@ interface WorkTimeComparison {
   difference: number;
   status: 'time_match' | 'review_required' | 'review_completed';
   scheduledTimeRange?: string; // "19:00-22:00" 형태
-  actualTimeRange?: string; // "19:00-22:11" 형태
+  actualTimeRange?: string; // "19:00-22:11" 형태 (편집 가능)
   isModified?: boolean; // 수정 여부
   // 휴게시간 및 실근무시간
-  breakTime?: number; // 휴게시간 (시간)
-  actualWorkHours?: number; // 실근무시간 (실제근무시간 - 휴게시간)
+  breakTime?: number; // 휴게시간 (시간) - 기존 필드
+  actualBreakTime?: number; // 실휴게시간 (시간) - 신규 필드 (편집 가능)
+  actualWorkHours?: number; // 실근무시간 (actualTimeRange시간 - actualBreakTime)
+  posTimeRange?: string; // POS 원본 시간 범위 - 신규 필드
 }
 
 interface WorkTimeComparisonProps {
@@ -858,12 +861,27 @@ export default function WorkTimeComparison({
             }
           }
 
+          // posTimeRange 생성 (시간만 추출: "10:02-22:32" 형태)
+          let posTimeRange = '';
+          if (startTime && endTime) {
+            try {
+              const startTimeOnly = startTime.split(' ')[1]?.split(':').slice(0, 2).join(':') || '';
+              const endTimeOnly = endTime.split(' ')[1]?.split(':').slice(0, 2).join(':') || '';
+              if (startTimeOnly && endTimeOnly) {
+                posTimeRange = `${startTimeOnly}-${endTimeOnly}`;
+              }
+            } catch (error) {
+              console.error('posTimeRange 생성 오류:', error);
+            }
+          }
+
           records.push({
             date,
             startTime,
             endTime,
             totalHours,
-            isNewFormat: isNewFormat // 새로운 형식 여부 저장
+            isNewFormat: isNewFormat, // 새로운 형식 여부 저장
+            posTimeRange: posTimeRange // POS 원본 시간 범위
           });
         } else {
           // console.log(`라인 ${index + 1} 컬럼 수 부족:`, columns.length);
@@ -973,10 +991,11 @@ export default function WorkTimeComparison({
       if (actualRecord) {
         // 휴게시간과 실근무시간 계산
         const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
-        // 🔥 새로운 형식(엑셀)은 이미 휴게시간이 차감된 실근무시간이므로 다시 빼지 않음
-        const actualWorkHours = actualRecord.isNewFormat 
-          ? actualRecord.totalHours // 새로운 형식: 그대로 사용
-          : Math.max(0, actualRecord.totalHours - breakTime); // 기존 형식: 휴게시간 차감
+        const actualBreakTime = breakTime; // 초기값은 breakTime과 동일
+        
+        // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
+        const actualTimeRangeHours = parseTimeRangeToHours(formatTimeRange(actualRecord.startTime, actualRecord.endTime));
+        const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
         
         // 차이 계산: 실제순근무시간 - 스케줄시간 (많이 하면 +, 적게 하면 -)
         const difference = actualWorkHours - schedule.totalHours;
@@ -1000,7 +1019,9 @@ export default function WorkTimeComparison({
           actualTimeRange: formatTimeRange(actualRecord.startTime, actualRecord.endTime),
           isModified: false,
           breakTime: breakTime,
-          actualWorkHours: actualWorkHours
+          actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
+          actualWorkHours: actualWorkHours,
+          posTimeRange: actualRecord.posTimeRange || '' // POS 원본 시간 범위
         });
 
         processedDates.add(scheduleDate);
@@ -1008,6 +1029,7 @@ export default function WorkTimeComparison({
         // 스케줄은 있지만 실제근무 데이터가 없는 경우
         // 휴게시간과 실근무시간 계산 (실제근무 데이터가 없는 경우)
         const breakTime = parseFloat(schedule.breakTime) || 0;
+        const actualBreakTime = breakTime; // 초기값은 breakTime과 동일
         const actualWorkHours = 0; // 실제근무 데이터가 없으므로 0
         
         comparisons.push({
@@ -1021,7 +1043,9 @@ export default function WorkTimeComparison({
           actualTimeRange: '-',
           isModified: false,
           breakTime: breakTime,
-          actualWorkHours: actualWorkHours
+          actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
+          actualWorkHours: actualWorkHours,
+          posTimeRange: '' // 실제근무 데이터가 없으므로 빈 값
         });
       }
     });
@@ -1035,7 +1059,10 @@ export default function WorkTimeComparison({
 
         // 스케줄이 없는 경우 휴게시간은 0으로 가정
         const breakTime = 0; // 스케줄이 없으므로 휴게시간 정보 없음
-        const actualWorkHours = actualRecord.totalHours; // 휴게시간이 없으므로 실제근무시간 = 실근무시간
+        const actualBreakTime = 0; // 초기값은 breakTime과 동일
+        // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
+        const actualTimeRangeHours = parseTimeRangeToHours(formatTimeRange(actualRecord.startTime, actualRecord.endTime));
+        const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
         
         comparisons.push({
           employeeName: employeeName,
@@ -1048,7 +1075,9 @@ export default function WorkTimeComparison({
           actualTimeRange: formatTimeRange(actualRecord.startTime, actualRecord.endTime),
           isModified: false,
           breakTime: breakTime,
-          actualWorkHours: actualWorkHours
+          actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
+          actualWorkHours: actualWorkHours,
+          posTimeRange: actualRecord.posTimeRange || '' // POS 원본 시간 범위
         });
       }
     });
@@ -1147,6 +1176,33 @@ export default function WorkTimeComparison({
     const start = startTime.split(' ')[1]?.substring(0, 5) || startTime.substring(0, 5);
     const end = endTime.split(' ')[1]?.substring(0, 5) || endTime.substring(0, 5);
     return `${start}-${end}`;
+  };
+
+  // 시간 범위 문자열을 시간으로 변환하는 함수 (예: "10:02-22:32" -> 12.5시간)
+  const parseTimeRangeToHours = (timeRange: string): number => {
+    if (!timeRange || timeRange === '-' || !timeRange.includes('-')) {
+      return 0;
+    }
+    
+    try {
+      const [startTime, endTime] = timeRange.split('-');
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      const [endHour, endMinute] = endTime.split(':').map(Number);
+      
+      const startMinutes = startHour * 60 + startMinute;
+      const endMinutes = endHour * 60 + endMinute;
+      
+      // 다음날로 넘어가는 경우 처리 (예: 22:00-06:00)
+      let diffMinutes = endMinutes - startMinutes;
+      if (diffMinutes < 0) {
+        diffMinutes += 24 * 60; // 24시간 추가
+      }
+      
+      return diffMinutes / 60; // 시간으로 변환
+    } catch (error) {
+      console.error('시간 범위 파싱 오류:', error, 'timeRange:', timeRange);
+      return 0;
+    }
   };
 
   // 연장근무시간 계산 함수
@@ -1339,7 +1395,9 @@ export default function WorkTimeComparison({
           actualTimeRange: result.actualTimeRange,
           isModified: result.isModified || false,
           breakTime: result.breakTime || 0,
+          actualBreakTime: result.actualBreakTime || 0, // 신규 필드 추가
           actualWorkHours: result.actualWorkHours || 0,
+          posTimeRange: result.posTimeRange || '', // 신규 필드 추가
           createdAt: new Date()
         });
       }
@@ -1388,7 +1446,9 @@ export default function WorkTimeComparison({
             actualTimeRange: data.actualTimeRange || '-',
             isModified: data.isModified || false,
             breakTime: data.breakTime || 0,
-            actualWorkHours: data.actualWorkHours || 0
+            actualBreakTime: data.actualBreakTime || 0, // 신규 필드 추가
+            actualWorkHours: data.actualWorkHours || 0,
+            posTimeRange: data.posTimeRange || '' // 신규 필드 추가
           };
         });
         
@@ -2193,10 +2253,16 @@ export default function WorkTimeComparison({
                     실제 시간
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    실근무시각(B)
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     휴게시간
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    실근무시간
+                    실휴게시간
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    실근무시간 (D=B-C)
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     차이
@@ -2252,12 +2318,69 @@ export default function WorkTimeComparison({
                         <div className="text-xs text-gray-500">{result.actualTimeRange}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
+                          <span className="text-gray-600">{result.actualTimeRange || '-'}</span>
+                        ) : (
+                          <input
+                            type="text"
+                            value={result.actualTimeRange || ''}
+                            onChange={(e) => {
+                              const newActualTimeRange = e.target.value;
+                              const updatedResults = [...comparisonResults];
+                              updatedResults[index] = {
+                                ...result,
+                                actualTimeRange: newActualTimeRange,
+                                // actualWorkHours 재계산
+                                actualWorkHours: Math.max(0, parseTimeRangeToHours(newActualTimeRange) - (result.actualBreakTime || 0)),
+                                isModified: true
+                              };
+                              setComparisonResults(updatedResults);
+                            }}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded text-xs text-center"
+                            placeholder="10:02-22:32"
+                          />
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {(() => {
                           const breakTime = result.breakTime || 0;
                           const hours = Math.floor(breakTime);
                           const minutes = Math.round((breakTime - hours) * 60);
                           return `${hours}:${minutes.toString().padStart(2, '0')}`;
                         })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                        {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
+                          <span className="text-gray-600">
+                            {(() => {
+                              const actualBreakTime = result.actualBreakTime || 0;
+                              const hours = Math.floor(actualBreakTime);
+                              const minutes = Math.round((actualBreakTime - hours) * 60);
+                              return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                            })()}
+                          </span>
+                        ) : (
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            max="24"
+                            value={result.actualBreakTime || 0}
+                            onChange={(e) => {
+                              const newActualBreakTime = parseFloat(e.target.value) || 0;
+                              const updatedResults = [...comparisonResults];
+                              updatedResults[index] = {
+                                ...result,
+                                actualBreakTime: newActualBreakTime,
+                                // actualWorkHours 재계산
+                                actualWorkHours: Math.max(0, parseTimeRangeToHours(result.actualTimeRange || '') - newActualBreakTime),
+                                isModified: true
+                              };
+                              setComparisonResults(updatedResults);
+                            }}
+                            className="w-16 px-2 py-1 border border-gray-300 rounded text-xs text-center"
+                          />
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
@@ -2537,9 +2660,28 @@ export default function WorkTimeComparison({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     {(() => {
+                      // actualTimeRange의 총 시간 계산
+                      const totalActualTimeRange = comparisonResults.reduce((sum, result) => {
+                        return sum + parseTimeRangeToHours(result.actualTimeRange || '');
+                      }, 0);
+                      const hours = Math.floor(totalActualTimeRange);
+                      const minutes = Math.round((totalActualTimeRange - hours) * 60);
+                      return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                    })()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                    {(() => {
                       const totalBreak = comparisonResults.reduce((sum, result) => sum + (result.breakTime || 0), 0);
                       const hours = Math.floor(totalBreak);
                       const minutes = Math.round((totalBreak - hours) * 60);
+                      return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                    })()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                    {(() => {
+                      const totalActualBreak = comparisonResults.reduce((sum, result) => sum + (result.actualBreakTime || 0), 0);
+                      const hours = Math.floor(totalActualBreak);
+                      const minutes = Math.round((totalActualBreak - hours) * 60);
                       return `${hours}:${minutes.toString().padStart(2, '0')}`;
                     })()}
                   </td>
