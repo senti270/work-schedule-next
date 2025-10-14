@@ -130,7 +130,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         branchName: schedule.branchName
       }));
 
-      // PayrollCalculator로 계산
       console.log('🔥 PayrollCalculator 입력 데이터:', { 
         employeeData: {
           ...employeeData,
@@ -142,11 +141,15 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           ...contractData,
           salaryAmount: contractData.salaryAmount
         }, 
-        scheduleData: scheduleData.length 
+        scheduleData: scheduleData.length,
+        scheduleDataWithBranchNames: scheduleData.map(s => ({ branchId: s.branchId, branchName: s.branchName }))
       });
+
+      // PayrollCalculator로 계산
       const calculator = new PayrollCalculator(employeeData, contractData, scheduleData);
       const result = calculator.calculate();
       console.log('🔥 PayrollCalculator 계산 결과:', result);
+      console.log('🔥 branches 정보:', result.branches);
 
       setPayrollResults([result]);
       console.log('🔥 setPayrollResults 호출됨, 결과 개수:', [result].length);
