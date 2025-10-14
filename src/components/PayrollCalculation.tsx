@@ -123,11 +123,32 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         includeHolidayAllowance: employee.includesWeeklyHolidayInWage
       };
 
-      const scheduleData = weeklySchedules.map(schedule => ({
-        date: schedule.date,
-        actualWorkHours: schedule.actualWorkHours,
-        branchId: schedule.branchId,
-        branchName: schedule.branchName
+      // branchName이 없으면 branchId로 지점명 조회
+      const scheduleData = await Promise.all(weeklySchedules.map(async (schedule) => {
+        let branchName = schedule.branchName;
+        
+        // branchName이 없으면 branchId로 조회
+        if (!branchName && schedule.branchId) {
+          try {
+            const branchQuery = query(
+              collection(db, 'branches'),
+              where('__name__', '==', schedule.branchId)
+            );
+            const branchSnapshot = await getDocs(branchQuery);
+            if (!branchSnapshot.empty) {
+              branchName = branchSnapshot.docs[0].data().name;
+            }
+          } catch (error) {
+            console.error('지점명 조회 실패:', error);
+          }
+        }
+        
+        return {
+          date: schedule.date,
+          actualWorkHours: schedule.actualWorkHours,
+          branchId: schedule.branchId,
+          branchName: branchName || '지점명 없음'
+        };
       }));
 
       console.log('🔥 PayrollCalculator 입력 데이터:', { 
