@@ -2307,7 +2307,8 @@ export default function WorkTimeComparison({
                           {/* 스케줄 근무시간 표시 */}
                           <div className="text-xs text-gray-500 font-medium">
                             {(() => {
-                              const scheduledWorkHours = result.scheduledHours - (result.breakTime || 0);
+                              // scheduledHours는 이미 휴게시간을 제외한 순 근무시간이므로 그대로 사용
+                              const scheduledWorkHours = result.scheduledHours;
                               const hours = Math.floor(scheduledWorkHours);
                               const minutes = Math.round((scheduledWorkHours - hours) * 60);
                               return `${hours}:${minutes.toString().padStart(2, '0')}`;

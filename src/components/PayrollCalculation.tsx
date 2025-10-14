@@ -123,7 +123,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
 
   // 급여 계산
   const calculatePayroll = useCallback(async () => {
+    console.log('🔥 calculatePayroll 시작:', { 
+      employeesLength: employees.length, 
+      selectedEmployeeId, 
+      weeklySchedulesLength: weeklySchedules.length 
+    });
+    
     if (!employees.length || !selectedEmployeeId) {
+      console.log('🔥 calculatePayroll 조건 불충족');
       setPayrollResults([]);
       return;
     }
@@ -137,18 +144,20 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       return;
     }
     
-    // 기존 데이터가 없으면 새로 계산 (스케줄 데이터 필요)
-    if (!weeklySchedules.length) {
+    // 선택된 직원 찾기
+    const employee = employees.find(emp => emp.id === selectedEmployeeId);
+    if (!employee) return;
+    
+    // 기존 데이터가 없으면 새로 계산
+    // 월급직의 경우 스케줄 데이터가 없어도 계산 가능
+    const isMonthlySalary = employee.salaryType === 'monthly';
+    if (!weeklySchedules.length && !isMonthlySalary) {
       setNoScheduleData(true);
       setPayrollResults([]);
       return;
     }
     
     setNoScheduleData(false);
-
-    // 선택된 직원 찾기
-    const employee = employees.find(emp => emp.id === selectedEmployeeId);
-    if (!employee) return;
 
     try {
       // PayrollCalculator에 전달할 데이터 준비 (이미 계약서 정보가 병합된 employee 사용)
@@ -172,33 +181,34 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         includeHolidayAllowance: employee.includesWeeklyHolidayInWage
       };
 
-      // branchName이 없으면 branchId로 지점명 조회
-      const scheduleData = await Promise.all(weeklySchedules.map(async (schedule) => {
-        let branchName = schedule.branchName;
-        
-        // branchName이 없으면 branchId로 조회
-        if (!branchName && schedule.branchId) {
-          try {
-            const branchQuery = query(
-              collection(db, 'branches'),
-              where('__name__', '==', schedule.branchId)
-            );
-            const branchSnapshot = await getDocs(branchQuery);
-            if (!branchSnapshot.empty) {
-              branchName = branchSnapshot.docs[0].data().name;
+      // 스케줄 데이터 처리 (월급직의 경우 빈 배열)
+      const scheduleData = weeklySchedules.length > 0 ? 
+        await Promise.all(weeklySchedules.map(async (schedule) => {
+          let branchName = schedule.branchName;
+          
+          // branchName이 없으면 branchId로 조회
+          if (!branchName && schedule.branchId) {
+            try {
+              const branchQuery = query(
+                collection(db, 'branches'),
+                where('__name__', '==', schedule.branchId)
+              );
+              const branchSnapshot = await getDocs(branchQuery);
+              if (!branchSnapshot.empty) {
+                branchName = branchSnapshot.docs[0].data().name;
+              }
+            } catch (error) {
+              console.error('지점명 조회 실패:', error);
             }
-          } catch (error) {
-            console.error('지점명 조회 실패:', error);
           }
-        }
-        
-        return {
-          date: schedule.date,
-          actualWorkHours: schedule.actualWorkHours,
-          branchId: schedule.branchId,
-          branchName: branchName || '지점명 없음'
-        };
-      }));
+          
+          return {
+            date: schedule.date,
+            actualWorkHours: schedule.actualWorkHours,
+            branchId: schedule.branchId,
+            branchName: branchName || '지점명 없음'
+          };
+        })) : [];
 
       console.log('🔥 PayrollCalculator 입력 데이터:', { 
         employeeData: {
