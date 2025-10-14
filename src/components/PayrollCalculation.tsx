@@ -552,6 +552,19 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
                           <span>합계:</span>
                           <span>{calc.deductions.insurance.toLocaleString()}원</span>
                         </div>
+                        {/* 소득세 표시 */}
+                        {calc.deductions.taxDetails && (
+                          <>
+                            <div className="flex justify-between pt-1">
+                              <span>소득세:</span>
+                              <span>{calc.deductions.taxDetails.incomeTax.toLocaleString()}원</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>지방소득세:</span>
+                              <span>{calc.deductions.taxDetails.localIncomeTax.toLocaleString()}원</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ) : calc.employmentType === '근로소득' ? (
                       calc.deductions.insurance > 0 ? calc.deductions.insurance.toLocaleString() + '원' : '-'
