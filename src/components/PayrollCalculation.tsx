@@ -566,10 +566,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
                           <span>고용보험:</span>
                           <span>{calc.deductions.insuranceDetails.employmentInsurance.toLocaleString()}원</span>
                         </div>
-                        <div className="flex justify-between pt-1 border-t font-medium">
-                          <span>4대보험 합계:</span>
-                          <span>{calc.deductions.insurance.toLocaleString()}원</span>
-                        </div>
                         {/* 소득세 표시 */}
                         {calc.deductions.taxDetails && (
                           <>
