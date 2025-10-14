@@ -51,6 +51,15 @@ export interface PayrollResult {
       incomeTax: number;
       localIncomeTax: number;
     };
+    // 편집 가능한 공제항목들
+    editableDeductions?: {
+      nationalPension: number;
+      healthInsurance: number;
+      longTermCare: number;
+      employmentInsurance: number;
+      incomeTax: number;
+      localIncomeTax: number;
+    };
   };
   netPay: number;
   branches: {
@@ -175,6 +184,16 @@ export class PayrollCalculator {
     // 6. 4대보험 및 소득세 공제
     const deductions = this.calculateLaborIncomeDeductions(grossPay);
     
+    // 편집 가능한 공제항목 초기화
+    deductions.editableDeductions = {
+      nationalPension: deductions.insuranceDetails?.nationalPension || 0,
+      healthInsurance: deductions.insuranceDetails?.healthInsurance || 0,
+      longTermCare: deductions.insuranceDetails?.longTermCare || 0,
+      employmentInsurance: deductions.insuranceDetails?.employmentInsurance || 0,
+      incomeTax: deductions.taxDetails?.incomeTax || 0,
+      localIncomeTax: deductions.taxDetails?.localIncomeTax || 0
+    };
+    
     // 7. 실수령액
     const netPay = grossPay - deductions.total;
     
@@ -221,6 +240,16 @@ export class PayrollCalculator {
     
     // 3. 4대보험 및 소득세 공제
     const deductions = this.calculateLaborIncomeDeductions(grossPay);
+    
+    // 편집 가능한 공제항목 초기화
+    deductions.editableDeductions = {
+      nationalPension: deductions.insuranceDetails?.nationalPension || 0,
+      healthInsurance: deductions.insuranceDetails?.healthInsurance || 0,
+      longTermCare: deductions.insuranceDetails?.longTermCare || 0,
+      employmentInsurance: deductions.insuranceDetails?.employmentInsurance || 0,
+      incomeTax: deductions.taxDetails?.incomeTax || 0,
+      localIncomeTax: deductions.taxDetails?.localIncomeTax || 0
+    };
     
     // 4. 실수령액
     const netPay = grossPay - deductions.total;

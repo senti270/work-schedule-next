@@ -45,6 +45,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
   const [weeklySchedules, setWeeklySchedules] = useState<Schedule[]>([]);
   const [memo, setMemo] = useState('');
   const [isPayrollConfirmed, setIsPayrollConfirmed] = useState(false);
+  const [editableDeductions, setEditableDeductions] = useState<{[key: string]: number}>({});
 
   // 스케줄 데이터 로드
   const loadSchedules = useCallback(async () => {
@@ -255,7 +256,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         where('month', '==', selectedMonth)
       );
       const payrollSnapshot = await getDocs(payrollQuery);
-      setIsPayrollConfirmed(payrollSnapshot.docs.length > 0);
+      
+      // confirmedAt이 null이 아닌 문서가 있는지 확인
+      const hasConfirmed = payrollSnapshot.docs.some(doc => {
+        const data = doc.data();
+        return data.confirmedAt !== null && data.confirmedAt !== undefined;
+      });
+      
+      setIsPayrollConfirmed(hasConfirmed);
     } catch (error) {
       console.error('급여확정 상태 확인 실패:', error);
       setIsPayrollConfirmed(false);
@@ -330,6 +338,46 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     }
   }, [selectedMonth, selectedEmployeeId, payrollResults, employees, onPayrollStatusChange]);
 
+  // 급여 저장 (confirmedAt = null)
+  const handleSavePayroll = useCallback(async () => {
+    if (!selectedMonth || !selectedEmployeeId || payrollResults.length === 0) return;
+    
+    try {
+      // 1. confirmedPayrolls에서 해당 문서 찾기
+      const payrollQuery = query(
+        collection(db, 'confirmedPayrolls'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('month', '==', selectedMonth)
+      );
+      const payrollSnapshot = await getDocs(payrollQuery);
+      
+      const payrollData = {
+        month: selectedMonth,
+        employeeId: selectedEmployeeId,
+        employeeName: payrollResults[0].employeeName,
+        calculations: payrollResults,
+        editableDeductions: editableDeductions,
+        confirmedAt: null, // 미확정 상태
+        savedAt: new Date(),
+        savedBy: 'admin'
+      };
+      
+      if (payrollSnapshot.docs.length > 0) {
+        // 기존 문서 업데이트
+        const docRef = payrollSnapshot.docs[0];
+        await updateDoc(doc(db, 'confirmedPayrolls', docRef.id), payrollData);
+      } else {
+        // 새 문서 생성
+        await addDoc(collection(db, 'confirmedPayrolls'), payrollData);
+      }
+      
+      alert('급여 정보가 저장되었습니다.');
+    } catch (error) {
+      console.error('급여 저장 실패:', error);
+      alert('급여 저장에 실패했습니다.');
+    }
+  }, [selectedMonth, selectedEmployeeId, payrollResults, editableDeductions]);
+
   // 급여 확정 취소
   const handleCancelPayroll = useCallback(async () => {
     if (!selectedMonth || !selectedEmployeeId) return;
@@ -339,7 +387,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     }
     
     try {
-      // 1. confirmedPayrolls에서 해당 문서 삭제
+      // 1. confirmedPayrolls에서 confirmedAt을 null로 업데이트
       const payrollQuery = query(
         collection(db, 'confirmedPayrolls'),
         where('employeeId', '==', selectedEmployeeId),
@@ -348,7 +396,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       const payrollSnapshot = await getDocs(payrollQuery);
       
       for (const docSnapshot of payrollSnapshot.docs) {
-        await deleteDoc(doc(db, 'confirmedPayrolls', docSnapshot.id));
+        await updateDoc(doc(db, 'confirmedPayrolls', docSnapshot.id), {
+          confirmedAt: null,
+          cancelledAt: new Date(),
+          cancelledBy: 'admin'
+        });
       }
       
       // 2. 해당 직원의 모든 지점 상태를 "검토완료"로 되돌리기
@@ -550,36 +602,66 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
                   <td className="px-4 py-2 text-sm text-gray-900">
                     {calc.employmentType === '근로소득' && calc.deductions.insuranceDetails ? (
                       <div className="text-xs space-y-1">
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span>국민연금:</span>
-                          <span>{calc.deductions.insuranceDetails.nationalPension.toLocaleString()}원</span>
+                          <input
+                            type="number"
+                            value={editableDeductions.nationalPension ?? calc.deductions.insuranceDetails.nationalPension}
+                            onChange={(e) => setEditableDeductions(prev => ({...prev, nationalPension: parseInt(e.target.value) || 0}))}
+                            className="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs text-right"
+                          />
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span>건강보험:</span>
-                          <span>{calc.deductions.insuranceDetails.healthInsurance.toLocaleString()}원</span>
+                          <input
+                            type="number"
+                            value={editableDeductions.healthInsurance ?? calc.deductions.insuranceDetails.healthInsurance}
+                            onChange={(e) => setEditableDeductions(prev => ({...prev, healthInsurance: parseInt(e.target.value) || 0}))}
+                            className="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs text-right"
+                          />
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span>장기요양:</span>
-                          <span>{calc.deductions.insuranceDetails.longTermCare.toLocaleString()}원</span>
+                          <input
+                            type="number"
+                            value={editableDeductions.longTermCare ?? calc.deductions.insuranceDetails.longTermCare}
+                            onChange={(e) => setEditableDeductions(prev => ({...prev, longTermCare: parseInt(e.target.value) || 0}))}
+                            className="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs text-right"
+                          />
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span>고용보험:</span>
-                          <span>{calc.deductions.insuranceDetails.employmentInsurance.toLocaleString()}원</span>
+                          <input
+                            type="number"
+                            value={editableDeductions.employmentInsurance ?? calc.deductions.insuranceDetails.employmentInsurance}
+                            onChange={(e) => setEditableDeductions(prev => ({...prev, employmentInsurance: parseInt(e.target.value) || 0}))}
+                            className="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs text-right"
+                          />
                         </div>
                         {/* 소득세 표시 */}
                         {calc.deductions.taxDetails && (
                           <>
-                            <div className="flex justify-between pt-1">
+                            <div className="flex justify-between items-center pt-1">
                               <span>소득세:</span>
-                              <span>{calc.deductions.taxDetails.incomeTax.toLocaleString()}원</span>
+                              <input
+                                type="number"
+                                value={editableDeductions.incomeTax ?? calc.deductions.taxDetails.incomeTax}
+                                onChange={(e) => setEditableDeductions(prev => ({...prev, incomeTax: parseInt(e.target.value) || 0}))}
+                                className="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs text-right"
+                              />
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center">
                               <span>지방소득세:</span>
-                              <span>{calc.deductions.taxDetails.localIncomeTax.toLocaleString()}원</span>
+                              <input
+                                type="number"
+                                value={editableDeductions.localIncomeTax ?? calc.deductions.taxDetails.localIncomeTax}
+                                onChange={(e) => setEditableDeductions(prev => ({...prev, localIncomeTax: parseInt(e.target.value) || 0}))}
+                                className="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs text-right"
+                              />
                             </div>
                             <div className="flex justify-between pt-1 border-t font-bold text-red-600">
                               <span>총 공제액:</span>
-                              <span>{calc.deductions.total.toLocaleString()}원</span>
+                              <span>{(Object.values(editableDeductions).reduce((sum, val) => sum + (val || 0), 0) || calc.deductions.total).toLocaleString()}원</span>
                             </div>
                           </>
                         )}
@@ -632,26 +714,30 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
             </button>
           </div>
           
-          {/* 급여 확정 버튼 */}
-          {!isPayrollConfirmed ? (
-            <div className="flex justify-end space-x-4">
+          {/* 저장 및 급여 확정 버튼 */}
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={handleSavePayroll}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              저장
+            </button>
+            {!isPayrollConfirmed ? (
               <button
                 onClick={handleConfirmPayroll}
                 className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
               >
                 급여 확정
               </button>
-            </div>
-          ) : (
-            <div className="flex justify-end space-x-4">
+            ) : (
               <button
                 onClick={handleCancelPayroll}
                 className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
               >
                 급여 확정 취소
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       ))}
     </div>
