@@ -43,7 +43,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
   const [noScheduleData, setNoScheduleData] = useState(false);
   const [payrollResults, setPayrollResults] = useState<PayrollResult[]>([]);
   const [weeklySchedules, setWeeklySchedules] = useState<Schedule[]>([]);
-  const [memo, setMemo] = useState('');
+  const [adminMemo, setAdminMemo] = useState(''); // 관리자용 메모
+  const [employeeMemo, setEmployeeMemo] = useState(''); // 해당직원조회용 메모
   const [isPayrollConfirmed, setIsPayrollConfirmed] = useState(false);
   const [editableDeductions, setEditableDeductions] = useState<{[key: string]: number}>({});
 
@@ -241,38 +242,58 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
   }, [employees, selectedEmployeeId, weeklySchedules]);
 
   // 메모 로드
-  const loadMemo = useCallback(async () => {
+  const loadMemos = useCallback(async () => {
     if (!selectedMonth || !selectedEmployeeId) return;
     
     try {
-      const memosQuery = query(
+      // 관리자용 메모 로드
+      const adminMemosQuery = query(
         collection(db, 'employeeMemos'),
         where('month', '==', selectedMonth),
-        where('employeeId', '==', selectedEmployeeId)
+        where('employeeId', '==', selectedEmployeeId),
+        where('type', '==', 'admin')
       );
       
-      const memosSnapshot = await getDocs(memosQuery);
-      if (!memosSnapshot.empty) {
-        const memoData = memosSnapshot.docs[0].data();
-        setMemo(memoData.memo || '');
+      const adminMemosSnapshot = await getDocs(adminMemosQuery);
+      if (!adminMemosSnapshot.empty) {
+        const adminMemoData = adminMemosSnapshot.docs[0].data();
+        setAdminMemo(adminMemoData.memo || '');
       } else {
-        setMemo('');
+        setAdminMemo('');
+      }
+
+      // 해당직원조회용 메모 로드
+      const employeeMemosQuery = query(
+        collection(db, 'employeeMemos'),
+        where('month', '==', selectedMonth),
+        where('employeeId', '==', selectedEmployeeId),
+        where('type', '==', 'employee')
+      );
+      
+      const employeeMemosSnapshot = await getDocs(employeeMemosQuery);
+      if (!employeeMemosSnapshot.empty) {
+        const employeeMemoData = employeeMemosSnapshot.docs[0].data();
+        setEmployeeMemo(employeeMemoData.memo || '');
+      } else {
+        setEmployeeMemo('');
       }
     } catch (error) {
       console.error('메모 로드 실패:', error);
-      setMemo('');
+      setAdminMemo('');
+      setEmployeeMemo('');
     }
   }, [selectedMonth, selectedEmployeeId]);
 
-  // 메모 저장
-  const saveMemo = useCallback(async () => {
+  // 관리자용 메모 저장
+  const saveAdminMemo = useCallback(async () => {
     if (!selectedMonth || !selectedEmployeeId) return;
     
     try {
       const existingMemoQuery = query(
         collection(db, 'employeeMemos'),
         where('month', '==', selectedMonth),
-        where('employeeId', '==', selectedEmployeeId)
+        where('employeeId', '==', selectedEmployeeId),
+        where('type', '==', 'admin')
       );
       
       const existingMemoSnapshot = await getDocs(existingMemoQuery);
@@ -280,25 +301,64 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       if (!existingMemoSnapshot.empty) {
         const memoDoc = existingMemoSnapshot.docs[0];
         await updateDoc(doc(db, 'employeeMemos', memoDoc.id), {
-          memo: memo,
+          memo: adminMemo,
           updatedAt: new Date()
         });
       } else {
         await addDoc(collection(db, 'employeeMemos'), {
           month: selectedMonth,
           employeeId: selectedEmployeeId,
-          memo: memo,
+          type: 'admin',
+          memo: adminMemo,
           createdAt: new Date(),
           updatedAt: new Date()
         });
       }
       
-      alert('메모가 저장되었습니다.');
+      alert('관리자용 메모가 저장되었습니다.');
     } catch (error) {
-      console.error('메모 저장 실패:', error);
-      alert('메모 저장에 실패했습니다.');
+      console.error('관리자용 메모 저장 실패:', error);
+      alert('관리자용 메모 저장에 실패했습니다.');
     }
-  }, [selectedMonth, selectedEmployeeId, memo]);
+  }, [selectedMonth, selectedEmployeeId, adminMemo]);
+
+  // 해당직원조회용 메모 저장
+  const saveEmployeeMemo = useCallback(async () => {
+    if (!selectedMonth || !selectedEmployeeId) return;
+    
+    try {
+      const existingMemoQuery = query(
+        collection(db, 'employeeMemos'),
+        where('month', '==', selectedMonth),
+        where('employeeId', '==', selectedEmployeeId),
+        where('type', '==', 'employee')
+      );
+      
+      const existingMemoSnapshot = await getDocs(existingMemoQuery);
+      
+      if (!existingMemoSnapshot.empty) {
+        const memoDoc = existingMemoSnapshot.docs[0];
+        await updateDoc(doc(db, 'employeeMemos', memoDoc.id), {
+          memo: employeeMemo,
+          updatedAt: new Date()
+        });
+      } else {
+        await addDoc(collection(db, 'employeeMemos'), {
+          month: selectedMonth,
+          employeeId: selectedEmployeeId,
+          type: 'employee',
+          memo: employeeMemo,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+      
+      alert('해당직원조회용 메모가 저장되었습니다.');
+    } catch (error) {
+      console.error('해당직원조회용 메모 저장 실패:', error);
+      alert('해당직원조회용 메모 저장에 실패했습니다.');
+    }
+  }, [selectedMonth, selectedEmployeeId, employeeMemo]);
 
   // 급여확정 상태 확인
   const checkPayrollConfirmed = useCallback(async () => {
@@ -514,8 +574,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
   }, [calculatePayroll]);
 
   useEffect(() => {
-    loadMemo();
-  }, [loadMemo]);
+    loadMemos();
+  }, [loadMemos]);
 
   useEffect(() => {
     checkPayrollConfirmed();
@@ -752,22 +812,47 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
             </div>
           )}
 
-          {/* 메모 */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">메모</label>
-            <textarea
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows={3}
-              placeholder="메모를 입력하세요..."
-            />
-            <button
-              onClick={saveMemo}
-              className="mt-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
-            >
-              메모 저장
-            </button>
+          {/* 급여메모 */}
+          <div className="mb-6 space-y-4">
+            {/* 관리자용 메모 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                급여메모 (관리자용)
+              </label>
+              <textarea
+                value={adminMemo}
+                onChange={(e) => setAdminMemo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                placeholder="관리자용 메모를 입력하세요..."
+              />
+              <button
+                onClick={saveAdminMemo}
+                className="mt-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+              >
+                관리자용 메모 저장
+              </button>
+            </div>
+
+            {/* 해당직원조회용 메모 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                급여메모 (해당직원조회용)
+              </label>
+              <textarea
+                value={employeeMemo}
+                onChange={(e) => setEmployeeMemo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                placeholder="해당직원조회용 메모를 입력하세요..."
+              />
+              <button
+                onClick={saveEmployeeMemo}
+                className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+              >
+                해당직원조회용 메모 저장
+              </button>
+            </div>
           </div>
           
           {/* 저장 및 급여 확정 버튼 */}

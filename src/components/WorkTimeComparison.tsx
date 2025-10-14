@@ -992,9 +992,11 @@ export default function WorkTimeComparison({
         // 휴게시간과 실근무시간 계산
         const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
         const actualBreakTime = breakTime; // 최초 스케줄 휴게시간 가져오기
+        console.log(`🔥 스케줄과 실제근무 매칭: ${scheduleDate}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}`);
         
         // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
-        const actualTimeRangeHours = parseTimeRangeToHours(formatTimeRange(actualRecord.startTime, actualRecord.endTime));
+        const actualTimeRange = actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime);
+        const actualTimeRangeHours = parseTimeRangeToHours(actualTimeRange);
         const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
         
         // 차이 계산: 실제순근무시간 - 스케줄시간 (많이 하면 +, 적게 하면 -)
@@ -1016,7 +1018,7 @@ export default function WorkTimeComparison({
           difference,
           status,
           scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
-          actualTimeRange: formatTimeRange(actualRecord.startTime, actualRecord.endTime),
+          actualTimeRange: actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime),
           isModified: false,
           breakTime: breakTime,
           actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
@@ -1030,6 +1032,7 @@ export default function WorkTimeComparison({
         // 휴게시간과 실근무시간 계산 (실제근무 데이터가 없는 경우)
         const breakTime = parseFloat(schedule.breakTime) || 0;
         const actualBreakTime = breakTime; // 최초 스케줄 휴게시간 가져오기
+        console.log(`🔥 스케줄만 있음: ${scheduleDate}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}`);
         const actualWorkHours = 0; // 실제근무 데이터가 없으므로 0
         
         comparisons.push({
@@ -1060,8 +1063,10 @@ export default function WorkTimeComparison({
         // 스케줄이 없는 경우 휴게시간은 0으로 가정
         const breakTime = 0; // 스케줄이 없으므로 휴게시간 정보 없음
         const actualBreakTime = 0; // 최초 스케줄 휴게시간 가져오기 (스케줄 없으므로 0)
+        console.log(`🔥 실제근무만 있음: ${actualRecord.date}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}`);
         // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
-        const actualTimeRangeHours = parseTimeRangeToHours(formatTimeRange(actualRecord.startTime, actualRecord.endTime));
+        const actualTimeRange = actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime);
+        const actualTimeRangeHours = parseTimeRangeToHours(actualTimeRange);
         const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
         
         comparisons.push({
@@ -1072,7 +1077,7 @@ export default function WorkTimeComparison({
           difference: actualRecord.totalHours,
           status: 'review_required', // 스케줄 없이 근무한 경우 검토필요
           scheduledTimeRange: '-',
-          actualTimeRange: formatTimeRange(actualRecord.startTime, actualRecord.endTime),
+          actualTimeRange: actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime),
           isModified: false,
           breakTime: breakTime,
           actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
