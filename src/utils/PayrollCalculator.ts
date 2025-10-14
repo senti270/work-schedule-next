@@ -486,6 +486,14 @@ export class PayrollCalculator {
       incomeTax: number;
       localIncomeTax: number;
     };
+    editableDeductions?: {
+      nationalPension: number;
+      healthInsurance: number;
+      longTermCare: number;
+      employmentInsurance: number;
+      incomeTax: number;
+      localIncomeTax: number;
+    };
   } {
     // 4대보험 계산 (2025년 기준)
     const nationalPension = Math.round(grossPay * 0.045);      // 국민연금 4.5%
