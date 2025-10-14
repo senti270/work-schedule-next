@@ -2637,9 +2637,12 @@ export default function WorkTimeComparison({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     {(() => {
-                      const totalActual = comparisonResults.reduce((sum, result) => sum + result.actualHours, 0);
-                      const hours = Math.floor(totalActual);
-                      const minutes = Math.round((totalActual - hours) * 60);
+                      // POS근무시각 합계 - posTimeRange의 시간 계산
+                      const totalPosTime = comparisonResults.reduce((sum, result) => {
+                        return sum + parseTimeRangeToHours(result.posTimeRange || '');
+                      }, 0);
+                      const hours = Math.floor(totalPosTime);
+                      const minutes = Math.round((totalPosTime - hours) * 60);
                       return `${hours}:${minutes.toString().padStart(2, '0')}`;
                     })()}
                   </td>

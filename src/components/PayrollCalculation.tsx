@@ -136,13 +136,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       return;
     }
     
-    // 먼저 기존 급여 데이터가 있는지 확인
+    // 🔥 클릭 시마다 모든 데이터를 새로 계산
+    // 기존 공제 데이터만 보존
     const existingPayroll = await loadExistingPayroll();
+    let preservedDeductions = {};
+    
     if (existingPayroll && existingPayroll.length > 0) {
-      console.log('🔥 기존 급여 데이터 사용:', existingPayroll);
-      setPayrollResults(existingPayroll);
-      setNoScheduleData(false);
-      return;
+      console.log('🔥 기존 공제 데이터 보존:', existingPayroll.editableDeductions);
+      preservedDeductions = existingPayroll.editableDeductions || {};
     }
     
     // 선택된 직원 찾기
@@ -231,6 +232,22 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       const result = calculator.calculate();
       console.log('🔥 PayrollCalculator 계산 결과:', result);
       console.log('🔥 branches 정보:', result.branches);
+
+      // 🔥 보존된 공제 데이터가 있으면 적용
+      if (Object.keys(preservedDeductions).length > 0) {
+        console.log('🔥 보존된 공제 데이터 적용:', preservedDeductions);
+        setEditableDeductions(preservedDeductions);
+        
+        // 계산 결과의 공제 부분을 보존된 값으로 업데이트
+        if (result.deductions && result.deductions.editableDeductions) {
+          result.deductions.editableDeductions = preservedDeductions as any;
+          
+          // 총 공제액 재계산
+          const totalDeductions = Object.values(preservedDeductions).reduce((sum: number, val: any) => sum + (val || 0), 0);
+          result.deductions.total = totalDeductions;
+          result.netPay = result.grossPay - totalDeductions;
+        }
+      }
 
       setPayrollResults([result]);
       console.log('🔥 setPayrollResults 호출됨, 결과 개수:', [result].length);
@@ -375,13 +392,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       );
       const payrollSnapshot = await getDocs(payrollQuery);
       
-      // confirmedAt이 null이 아닌 문서가 있는지 확인
-      const hasConfirmed = payrollSnapshot.docs.some(doc => {
-        const data = doc.data();
-        return data.confirmedAt !== null && data.confirmedAt !== undefined;
-      });
+      // 🔥 데이터가 있으면 확정, 없으면 확정전 (confirmedAt 상관없이)
+      const hasData = payrollSnapshot.docs.length > 0;
       
-      setIsPayrollConfirmed(hasConfirmed);
+      setIsPayrollConfirmed(hasData);
     } catch (error) {
       console.error('급여확정 상태 확인 실패:', error);
       setIsPayrollConfirmed(false);
@@ -610,7 +624,22 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     <div className="space-y-6">
       {payrollResults.map((calc, index) => (
         <div key={index} className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">{calc.employeeName} 급여 계산</h3>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold mb-2">{calc.employeeName} 급여 계산</h3>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <span className="text-yellow-600 text-sm">⚠️</span>
+                </div>
+                <div className="ml-2">
+                  <p className="text-sm text-yellow-800">
+                    <strong>공제금액은 클릭시점으로 새로 계산됩니다.</strong><br/>
+                    급여확정완료 직전에 수정해주세요!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
           
           {/* 근로계약정보 */}
           <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
