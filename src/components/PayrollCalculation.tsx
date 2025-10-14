@@ -88,10 +88,58 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     }
   }, [selectedMonth, selectedEmployeeId]);
 
+  // 기존 급여 데이터 로드
+  const loadExistingPayroll = useCallback(async () => {
+    if (!selectedMonth || !selectedEmployeeId) {
+      return null;
+    }
+
+    try {
+      const payrollQuery = query(
+        collection(db, 'confirmedPayrolls'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('month', '==', selectedMonth)
+      );
+      const payrollSnapshot = await getDocs(payrollQuery);
+      
+      if (!payrollSnapshot.empty) {
+        const payrollData = payrollSnapshot.docs[0].data();
+        console.log('🔥 기존 급여 데이터 로드됨:', payrollData);
+        
+        // editableDeductions 설정
+        if (payrollData.editableDeductions) {
+          setEditableDeductions(payrollData.editableDeductions);
+        }
+        
+        return payrollData.calculations || [];
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('기존 급여 데이터 로드 실패:', error);
+      return null;
+    }
+  }, [selectedMonth, selectedEmployeeId]);
+
   // 급여 계산
   const calculatePayroll = useCallback(async () => {
-    if (!employees.length || !selectedEmployeeId || !weeklySchedules.length) {
-      setNoScheduleData(weeklySchedules.length === 0);
+    if (!employees.length || !selectedEmployeeId) {
+      setPayrollResults([]);
+      return;
+    }
+    
+    // 먼저 기존 급여 데이터가 있는지 확인
+    const existingPayroll = await loadExistingPayroll();
+    if (existingPayroll && existingPayroll.length > 0) {
+      console.log('🔥 기존 급여 데이터 사용:', existingPayroll);
+      setPayrollResults(existingPayroll);
+      setNoScheduleData(false);
+      return;
+    }
+    
+    // 기존 데이터가 없으면 새로 계산 (스케줄 데이터 필요)
+    if (!weeklySchedules.length) {
+      setNoScheduleData(true);
       setPayrollResults([]);
       return;
     }
@@ -452,10 +500,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
   }, [loadSchedules]);
 
   useEffect(() => {
-    if (weeklySchedules.length > 0) {
-      calculatePayroll();
-    }
-  }, [calculatePayroll, weeklySchedules]);
+    calculatePayroll();
+  }, [calculatePayroll]);
 
   useEffect(() => {
     loadMemo();

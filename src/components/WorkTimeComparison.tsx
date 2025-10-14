@@ -2036,10 +2036,11 @@ export default function WorkTimeComparison({
       ) : null}
 
       {/* 실제근무 데이터 입력 */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          실제근무 데이터 (복사붙여넣기) <span className="text-red-500">*</span>
-        </label>
+      {!isPayrollConfirmed(selectedEmployeeId) && (
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            실제근무 데이터 (복사붙여넣기) <span className="text-red-500">*</span>
+          </label>
         
         {/* 도움말 */}
         <div className="mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -2172,31 +2173,34 @@ export default function WorkTimeComparison({
           placeholder="POS ASP 시스템 또는 지점별로 관리하는 출퇴근시간관리엑셀에서 복사한 실제근무 데이터를 붙여넣으세요..."
           className="w-full h-40 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-      </div>
+        </div>
+      )}
 
       {/* 비교 실행 버튼 */}
-      <div className="mb-6">
-        <button
-          onClick={compareWorkTimes}
-          disabled={loading || (() => {
-            const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
-            if (!selectedEmployee) return false;
-            // 현재 선택된 지점의 검토상태만 확인
-            const reviewStatus = employeeReviewStatus.find(status => 
-              status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
-            );
-            return reviewStatus?.status === '검토완료';
-          })()}
-          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium"
-        >
-          {loading ? '로딩 중...' : (() => {
-            const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
-            if (!selectedEmployee) return '근무시간 비교';
-            const reviewStatus = employeeReviewStatus.find(status => status.employeeId === selectedEmployeeId);
-            return reviewStatus?.status === '검토완료' ? '검토완료 (비교 불가)' : '근무시간 비교';
-          })()}
-        </button>
-      </div>
+      {!isPayrollConfirmed(selectedEmployeeId) && (
+        <div className="mb-6">
+          <button
+            onClick={compareWorkTimes}
+            disabled={loading || (() => {
+              const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+              if (!selectedEmployee) return false;
+              // 현재 선택된 지점의 검토상태만 확인
+              const reviewStatus = employeeReviewStatus.find(status => 
+                status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+              );
+              return reviewStatus?.status === '검토완료';
+            })()}
+            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium"
+          >
+            {loading ? '로딩 중...' : (() => {
+              const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+              if (!selectedEmployee) return '근무시간 비교';
+              const reviewStatus = employeeReviewStatus.find(status => status.employeeId === selectedEmployeeId);
+              return reviewStatus?.status === '검토완료' ? '검토완료 (비교 불가)' : '근무시간 비교';
+            })()}
+          </button>
+        </div>
+      )}
 
 
       {/* 비교 결과 */}
@@ -2299,22 +2303,33 @@ export default function WorkTimeComparison({
                         {result.date}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        <div>{(() => {
-                          // 스케줄 시간 표시: 7:00 또는 9:30-17:00(0:30) 형태
-                          const hours = Math.floor(result.scheduledHours);
-                          const minutes = Math.round((result.scheduledHours - hours) * 60);
-                          const breakTime = result.breakTime || 0;
-                          const breakHours = Math.floor(breakTime);
-                          const breakMinutes = Math.round((breakTime - breakHours) * 60);
-                          
-                          if (breakTime > 0) {
-                            // 휴게시간이 있는 경우: 9:30-17:00(0:30) 형태
-                            return `${result.scheduledTimeRange}(${breakHours}:${breakMinutes.toString().padStart(2, '0')})`;
-                          } else {
-                            // 휴게시간이 없는 경우: 7:00 형태
-                            return `${hours}:${minutes.toString().padStart(2, '0')}`;
-                          }
-                        })()}</div>
+                        <div className="space-y-1">
+                          {/* 스케줄 근무시간 표시 */}
+                          <div className="text-xs text-gray-500 font-medium">
+                            {(() => {
+                              const scheduledWorkHours = result.scheduledHours - (result.breakTime || 0);
+                              const hours = Math.floor(scheduledWorkHours);
+                              const minutes = Math.round((scheduledWorkHours - hours) * 60);
+                              return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                            })()}
+                          </div>
+                          {/* 스케줄 시간 표시: 7:00 또는 9:30-17:00(0:30) 형태 */}
+                          <div>{(() => {
+                            const hours = Math.floor(result.scheduledHours);
+                            const minutes = Math.round((result.scheduledHours - hours) * 60);
+                            const breakTime = result.breakTime || 0;
+                            const breakHours = Math.floor(breakTime);
+                            const breakMinutes = Math.round((breakTime - breakHours) * 60);
+                            
+                            if (breakTime > 0) {
+                              // 휴게시간이 있는 경우: 9:30-17:00(0:30) 형태
+                              return `${result.scheduledTimeRange}(${breakHours}:${breakMinutes.toString().padStart(2, '0')})`;
+                            } else {
+                              // 휴게시간이 없는 경우: 7:00 형태
+                              return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                            }
+                          })()}</div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         <span className="text-gray-600">{result.actualTimeRange || '-'}</span>
