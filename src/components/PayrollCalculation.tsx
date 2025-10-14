@@ -524,19 +524,16 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           {/* 급여 상세 테이블 */}
           <div className="overflow-x-auto mb-4">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">기본급</th>
-                  {(calc.salaryType === 'hourly' || calc.salaryType === '시급') && (
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">주휴수당</th>
-                  )}
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                    {calc.employmentType === '근로소득' ? '4대보험' : '사업소득공제'}
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">총 공제액</th>
-                  <th className="px-4 py-2 text-sm font-bold text-blue-700 bg-blue-50">실수령액</th>
-                </tr>
-              </thead>
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">기본급</th>
+                      {(calc.salaryType === 'hourly' || calc.salaryType === '시급') && (
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">주휴수당</th>
+                      )}
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">총 공제액</th>
+                      <th className="px-4 py-2 text-sm font-bold text-blue-700 bg-blue-50">실수령액</th>
+                    </tr>
+                  </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
                   <td className="px-4 py-2 text-sm text-gray-900">
@@ -570,7 +567,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
                           <span>{calc.deductions.insuranceDetails.employmentInsurance.toLocaleString()}원</span>
                         </div>
                         <div className="flex justify-between pt-1 border-t font-medium">
-                          <span>합계:</span>
+                          <span>4대보험 합계:</span>
                           <span>{calc.deductions.insurance.toLocaleString()}원</span>
                         </div>
                         {/* 소득세 표시 */}
@@ -584,6 +581,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
                               <span>지방소득세:</span>
                               <span>{calc.deductions.taxDetails.localIncomeTax.toLocaleString()}원</span>
                             </div>
+                            <div className="flex justify-between pt-1 border-t font-bold text-red-600">
+                              <span>총 공제액:</span>
+                              <span>{calc.deductions.total.toLocaleString()}원</span>
+                            </div>
                           </>
                         )}
                       </div>
@@ -593,7 +594,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
                       calc.deductions.tax > 0 ? calc.deductions.tax.toLocaleString() + '원' : '-'
                     )}
                   </td>
-                  <td className="px-4 py-2 text-sm text-red-600">{calc.deductions.total.toLocaleString()}원</td>
                   <td className="px-4 py-2 text-sm font-bold text-blue-700 bg-blue-50">{calc.netPay.toLocaleString()}원</td>
                 </tr>
               </tbody>
