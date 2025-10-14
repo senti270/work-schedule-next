@@ -991,7 +991,7 @@ export default function WorkTimeComparison({
       if (actualRecord) {
         // 휴게시간과 실근무시간 계산
         const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
-        const actualBreakTime = breakTime; // 초기값은 breakTime과 동일
+        const actualBreakTime = breakTime; // 최초 스케줄 휴게시간 가져오기
         
         // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
         const actualTimeRangeHours = parseTimeRangeToHours(formatTimeRange(actualRecord.startTime, actualRecord.endTime));
@@ -1029,7 +1029,7 @@ export default function WorkTimeComparison({
         // 스케줄은 있지만 실제근무 데이터가 없는 경우
         // 휴게시간과 실근무시간 계산 (실제근무 데이터가 없는 경우)
         const breakTime = parseFloat(schedule.breakTime) || 0;
-        const actualBreakTime = breakTime; // 초기값은 breakTime과 동일
+        const actualBreakTime = breakTime; // 최초 스케줄 휴게시간 가져오기
         const actualWorkHours = 0; // 실제근무 데이터가 없으므로 0
         
         comparisons.push({
@@ -1059,7 +1059,7 @@ export default function WorkTimeComparison({
 
         // 스케줄이 없는 경우 휴게시간은 0으로 가정
         const breakTime = 0; // 스케줄이 없으므로 휴게시간 정보 없음
-        const actualBreakTime = 0; // 초기값은 breakTime과 동일
+        const actualBreakTime = 0; // 최초 스케줄 휴게시간 가져오기 (스케줄 없으므로 0)
         // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
         const actualTimeRangeHours = parseTimeRangeToHours(formatTimeRange(actualRecord.startTime, actualRecord.endTime));
         const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
@@ -2247,25 +2247,22 @@ export default function WorkTimeComparison({
                     날짜
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    스케줄 시간
+                    스케줄시간(A)
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    실제 시간
+                    POS근무시각
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     실근무시각(B)
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    휴게시간
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    실휴게시간
+                    실휴게시간(C)
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     실근무시간 (D=B-C)
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    차이
+                    차이 (A-D)
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     상태
@@ -2303,19 +2300,24 @@ export default function WorkTimeComparison({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         <div>{(() => {
+                          // 스케줄 시간 표시: 7:00 또는 9:30-17:00(0:30) 형태
                           const hours = Math.floor(result.scheduledHours);
                           const minutes = Math.round((result.scheduledHours - hours) * 60);
-                          return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                          const breakTime = result.breakTime || 0;
+                          const breakHours = Math.floor(breakTime);
+                          const breakMinutes = Math.round((breakTime - breakHours) * 60);
+                          
+                          if (breakTime > 0) {
+                            // 휴게시간이 있는 경우: 9:30-17:00(0:30) 형태
+                            return `${result.scheduledTimeRange}(${breakHours}:${breakMinutes.toString().padStart(2, '0')})`;
+                          } else {
+                            // 휴게시간이 없는 경우: 7:00 형태
+                            return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                          }
                         })()}</div>
-                        <div className="text-xs text-gray-500">{result.scheduledTimeRange}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        <div>{(() => {
-                          const hours = Math.floor(result.actualHours);
-                          const minutes = Math.round((result.actualHours - hours) * 60);
-                          return `${hours}:${minutes.toString().padStart(2, '0')}`;
-                        })()}</div>
-                        <div className="text-xs text-gray-500">{result.actualTimeRange}</div>
+                        <span className="text-gray-600">{result.actualTimeRange || '-'}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
@@ -2336,18 +2338,10 @@ export default function WorkTimeComparison({
                               };
                               setComparisonResults(updatedResults);
                             }}
-                            className="w-20 px-2 py-1 border border-gray-300 rounded text-xs text-center"
+                            className="w-30 px-2 py-1 border border-gray-300 rounded text-xs text-center"
                             placeholder="10:02-22:32"
                           />
                         )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        {(() => {
-                          const breakTime = result.breakTime || 0;
-                          const hours = Math.floor(breakTime);
-                          const minutes = Math.round((breakTime - hours) * 60);
-                          return `${hours}:${minutes.toString().padStart(2, '0')}`;
-                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
@@ -2361,13 +2355,26 @@ export default function WorkTimeComparison({
                           </span>
                         ) : (
                           <input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            max="24"
-                            value={result.actualBreakTime || 0}
+                            type="text"
+                            value={(() => {
+                              const actualBreakTime = result.actualBreakTime || 0;
+                              const hours = Math.floor(actualBreakTime);
+                              const minutes = Math.round((actualBreakTime - hours) * 60);
+                              return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                            })()}
                             onChange={(e) => {
-                              const newActualBreakTime = parseFloat(e.target.value) || 0;
+                              const timeStr = e.target.value;
+                              let newActualBreakTime = 0;
+                              
+                              if (timeStr.includes(':')) {
+                                const parts = timeStr.split(':');
+                                const h = parseInt(parts[0]) || 0;
+                                const m = parseInt(parts[1]) || 0;
+                                newActualBreakTime = h + (m / 60);
+                              } else {
+                                newActualBreakTime = parseFloat(timeStr) || 0;
+                              }
+                              
                               const updatedResults = [...comparisonResults];
                               updatedResults[index] = {
                                 ...result,
@@ -2379,85 +2386,19 @@ export default function WorkTimeComparison({
                               setComparisonResults(updatedResults);
                             }}
                             className="w-16 px-2 py-1 border border-gray-300 rounded text-xs text-center"
+                            placeholder="0:30"
                           />
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
-                          // 🔥 검토완료 상태이거나, 항목이 확인완료이거나, 급여확정된 경우 수정 불가
-                          <span className="text-gray-600">
-                            {(() => {
-                              const actualWorkHours = result.actualWorkHours || 0;
-                              const hours = Math.floor(actualWorkHours);
-                              const minutes = Math.round((actualWorkHours - hours) * 60);
-                              return `${hours}:${minutes.toString().padStart(2, '0')}`;
-                            })()}
-                          </span>
-                        ) : (
-                          // 미확인 상태에서는 클릭해서 편집 가능
-                          <input
-                            type="text"
-                            value={(() => {
-                              const actualWorkHours = result.actualWorkHours || 0;
-                              const hours = Math.floor(actualWorkHours);
-                              const minutes = Math.round((actualWorkHours - hours) * 60);
-                              return `${hours}:${minutes.toString().padStart(2, '0')}`;
-                            })()}
-                            onChange={async (e) => {
-                              const newTimeStr = e.target.value;
-                              let newHours = 0;
-                              
-                              if (newTimeStr.includes(':')) {
-                                const parts = newTimeStr.split(':');
-                                const hours = parseInt(parts[0]) || 0;
-                                const minutes = parseInt(parts[1]) || 0;
-                                newHours = hours + (minutes / 60);
-                              } else {
-                                const numericValue = parseFloat(newTimeStr) || 0;
-                                newHours = numericValue;
-                              }
-                              
-                              const updatedResults = [...comparisonResults];
-                              const updatedResult = {
-                                ...result,
-                                actualWorkHours: newHours,
-                                // 🔥 actualHours(POS 원본)는 변경하지 않음! 실제시간 유지
-                                // actualHours: newHours + (result.breakTime || 0), // 삭제됨
-                                difference: newHours - result.scheduledHours,
-                                isModified: true
-                              };
-                              updatedResults[index] = updatedResult;
-                              setComparisonResults(sortComparisonResults(updatedResults));
-                              
-                              // 🔥 전체 검토완료 여부 확인 (실근무시간 수정 시에도 체크)
-                              const allCompleted = updatedResults.every(r => 
-                                r.status === 'review_completed' || r.status === 'time_match'
-                              );
-                              const finalStatus: '검토전' | '검토중' | '검토완료' = allCompleted ? '검토완료' : '검토중';
-                              
-                              // 상태 업데이트
-                              setEmployeeReviewStatus(prev => {
-                                const existingIndex = prev.findIndex(status => 
-                                  status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
-                                );
-                                
-                                if (existingIndex >= 0) {
-                                  const updated = [...prev];
-                                  updated[existingIndex] = { ...updated[existingIndex], status: finalStatus };
-                                  return updated;
-                                } else {
-                                  return [...prev, { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: finalStatus }];
-                                }
-                              });
-                              
-                              // DB에 저장
-                              await saveModifiedData(updatedResult);
-                              await saveReviewStatus(selectedEmployeeId, finalStatus);
-                            }}
-                            className="w-20 px-2 py-1 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="0:00"
-                          />
-                        )}
+                        <span className="text-gray-600">
+                          {(() => {
+                            const actualWorkHours = result.actualWorkHours || 0;
+                            const hours = Math.floor(actualWorkHours);
+                            const minutes = Math.round((actualWorkHours - hours) * 60);
+                            return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                          })()}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {(() => {
@@ -2492,8 +2433,8 @@ export default function WorkTimeComparison({
                         })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        {/* 🔥 검토완료가 아니고, 급여확정도 안 되었을 때만 버튼 표시 */}
-                        {isEditable && (result.status === 'review_required' || result.status === 'review_completed') && !isPayrollConfirmed(selectedEmployeeId) && (
+                        {/* 🔥 검토완료가 아니고, 급여확정도 안 되었을 때만 버튼 표시 (시간일치 포함) */}
+                        {isEditable && (result.status === 'review_required' || result.status === 'review_completed' || result.status === 'time_match') && !isPayrollConfirmed(selectedEmployeeId) && (
                           <div className="flex space-x-2">
                             {result.status === 'review_completed' ? (
                               // 🔥 검토완료 상태: 확인완료 취소 버튼
@@ -2588,11 +2529,11 @@ export default function WorkTimeComparison({
                                     updatedResults[index] = {
                                       ...result,
                                       actualHours: result.scheduledHours,
-                                      actualWorkHours: result.scheduledHours, // 실근무시간 = 스케줄시간 (휴게시간 중복 차감 방지)
+                                      actualTimeRange: result.scheduledTimeRange, // actualTimeRange = scheduledTimeRange
+                                      actualWorkHours: Math.max(0, parseTimeRangeToHours(result.scheduledTimeRange || '') - (result.actualBreakTime || 0)), // actualTimeRange에서 계산
                                       difference: 0, // 스케줄과 동일하므로 차이 0
                                       status: 'review_completed',
-                                      isModified: true,
-                                      actualTimeRange: result.scheduledTimeRange
+                                      isModified: true
                                     };
                                     setComparisonResults(sortComparisonResults(updatedResults));
                                     
