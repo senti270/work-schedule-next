@@ -89,7 +89,7 @@ export default function WorkTimeComparison({
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
   const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, branchId: string, status: '검토전' | '검토중' | '검토완료' | '근무시간검토완료'}[]>([]);
   const [payrollConfirmedEmployees, setPayrollConfirmedEmployees] = useState<string[]>([]);
-  const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: string}>({});
+  const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: {admin: string, employee: string}}>({});
   
   // 전월 이월 연장근무시간 입력 팝업 상태
   const [showOvertimePopup, setShowOvertimePopup] = useState(false);
@@ -374,10 +374,17 @@ export default function WorkTimeComparison({
       );
       const memosSnapshot = await getDocs(memosQuery);
       
-      const memosMap: {[employeeId: string]: string} = {};
+      const memosMap: {[employeeId: string]: {admin: string, employee: string}} = {};
       memosSnapshot.docs.forEach(doc => {
         const data = doc.data();
-        memosMap[data.employeeId] = data.memo || '';
+        const employeeId = data.employeeId;
+        const type: 'admin' | 'employee' = data.type || 'admin'; // 기본값은 admin
+        
+        if (!memosMap[employeeId]) {
+          memosMap[employeeId] = { admin: '', employee: '' };
+        }
+        
+        memosMap[employeeId][type] = data.memo || '';
       });
       
       setEmployeeMemos(memosMap);
@@ -389,38 +396,43 @@ export default function WorkTimeComparison({
   }, [selectedMonth]);
 
   // 직원별 급여메모 저장
-  const saveEmployeeMemo = async (employeeId: string, memo: string) => {
+  const saveEmployeeMemo = async (employeeId: string, memo: string, type: 'admin' | 'employee') => {
     try {
       const memoRecord = {
         employeeId,
+        type,
         memo,
         month: selectedMonth,
         updatedAt: new Date()
       };
 
-      // 기존 메모가 있는지 확인 (지점별 필터링 제거)
+      // 기존 메모가 있는지 확인 (타입별로)
       const existingQuery = query(
         collection(db, 'employeeMemos'),
         where('employeeId', '==', employeeId),
-        where('month', '==', selectedMonth)
+        where('month', '==', selectedMonth),
+        where('type', '==', type)
       );
       const existingDocs = await getDocs(existingQuery);
       
       if (existingDocs.empty) {
         // 새로 추가
         await addDoc(collection(db, 'employeeMemos'), memoRecord);
-        console.log('새로운 직원 메모 저장됨:', memoRecord);
+        console.log(`새로운 직원 메모 저장됨 (${type}):`, memoRecord);
       } else {
         // 기존 데이터 업데이트
         const docId = existingDocs.docs[0].id;
         await updateDoc(doc(db, 'employeeMemos', docId), memoRecord);
-        console.log('기존 직원 메모 업데이트됨:', memoRecord);
+        console.log(`기존 직원 메모 업데이트됨 (${type}):`, memoRecord);
       }
       
       // 로컬 상태 업데이트
       setEmployeeMemos(prev => ({
         ...prev,
-        [employeeId]: memo
+        [employeeId]: {
+          ...prev[employeeId],
+          [type]: memo
+        }
       }));
       
     } catch (error) {
@@ -430,7 +442,9 @@ export default function WorkTimeComparison({
 
   // 급여확정 여부 확인
   const isPayrollConfirmed = (employeeId: string) => {
-    return payrollConfirmedEmployees.includes(employeeId);
+    const result = payrollConfirmedEmployees.includes(employeeId);
+    console.log(`🔥 isPayrollConfirmed(${employeeId}): ${result}, payrollConfirmedEmployees:`, payrollConfirmedEmployees);
+    return result;
   };
 
   // 중복 데이터 정리 함수
@@ -2327,11 +2341,18 @@ export default function WorkTimeComparison({
                             const breakHours = Math.floor(breakTime);
                             const breakMinutes = Math.round((breakTime - breakHours) * 60);
                             
-                            if (breakTime > 0) {
-                              // 휴게시간이 있는 경우: 9:30-17:00(0:30) 형태
-                              return `${result.scheduledTimeRange}(${breakHours}:${breakMinutes.toString().padStart(2, '0')})`;
+                            // scheduledTimeRange가 있으면 항상 시간범위 형태로 표시
+                            if (result.scheduledTimeRange && result.scheduledTimeRange !== '-') {
+                              if (breakTime > 0) {
+                                // 휴게시간이 있는 경우: 9:30-17:00(0:30) 형태
+                                return `${result.scheduledTimeRange}(${breakHours}:${breakMinutes.toString().padStart(2, '0')})`;
+                              } else {
+                                // 휴게시간이 없는 경우: 9:30-17:00 형태
+                                return `${result.scheduledTimeRange}`;
+                              }
                             } else {
-                              // 휴게시간이 없는 경우: 7:00 형태
+                              // scheduledTimeRange가 없는 경우에만 hours:minutes 형태
+                              console.log(`🔥 스케줄시간 표시: ${result.date}, scheduledTimeRange: ${result.scheduledTimeRange}, breakTime: ${breakTime}, hours: ${hours}, minutes: ${minutes}`);
                               return `${hours}:${minutes.toString().padStart(2, '0')}`;
                             }
                           })()}</div>
@@ -2697,32 +2718,69 @@ export default function WorkTimeComparison({
           {/* 급여메모 편집 */}
           {selectedEmployeeId && (
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 text-sm">📝</span>
+              <div className="space-y-4">
+                {/* 관리자용 메모 */}
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      <span className="text-gray-600 text-sm">🔒</span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">급여메모 (관리자용)</h4>
+                    <textarea
+                      value={employeeMemos[selectedEmployeeId]?.admin || ''}
+                      onChange={(e) => {
+                        const memo = e.target.value;
+                        setEmployeeMemos(prev => ({
+                          ...prev,
+                          [selectedEmployeeId]: {
+                            ...prev[selectedEmployeeId],
+                            admin: memo
+                          }
+                        }));
+                      }}
+                      onBlur={(e) => {
+                        const memo = e.target.value;
+                        saveEmployeeMemo(selectedEmployeeId, memo, 'admin');
+                      }}
+                      placeholder="관리자용 메모를 입력하세요..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      rows={3}
+                    />
                   </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">급여메모 (자동저장)</h4>
-                  <textarea
-                    value={employeeMemos[selectedEmployeeId] || ''}
-                    onChange={(e) => {
-                      const memo = e.target.value;
-                      setEmployeeMemos(prev => ({
-                        ...prev,
-                        [selectedEmployeeId]: memo
-                      }));
-                    }}
-                    onBlur={(e) => {
-                      // 포커스를 잃을 때 저장 (한글 입력 완료 후)
-                      const memo = e.target.value;
-                      saveEmployeeMemo(selectedEmployeeId, memo);
-                    }}
-                    placeholder="이번 달 급여에 대한 특이사항이나 메모를 입력하세요..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    rows={3}
-                  />
+
+                {/* 해당직원공지용 메모 */}
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 text-sm">📢</span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">급여메모 (해당직원공지용)</h4>
+                    <textarea
+                      value={employeeMemos[selectedEmployeeId]?.employee || ''}
+                      onChange={(e) => {
+                        const memo = e.target.value;
+                        setEmployeeMemos(prev => ({
+                          ...prev,
+                          [selectedEmployeeId]: {
+                            ...prev[selectedEmployeeId],
+                            employee: memo
+                          }
+                        }));
+                      }}
+                      onBlur={(e) => {
+                        const memo = e.target.value;
+                        saveEmployeeMemo(selectedEmployeeId, memo, 'employee');
+                      }}
+                      placeholder="해당직원공지용 메모를 입력하세요..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      rows={3}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
