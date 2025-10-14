@@ -2645,7 +2645,7 @@ export default function WorkTimeComparison({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     {(() => {
-                      // actualTimeRange의 총 시간 계산
+                      // actualTimeRange의 총 시간 계산 (실근무시각(B) 합계)
                       const totalActualTimeRange = comparisonResults.reduce((sum, result) => {
                         return sum + parseTimeRangeToHours(result.actualTimeRange || '');
                       }, 0);
@@ -2656,14 +2656,7 @@ export default function WorkTimeComparison({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     {(() => {
-                      const totalBreak = comparisonResults.reduce((sum, result) => sum + (result.breakTime || 0), 0);
-                      const hours = Math.floor(totalBreak);
-                      const minutes = Math.round((totalBreak - hours) * 60);
-                      return `${hours}:${minutes.toString().padStart(2, '0')}`;
-                    })()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                    {(() => {
+                      // 실휴게시간(C) 합계 - actualBreakTime 사용
                       const totalActualBreak = comparisonResults.reduce((sum, result) => sum + (result.actualBreakTime || 0), 0);
                       const hours = Math.floor(totalActualBreak);
                       const minutes = Math.round((totalActualBreak - hours) * 60);
@@ -2672,6 +2665,7 @@ export default function WorkTimeComparison({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     {(() => {
+                      // 실근무시간 (D=B-C) 합계 - actualWorkHours 사용
                       const totalActualWork = comparisonResults.reduce((sum, result) => sum + (result.actualWorkHours || 0), 0);
                       const hours = Math.floor(totalActualWork);
                       const minutes = Math.round((totalActualWork - hours) * 60);
@@ -2680,6 +2674,7 @@ export default function WorkTimeComparison({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     {(() => {
+                      // 차이 (A-D) 합계
                       const totalDifference = comparisonResults.reduce((sum, result) => sum + result.difference, 0);
                       const absDifference = Math.abs(totalDifference);
                       const hours = Math.floor(absDifference);
