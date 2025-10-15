@@ -119,17 +119,17 @@ export default function WorkTimeComparison({
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
-  // 🔥 최적화: 지점/월 변경 시에만 직원 로드
+  // 🔥 최적화: 월 변경 시에만 직원 로드 (지점 무관)
   useEffect(() => {
-    if (selectedBranchId && selectedMonth) {
+    if (selectedMonth) {
       loadEmployees();
     }
-  }, [selectedBranchId, selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadEmployees = useCallback(async () => {
     console.log('loadEmployees 호출됨:', { selectedBranchId, selectedMonth });
-    if (!selectedBranchId || !selectedMonth) {
-      console.log('loadEmployees 조건 불만족:', { selectedBranchId, selectedMonth });
+    if (!selectedMonth) {
+      console.log('loadEmployees 조건 불만족:', { selectedMonth });
       return;
     }
     
@@ -156,18 +156,11 @@ export default function WorkTimeComparison({
       console.log('모든 직원 데이터 매핑 완료:', allEmployees.length);
       console.log('선택된 지점 ID:', selectedBranchId);
       
-      // 선택된 지점에 속한 직원만 필터링
-      // 임시: branchIds가 비어있으면 모든 직원을 표시
+      // 🔥 2025년 9월 기준: 전직원 표시를 위해 지점 필터링 제거
       const employeesData = allEmployees.filter(emp => {
-        // branchIds가 비어있으면 모든 직원을 표시 (임시 해결책)
-        if (!emp.branchIds || emp.branchIds.length === 0) {
-          console.log(`직원 ${emp.name} (${emp.id}) - branchIds가 비어있음, 표시함`);
-          return true;
-        }
-        
-        const hasBranch = emp.branchIds.includes(selectedBranchId);
-        console.log(`직원 ${emp.name} (${emp.id}) - branchIds:`, emp.branchIds, '포함 여부:', hasBranch);
-        return hasBranch;
+        // 모든 직원을 표시 (지점 필터링 제거)
+        console.log(`직원 ${emp.name} (${emp.id}) - 표시함`);
+        return true;
       });
       
       console.log('필터링된 직원 수:', employeesData.length);
@@ -183,7 +176,7 @@ export default function WorkTimeComparison({
     } finally {
       setLoading(false);
     }
-  }, [selectedBranchId, selectedMonth]);
+  }, [selectedMonth]);
 
   // Props 변경 시 상태 업데이트
   useEffect(() => {
@@ -283,12 +276,12 @@ export default function WorkTimeComparison({
   //   return branches.filter(branch => hideEmployeeSelection ? employeeBranches.includes(branch.id) : true);
   // }, [branches, hideEmployeeSelection, employeeBranches]);
 
-  // 지점이나 월이 변경될 때 직원 목록 다시 로드
+  // 월이 변경될 때 직원 목록 다시 로드 (지점 무관)
   useEffect(() => {
-    if ((selectedBranchId || (isManager && userBranch)) && selectedMonth) {
+    if (selectedMonth) {
       loadEmployees();
     }
-  }, [selectedBranchId, isManager, userBranch, selectedMonth]); // loadEmployees 제거
+  }, [selectedMonth, loadEmployees]);
 
 
   // 지점이나 직원이 변경될 때 스케줄 다시 로드
