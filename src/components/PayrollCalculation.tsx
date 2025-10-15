@@ -240,10 +240,17 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         
         // 계산 결과의 공제 부분을 보존된 값으로 업데이트
         if (result.deductions && result.deductions.editableDeductions) {
-          result.deductions.editableDeductions = preservedDeductions as any;
+          result.deductions.editableDeductions = preservedDeductions as {
+            nationalPension: number;
+            healthInsurance: number;
+            longTermCare: number;
+            employmentInsurance: number;
+            incomeTax: number;
+            localIncomeTax: number;
+          };
           
           // 총 공제액 재계산
-          const totalDeductions = Object.values(preservedDeductions).reduce((sum: number, val: any) => sum + (val || 0), 0);
+          const totalDeductions = Object.values(preservedDeductions).reduce((sum: number, val: unknown) => sum + ((val as number) || 0), 0);
           result.deductions.total = totalDeductions;
           result.netPay = result.grossPay - totalDeductions;
         }
@@ -256,7 +263,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       alert('급여 계산 중 오류가 발생했습니다.');
       setPayrollResults([]);
     }
-  }, [employees, selectedEmployeeId, weeklySchedules]);
+  }, [employees, selectedEmployeeId, weeklySchedules, loadExistingPayroll]);
 
   // 메모 로드
   const loadMemos = useCallback(async () => {

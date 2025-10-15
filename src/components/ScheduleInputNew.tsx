@@ -79,7 +79,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [payrollLocks, setPayrollLocks] = useState<PayrollLock[]>([]);
+  const [payrollLocks] = useState<PayrollLock[]>([]);
   const [weeklyNote, setWeeklyNote] = useState<string>('');
   const [currentWeeklyNote, setCurrentWeeklyNote] = useState<WeeklyNote | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
@@ -190,8 +190,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       if (!selectedBranchId) return;
       
       const weekDates = getWeekDates();
-      const weekStart = weekDates[0];
-      const weekEnd = weekDates[6];
       
       // 모든 스케줄 조회
       const schedulesSnapshot = await getDocs(collection(db, 'schedules'));
@@ -221,8 +219,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       allSchedules.forEach(schedule => {
         // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
         const scheduleDate = schedule.date.toISOString().split('T')[0];
-        const weekStartStr = weekStart.toISOString().split('T')[0];
-        const weekEndStr = weekEnd.toISOString().split('T')[0];
+        const weekStartStr = weekDates[0].toISOString().split('T')[0];
+        const weekEndStr = weekDates[6].toISOString().split('T')[0];
         
         if (schedule.branchId !== selectedBranchId && 
             scheduleDate >= weekStartStr && 
@@ -300,7 +298,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         ...doc.data(),
         lockedAt: doc.data().lockedAt?.toDate() || new Date()
       })) as PayrollLock[];
-      setPayrollLocks(locksData);
+      // setPayrollLocks(locksData); // 사용하지 않음
     } catch (error) {
       console.error('급여 잠금 상태를 불러올 수 없습니다:', error);
     }

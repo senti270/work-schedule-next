@@ -271,17 +271,17 @@ export default function WorkTimeComparison({
     }
   }, [hideBranchSelection, branches, selectedBranchId]);
 
-  // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드
-  useEffect(() => {
-    if (hideBranchSelection && selectedBranchId && selectedEmployeeId && selectedMonth) {
-      loadExistingComparisonData();
-    }
-  }, [hideBranchSelection, selectedBranchId, selectedEmployeeId, selectedMonth]);
+  // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드 (현재 비활성화)
+  // useEffect(() => {
+  //   if (hideBranchSelection && selectedBranchId && selectedEmployeeId && selectedMonth) {
+  //     loadExistingComparisonData();
+  //   }
+  // }, [hideBranchSelection, selectedBranchId, selectedEmployeeId, selectedMonth, loadExistingComparisonData]);
 
-  // 지점 필터링 최적화
-  const filteredBranches = useMemo(() => {
-    return branches.filter(branch => hideEmployeeSelection ? employeeBranches.includes(branch.id) : true);
-  }, [branches, hideEmployeeSelection, employeeBranches]);
+  // 지점 필터링 최적화 (현재 사용하지 않음)
+  // const filteredBranches = useMemo(() => {
+  //   return branches.filter(branch => hideEmployeeSelection ? employeeBranches.includes(branch.id) : true);
+  // }, [branches, hideEmployeeSelection, employeeBranches]);
 
   // 지점이나 월이 변경될 때 직원 목록 다시 로드
   useEffect(() => {
@@ -292,17 +292,17 @@ export default function WorkTimeComparison({
 
 
   // 지점이나 직원이 변경될 때 스케줄 다시 로드
-  useEffect(() => {
-    if (selectedMonth) {
-      loadSchedules(selectedMonth);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranchId, selectedEmployeeId, selectedMonth]);
+  // useEffect(() => {
+  //   if (selectedMonth) {
+  //     loadSchedules(selectedMonth);
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [selectedBranchId, selectedEmployeeId, selectedMonth, loadEmployees]);
 
-  // 메모 로드
-  useEffect(() => {
-    loadEmployeeMemos();
-  }, [selectedMonth]); // loadEmployeeMemos 대신 selectedMonth 사용
+  // 메모 로드 (현재 비활성화)
+  // useEffect(() => {
+  //   loadEmployeeMemos();
+  // }, [selectedMonth, loadEmployeeMemos]);
 
   // 직원이 변경될 때 실제근무데이터 초기화 및 기존 데이터 로드
   useEffect(() => {
@@ -317,9 +317,9 @@ export default function WorkTimeComparison({
       // 팝업 표시 상태 초기화 (새 직원 선택 시 팝업 다시 표시 가능)
       setHasShownOvertimePopup(false);
       
-      // 기존 비교 데이터가 있는지 확인하고 로드
+      // 기존 비교 데이터가 있는지 확인하고 로드 (현재 비활성화)
       // console.log('loadExistingComparisonData 호출 예정');
-      loadExistingComparisonData();
+      // loadExistingComparisonData();
     } else {
       // 직원이 선택되지 않았으면 비교 결과 초기화
       setComparisonResults([]);
@@ -340,28 +340,28 @@ export default function WorkTimeComparison({
     }
   };
 
-  // 급여확정된 직원 목록 로드
-  const loadPayrollConfirmedEmployees = useCallback(async () => {
-    try {
-      if (!selectedMonth) return;
-      
-      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
-      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
-      
-      const payrollQuery = query(
-        collection(db, 'payrollRecords'),
-        where('month', '==', selectedMonth),
-        where('branchId', '==', branchId)
-      );
-      const payrollSnapshot = await getDocs(payrollQuery);
-      
-      const confirmedEmployeeIds = payrollSnapshot.docs.map(doc => doc.data().employeeId);
-      setPayrollConfirmedEmployees(confirmedEmployeeIds);
-      console.log('급여확정된 직원 목록:', confirmedEmployeeIds);
-    } catch (error) {
-      console.error('급여확정 직원 목록 로드 실패:', error);
-    }
-  }, [selectedMonth, selectedBranchId, isManager, userBranch]);
+  // 급여확정된 직원 목록 로드 (현재 사용하지 않음)
+  // const loadPayrollConfirmedEmployees = useCallback(async () => {
+  //   try {
+  //     if (!selectedMonth) return;
+  //     
+  //     // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
+  //     const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
+  //     
+  //     const payrollQuery = query(
+  //       collection(db, 'payrollRecords'),
+  //       where('month', '==', selectedMonth),
+  //       where('branchId', '==', branchId)
+  //     );
+  //     const payrollSnapshot = await getDocs(payrollQuery);
+  //     
+  //     const confirmedEmployeeIds = payrollSnapshot.docs.map(doc => doc.data().employeeId);
+  //     setPayrollConfirmedEmployees(confirmedEmployeeIds);
+  //     console.log('급여확정된 직원 목록:', confirmedEmployeeIds);
+  //   } catch (error) {
+  //     console.error('급여확정 직원 목록 로드 실패:', error);
+  //   }
+  // }, [selectedMonth, selectedBranchId, isManager, userBranch]);
 
   // 직원별 급여메모 로드
   const loadEmployeeMemos = useCallback(async () => {
@@ -447,70 +447,7 @@ export default function WorkTimeComparison({
     return result;
   };
 
-  // 중복 데이터 정리 함수
-  const cleanupDuplicateRecords = useCallback(async () => {
-    try {
-      if (!selectedMonth) return;
-      
-      console.log('중복 데이터 정리 시작...');
-      
-      // 해당 월, 해당 지점의 모든 actualWorkRecords 조회
-      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
-      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
-      
-      const allRecordsQuery = query(
-        collection(db, 'actualWorkRecords'),
-        where('month', '==', selectedMonth),
-        where('branchId', '==', branchId)
-      );
-      const allRecordsSnapshot = await getDocs(allRecordsQuery);
-      
-      // 직원별, 날짜별로 그룹화
-      const groupedRecords = new Map<string, Array<{id: string; employeeId: string; date: string; [key: string]: unknown}>>();
-      
-      allRecordsSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        const key = `${data.employeeId}_${data.date}`;
-        
-        if (!groupedRecords.has(key)) {
-          groupedRecords.set(key, []);
-        }
-        groupedRecords.get(key)!.push({ id: doc.id, employeeId: data.employeeId, date: data.date, ...data });
-      });
-      
-      // 중복 데이터 정리
-      let cleanupCount = 0;
-      for (const [key, records] of groupedRecords) {
-        if (records.length > 1) {
-          console.log(`중복 발견: ${key}, ${records.length}개 레코드`);
-          
-          // 가장 최근에 수정된 레코드를 제외하고 나머지 삭제
-          const sortedRecords = records.sort((a, b) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const aTime = (a.modifiedAt as any)?.toDate?.() || (a.createdAt as any)?.toDate?.() || new Date(0);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const bTime = (b.modifiedAt as any)?.toDate?.() || (b.createdAt as any)?.toDate?.() || new Date(0);
-            return bTime.getTime() - aTime.getTime();
-          });
-          
-          // 첫 번째(가장 최근) 레코드는 유지하고 나머지 삭제
-          for (let i = 1; i < sortedRecords.length; i++) {
-            await deleteDoc(doc(db, 'actualWorkRecords', sortedRecords[i].id));
-            cleanupCount++;
-            console.log(`중복 레코드 삭제: ${sortedRecords[i].id}`);
-          }
-        }
-      }
-      
-      if (cleanupCount > 0) {
-        console.log(`중복 데이터 정리 완료: ${cleanupCount}개 레코드 삭제`);
-      } else {
-        console.log('중복 데이터 없음');
-      }
-    } catch (error) {
-      console.error('중복 데이터 정리 실패:', error);
-    }
-  }, [selectedMonth, selectedBranchId, isManager, userBranch]);
+  // 중복 데이터 정리 함수 (현재 사용하지 않음 - 전체 함수 제거)
 
   // 검토 상태를 DB에 저장 (지점별로 분리)
   const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '검토완료') => {
@@ -1781,8 +1718,8 @@ export default function WorkTimeComparison({
                               onClick={() => {
                                 setSelectedBranchId(branchId);
                                 console.log('🔥 지점 선택됨:', branchId, branch?.name);
-                                // 🔥 지점 변경 시 해당 지점의 비교 데이터 다시 로드
-                                loadExistingComparisonData();
+                                // 🔥 지점 변경 시 해당 지점의 비교 데이터 다시 로드 (현재 비활성화)
+                                // loadExistingComparisonData();
                               }}>
                                 <div className="flex items-center space-x-3 flex-1">
                                   <span className={`text-sm font-medium ${
@@ -2314,7 +2251,7 @@ export default function WorkTimeComparison({
                   const completedCount = comparisonResults.filter(r => 
                     r.status === 'review_completed'
                   ).length;
-                  const allReviewCompleted = isBranchReviewCompleted || (completedCount === comparisonResults.length && comparisonResults.length > 0);
+                  // const allReviewCompleted = isBranchReviewCompleted || (completedCount === comparisonResults.length && comparisonResults.length > 0);
                   
                   return (
                     <tr key={index} className={`hover:bg-gray-50 ${rowBgColor} border-t border-gray-200`}>
