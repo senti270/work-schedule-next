@@ -264,24 +264,19 @@ export default function WorkTimeComparison({
     }
   }, [hideBranchSelection, branches, selectedBranchId]);
 
-  // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드 (현재 비활성화)
-  // useEffect(() => {
-  //   if (hideBranchSelection && selectedBranchId && selectedEmployeeId && selectedMonth) {
-  //     loadExistingComparisonData();
-  //   }
-  // }, [hideBranchSelection, selectedBranchId, selectedEmployeeId, selectedMonth, loadExistingComparisonData]);
+  // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드 (정의 이후로 이동)
 
   // 지점 필터링 최적화 (현재 사용하지 않음)
   // const filteredBranches = useMemo(() => {
   //   return branches.filter(branch => hideEmployeeSelection ? employeeBranches.includes(branch.id) : true);
   // }, [branches, hideEmployeeSelection, employeeBranches]);
 
-  // 월이 변경될 때 직원 목록 다시 로드 (지점 무관)
+  // 월이나 지점이 변경될 때 직원 목록 다시 로드
   useEffect(() => {
-    if (selectedMonth) {
+    if (selectedMonth && (selectedBranchId || (isManager && userBranch))) {
       loadEmployees();
     }
-  }, [selectedMonth, loadEmployees]);
+  }, [selectedMonth, selectedBranchId, isManager, userBranch, loadEmployees]);
 
 
   // 지점이나 직원이 변경될 때 스케줄 다시 로드
@@ -1437,6 +1432,13 @@ export default function WorkTimeComparison({
       setComparisonResults([]);
     }
   }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch, employeeReviewStatus]);
+
+  // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드
+  useEffect(() => {
+    if (hideBranchSelection && selectedBranchId && selectedEmployeeId && selectedMonth) {
+      loadExistingComparisonData();
+    }
+  }, [hideBranchSelection, selectedBranchId, selectedEmployeeId, selectedMonth, loadExistingComparisonData]);
 
   // 모든 비교 결과를 DB에 저장하는 함수
   const saveAllComparisonResults = useCallback(async (results: WorkTimeComparison[]) => {
@@ -2716,7 +2718,7 @@ export default function WorkTimeComparison({
           </div>
         )}
 
-        {comparisonResults.length === 0 && (
+        {comparisonResults.length === 0 && selectedEmployeeId && selectedMonth && selectedBranchId && (
           <div className="px-6 py-12 text-center">
             <div className="text-gray-500 text-lg mb-2">📊</div>
             <div className="text-gray-500 text-lg mb-2">비교결과 데이터 없음</div>
