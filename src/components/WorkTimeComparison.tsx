@@ -87,7 +87,7 @@ export default function WorkTimeComparison({
     salaryType?: string;
   }[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
-  const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, branchId: string, status: '검토전' | '검토중' | '검토완료' | '근무시간검토완료'}[]>([]);
+  const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, branchId: string, status: '검토전' | '검토중' | '검토완료' | '근무시간검토완료' | '급여확정완료'}[]>([]);
   const [payrollConfirmedEmployees, setPayrollConfirmedEmployees] = useState<string[]>([]);
   const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: {admin: string, employee: string}}>({});
   
@@ -1723,6 +1723,7 @@ export default function WorkTimeComparison({
                                     {branch?.name || `지점 ${branchId}`}
                                   </span>
                                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    status === '급여확정완료' ? 'bg-purple-100 text-purple-800' :
                                     status === '검토완료' ? 'bg-green-100 text-green-800' :
                                     status === '검토중' ? 'bg-yellow-100 text-yellow-800' :
                                     'bg-gray-100 text-gray-800'
@@ -1730,9 +1731,11 @@ export default function WorkTimeComparison({
                                     {status}
                                   </span>
                                 </div>
-                                {/* byjy. if status==급여확정완료, 검토완료취소 button 비활성화  */}
+                                {/* 급여확정완료 상태일 때는 버튼 숨김 */}
                                 <div className="flex space-x-2">
-                                  {status === '검토완료' ? (
+                                  {status === '급여확정완료' ? (
+                                    <span className="text-sm text-gray-500 font-medium">급여확정완료</span>
+                                  ) : status === '검토완료' ? (
                                     <button
                                       onClick={async (e) => {
                                         e.stopPropagation();
@@ -1965,6 +1968,7 @@ export default function WorkTimeComparison({
                               case '검토전': return 'text-gray-600 bg-gray-50';
                               case '검토중': return 'text-orange-600 bg-orange-50';
                               case '검토완료': return 'text-green-600 bg-green-50';
+                              case '급여확정완료': return 'text-purple-600 bg-purple-50';
                               default: return 'text-gray-600 bg-gray-50';
                             }
                           };
@@ -1987,7 +1991,13 @@ export default function WorkTimeComparison({
       ) : null}
 
       {/* 실제근무 데이터 입력 */}
-      {!isPayrollConfirmed(selectedEmployeeId) && (
+      {!isPayrollConfirmed(selectedEmployeeId) && (() => {
+        // 급여확정완료 상태인지 확인
+        const reviewStatus = employeeReviewStatus.find(status => 
+          status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+        );
+        return reviewStatus?.status !== '급여확정완료';
+      })() && (
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             실제근무 데이터 (복사붙여넣기) <span className="text-red-500">*</span>
@@ -2128,7 +2138,13 @@ export default function WorkTimeComparison({
       )}
 
       {/* 비교 실행 버튼 */}
-      {!isPayrollConfirmed(selectedEmployeeId) && (
+      {!isPayrollConfirmed(selectedEmployeeId) && (() => {
+        // 급여확정완료 상태인지 확인
+        const reviewStatus = employeeReviewStatus.find(status => 
+          status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+        );
+        return reviewStatus?.status !== '급여확정완료';
+      })() && (
         <div className="mb-6">
           <button
             onClick={compareWorkTimes}

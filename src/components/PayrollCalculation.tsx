@@ -136,6 +136,16 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       return;
     }
     
+    // 🔥 급여가 확정된 경우 재계산하지 않고 기존 데이터 사용
+    if (isPayrollConfirmed) {
+      console.log('🔥 급여 확정됨 - 재계산 방지, 기존 데이터 사용');
+      const existingPayroll = await loadExistingPayroll();
+      if (existingPayroll && existingPayroll.length > 0) {
+        setPayrollResults(existingPayroll);
+        return;
+      }
+    }
+    
     // 🔥 클릭 시마다 모든 데이터를 새로 계산
     // 기존 공제 데이터만 보존
     const existingPayroll = await loadExistingPayroll();
@@ -466,6 +476,21 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         await Promise.all(batch);
       }
       
+      // 3. workTimeComparisonResults의 status를 "review_completed"로 업데이트
+      const comparisonQuery = query(
+        collection(db, 'workTimeComparisonResults'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('month', '==', selectedMonth)
+      );
+      const comparisonSnapshot = await getDocs(comparisonQuery);
+      
+      for (const docSnapshot of comparisonSnapshot.docs) {
+        await updateDoc(doc(db, 'workTimeComparisonResults', docSnapshot.id), {
+          status: 'review_completed',
+          updatedAt: new Date()
+        });
+      }
+      
       alert('급여가 확정되었습니다.');
       
       if (onPayrollStatusChange) {
@@ -526,7 +551,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     }
     
     try {
-      // 1. confirmedPayrolls에서 confirmedAt을 null로 업데이트
+      // 1. confirmedPayrolls에서 데이터 삭제
       const payrollQuery = query(
         collection(db, 'confirmedPayrolls'),
         where('employeeId', '==', selectedEmployeeId),
@@ -535,11 +560,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       const payrollSnapshot = await getDocs(payrollQuery);
       
       for (const docSnapshot of payrollSnapshot.docs) {
-        await updateDoc(doc(db, 'confirmedPayrolls', docSnapshot.id), {
-          confirmedAt: null,
-          cancelledAt: new Date(),
-          cancelledBy: 'admin'
-        });
+        await deleteDoc(doc(db, 'confirmedPayrolls', docSnapshot.id));
       }
       
       // 2. 해당 직원의 모든 지점 상태를 "검토완료"로 되돌리기
@@ -571,7 +592,25 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         await Promise.all(batch);
       }
       
-      // 3. 급여확정 상태 업데이트
+      // 3. workTimeComparisonResults의 status를 원래대로 되돌리기
+      const comparisonQuery = query(
+        collection(db, 'workTimeComparisonResults'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('month', '==', selectedMonth)
+      );
+      const comparisonSnapshot = await getDocs(comparisonQuery);
+      
+      for (const docSnapshot of comparisonSnapshot.docs) {
+        const data = docSnapshot.data();
+        // 원래 상태로 되돌리기 (time_match 또는 review_required)
+        const originalStatus = data.difference && Math.abs(data.difference) >= 0.17 ? 'review_required' : 'time_match';
+        await updateDoc(doc(db, 'workTimeComparisonResults', docSnapshot.id), {
+          status: originalStatus,
+          updatedAt: new Date()
+        });
+      }
+      
+      // 4. 급여확정 상태 업데이트
       setIsPayrollConfirmed(false);
       
       alert('급여 확정이 취소되었습니다.');
