@@ -2163,7 +2163,10 @@ export default function WorkTimeComparison({
       })() && (
         <div className="mb-6">
           <button
-            onClick={compareWorkTimes}
+            onClick={() => {
+              console.log('🔥🔥🔥 근무시간 비교 버튼 클릭됨');
+              compareWorkTimes();
+            }}
             disabled={loading || (() => {
               const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
               if (!selectedEmployee) return false;
