@@ -575,7 +575,8 @@ export default function WorkTimeComparison({
     if (employees.length > 0 && selectedMonth) {
       loadReviewStatus(employees);
     }
-  }, [employees, selectedMonth, loadReviewStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employees, selectedMonth]);
 
   const loadSchedules = async (month: string) => {
     console.log('🔥🔥🔥 loadSchedules 함수 호출됨, 월:', month);
