@@ -177,7 +177,7 @@ export default function WorkTimeComparison({
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth]);
+  }, [selectedMonth, selectedBranchId]);
 
   // Props 변경 시 상태 업데이트
   useEffect(() => {
@@ -285,7 +285,7 @@ export default function WorkTimeComparison({
     if (selectedMonth) {
       loadSchedules(selectedMonth);
     }
-  }, [selectedBranchId, selectedEmployeeId, selectedMonth, loadEmployees]);
+  }, [selectedBranchId, selectedEmployeeId, selectedMonth, loadEmployees, loadSchedules]);
 
   // 메모 로드 (현재 비활성화)
   // useEffect(() => {

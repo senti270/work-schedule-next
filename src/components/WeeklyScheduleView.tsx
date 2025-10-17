@@ -54,7 +54,6 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
   }, []);
 
   const generateWeeklySummary = useCallback((schedulesData: Schedule[]) => {
-    const weekDates = getWeekDates(currentWeekStart);
     const summaryMap = new Map<string, WeeklySummary>();
 
     console.log('=== WeeklyScheduleView 주간집계 생성 ===');

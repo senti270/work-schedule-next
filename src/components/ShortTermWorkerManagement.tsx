@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -493,7 +493,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                  {worker.workDetails.map((detail, index) => (
+                                  {worker.workDetails.map((detail) => (
                                     <tr key={detail.id}>
                                       <td className="px-4 py-2 text-sm text-gray-900">{detail.workDate}</td>
                                       <td className="px-4 py-2 text-sm text-gray-900">{detail.startTime}</td>
