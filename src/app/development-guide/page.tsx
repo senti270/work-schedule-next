@@ -228,6 +228,10 @@ export default function DevelopmentGuide() {
                     <p className="text-gray-600">실제 근무 기록, 비교 데이터</p>
                   </div>
                   <div>
+                    <h4 className="font-medium text-gray-800 mb-1">workTimeComparisonResults</h4>
+                    <p className="text-gray-600">근무시간 비교 결과, 차이점 분석</p>
+                  </div>
+                  <div>
                     <h4 className="font-medium text-gray-800 mb-1">employeeReviewStatus</h4>
                     <p className="text-gray-600">직원별 검토 상태 관리</p>
                   </div>
@@ -236,8 +240,44 @@ export default function DevelopmentGuide() {
                     <p className="text-gray-600">직원별 급여메모 (통합 관리)</p>
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-800 mb-1">payrollRecords</h4>
+                    <h4 className="font-medium text-gray-800 mb-1">confirmedPayrolls</h4>
                     <p className="text-gray-600">급여확정 기록 (변경 불가)</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">overtimeRecords</h4>
+                    <p className="text-gray-600">연장근무 기록, 이월 시간</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">employeeBranches</h4>
+                    <p className="text-gray-600">직원-지점 연결 관계</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">weeklyNotes</h4>
+                    <p className="text-gray-600">주간 노트, 공유 링크</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">payrollLocks</h4>
+                    <p className="text-gray-600">급여 처리 잠금 상태</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">managerAccounts</h4>
+                    <p className="text-gray-600">매니저 계정 정보</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">comments</h4>
+                    <p className="text-gray-600">댓글 시스템</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">formDocuments</h4>
+                    <p className="text-gray-600">양식 문서 관리</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">bankCodes</h4>
+                    <p className="text-gray-600">은행 코드 정보</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-800 mb-1">employeeMonthlyStats</h4>
+                    <p className="text-gray-600">직원 월별 통계 (캐시)</p>
                   </div>
                 </div>
               </div>
