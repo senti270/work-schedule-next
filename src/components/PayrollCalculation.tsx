@@ -49,13 +49,13 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
   const [editableDeductions, setEditableDeductions] = useState<{[key: string]: number}>({});
 
   // 스케줄 데이터 로드
-  const loadSchedules = useCallback(async () => {
+  const loadSchedules = useCallback(async (retryCount = 0) => {
     if (!selectedMonth || !selectedEmployeeId) {
       console.log('🔥 loadSchedules 조건 불충족:', { selectedMonth, selectedEmployeeId });
       return;
     }
 
-    console.log('🔥 loadSchedules 시작:', { selectedMonth, selectedEmployeeId });
+    console.log('🔥 loadSchedules 시작:', { selectedMonth, selectedEmployeeId, retryCount });
     setLoading(true);
     try {
       const schedulesQuery = query(
@@ -66,6 +66,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       
       const schedulesSnapshot = await getDocs(schedulesQuery);
       console.log('🔥 workTimeComparisonResults 조회 결과:', schedulesSnapshot.docs.length, '건');
+      
+      if (schedulesSnapshot.empty && retryCount < 2) {
+        console.log('🔥 데이터 없음 - 1초 후 재시도:', retryCount + 1);
+        setTimeout(() => {
+          loadSchedules(retryCount + 1);
+        }, 1000);
+        return;
+      }
       
       const schedulesData = schedulesSnapshot.docs.map(doc => {
         const data = doc.data();
@@ -164,8 +172,30 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     // 월급직의 경우 스케줄 데이터가 없어도 계산 가능
     const isMonthlySalary = employee.salaryType === 'monthly';
     if (!weeklySchedules.length && !isMonthlySalary) {
+      console.log('🔥 스케줄 데이터 없음 - 근무시간비교가 완료되지 않았을 수 있음');
       setNoScheduleData(true);
       setPayrollResults([]);
+      
+      // 근무시간비교 데이터가 있는지 확인
+      try {
+        const comparisonQuery = query(
+          collection(db, 'workTimeComparisonResults'),
+          where('month', '==', selectedMonth),
+          where('employeeId', '==', selectedEmployeeId)
+        );
+        const comparisonSnapshot = await getDocs(comparisonQuery);
+        
+        if (comparisonSnapshot.empty) {
+          console.log('🔥 근무시간비교 데이터가 없음 - 근무시간비교를 먼저 완료해주세요');
+          alert('근무시간비교를 먼저 완료해주세요.');
+        } else {
+          console.log('🔥 근무시간비교 데이터는 있지만 스케줄 로딩 실패 - 페이지를 새로고침하거나 다른 직원을 선택 후 다시 시도해주세요');
+          alert('데이터 로딩에 문제가 있습니다. 페이지를 새로고침하거나 다른 직원을 선택 후 다시 시도해주세요.');
+        }
+      } catch (error) {
+        console.error('근무시간비교 데이터 확인 실패:', error);
+      }
+      
       return;
     }
     
@@ -496,6 +526,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       if (onPayrollStatusChange) {
         onPayrollStatusChange();
       }
+      
+      // 해당 직원만 상태 새로고침
+      if ((window as any).refreshEmployeeStatus && selectedEmployeeId) {
+        (window as any).refreshEmployeeStatus(selectedEmployeeId);
+      }
     } catch (error) {
       console.error('급여 확정 실패:', error);
       alert('급여 확정에 실패했습니다.');
@@ -582,7 +617,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
             // 기존 문서 업데이트
             const statusDoc = statusSnapshot.docs[0];
             batch.push(updateDoc(doc(db, 'employeeReviewStatus', statusDoc.id), {
-              status: '검토완료',
+              status: '근무시간검토완료',
               updatedAt: new Date()
             }));
           }
@@ -617,6 +652,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       
       if (onPayrollStatusChange) {
         onPayrollStatusChange();
+      }
+      
+      // 해당 직원만 상태 새로고침
+      if ((window as any).refreshEmployeeStatus && selectedEmployeeId) {
+        (window as any).refreshEmployeeStatus(selectedEmployeeId);
       }
     } catch (error) {
       console.error('급여 확정 취소 실패:', error);

@@ -59,6 +59,7 @@ interface WorkTimeComparisonProps {
   hideEmployeeSelection?: boolean;
   hideBranchSelection?: boolean;
   selectedEmployeeBranches?: string[]; // 선택된 직원의 지점 목록
+  onStatusChange?: () => void; // 상태 변경 시 호출되는 콜백
 }
 
 export default function WorkTimeComparison({ 
@@ -69,7 +70,8 @@ export default function WorkTimeComparison({
   selectedBranchId: propSelectedBranchId,
   hideEmployeeSelection = false,
   hideBranchSelection = false,
-  selectedEmployeeBranches: propSelectedEmployeeBranches = []
+  selectedEmployeeBranches: propSelectedEmployeeBranches = [],
+  onStatusChange
 }: WorkTimeComparisonProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [actualWorkData, setActualWorkData] = useState<string>('');
@@ -87,7 +89,7 @@ export default function WorkTimeComparison({
     salaryType?: string;
   }[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
-  const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, branchId: string, status: '검토전' | '검토중' | '검토완료' | '근무시간검토완료' | '급여확정완료'}[]>([]);
+  const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, branchId: string, status: '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료'}[]>([]);
   const [payrollConfirmedEmployees, setPayrollConfirmedEmployees] = useState<string[]>([]);
   const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: {admin: string, employee: string}}>({});
   
@@ -436,7 +438,7 @@ export default function WorkTimeComparison({
   // 중복 데이터 정리 함수 (현재 사용하지 않음 - 전체 함수 제거)
 
   // 검토 상태를 DB에 저장 (지점별로 분리)
-  const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '검토완료') => {
+  const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '근무시간검토완료') => {
     try {
       console.log('🔵 검토 상태 저장 시작:', { employeeId, status, selectedMonth, selectedBranchId });
       
@@ -483,6 +485,11 @@ export default function WorkTimeComparison({
       }
       
       console.log('🔵 검토 상태 저장 완료, loadReviewStatus 호출 예정');
+      
+      // 해당 직원만 상태 새로고침
+      if ((window as any).refreshEmployeeStatus && selectedEmployeeId) {
+        (window as any).refreshEmployeeStatus(selectedEmployeeId);
+      }
     } catch (error) {
       console.error('❌ 검토 상태 저장 실패:', error);
       alert('검토 상태 저장에 실패했습니다: ' + (error instanceof Error ? error.message : String(error)));
@@ -513,7 +520,7 @@ export default function WorkTimeComparison({
         return {
           employeeId: data.employeeId,
           branchId: data.branchId,
-          status: data.status as '검토전' | '검토중' | '검토완료' | '근무시간검토완료'
+          status: data.status as '검토전' | '검토중' | '근무시간검토완료'
         };
       });
       
@@ -525,7 +532,7 @@ export default function WorkTimeComparison({
       
       // 모든 잘못된 상태 확인
       const wrongStatuses = savedReviewStatuses.filter(status => 
-        status.status === '검토중' || status.status === '근무시간검토완료'
+        status.status === '검토중'
       );
       if (wrongStatuses.length > 0) {
         console.log('⚠️ 잘못된 상태 데이터 발견:', wrongStatuses);
@@ -556,7 +563,7 @@ export default function WorkTimeComparison({
           return [{
             employeeId: employee.id,
             branchId: selectedBranchId,
-            status: '검토전' as '검토전' | '검토중' | '검토완료'
+            status: '검토전' as '검토전' | '검토중' | '근무시간검토완료'
           }];
         })
       );
@@ -877,6 +884,14 @@ export default function WorkTimeComparison({
       return;
     }
 
+    // 기존 비교 데이터가 있는 경우 확인 메시지 표시
+    if (comparisonResults.length > 0) {
+      const confirmed = confirm('기존 근무시간비교 데이터가 삭제됩니다.\n계속하시겠습니까?');
+      if (!confirmed) {
+        return;
+      }
+    }
+
     // 스케줄 데이터가 없으면 먼저 로드
     if (schedules.length === 0) {
       console.log('🔥🔥🔥 스케줄 데이터가 없어서 로드 시작');
@@ -1112,7 +1127,7 @@ export default function WorkTimeComparison({
       setEmployeeReviewStatus(prev => {
         const updated = prev.map(status => 
           status.employeeId === selectedEmployeeId 
-            ? { ...status, status: '검토중' as '검토전' | '검토중' | '검토완료' }
+            ? { ...status, status: '검토중' as '검토전' | '검토중' | '근무시간검토완료' }
             : status
         );
         console.log('비교 작업 후 검토 상태 업데이트:', updated);
@@ -1439,12 +1454,12 @@ export default function WorkTimeComparison({
           console.log('기존 데이터 발견, 현재 상태:', currentStatus, '직원:', selectedEmployeeId);
           
           // 이미 검토완료 상태가 아닌 경우에만 검토중으로 변경
-          if (currentStatus !== '검토완료') {
+          if (currentStatus !== '근무시간검토완료') {
             console.log('검토중 상태로 변경:', selectedEmployeeId);
             setEmployeeReviewStatus(prev => {
               const updated = prev.map(status => 
                 status.employeeId === selectedEmployeeId 
-                  ? { ...status, status: '검토중' as '검토전' | '검토중' | '검토완료' }
+                  ? { ...status, status: '검토중' as '검토전' | '검토중' | '근무시간검토완료' }
                   : status
               );
               console.log('검토 상태 업데이트:', updated);
@@ -1756,7 +1771,7 @@ export default function WorkTimeComparison({
                                   </span>
                                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                     status === '급여확정완료' ? 'bg-purple-100 text-purple-800' :
-                                    status === '검토완료' ? 'bg-green-100 text-green-800' :
+                                    status === '근무시간검토완료' ? 'bg-green-100 text-green-800' :
                                     status === '검토중' ? 'bg-yellow-100 text-yellow-800' :
                                     'bg-gray-100 text-gray-800'
                                   }`}>
@@ -1767,7 +1782,7 @@ export default function WorkTimeComparison({
                                 <div className="flex space-x-2">
                                   {status === '급여확정완료' ? (
                                     <span className="text-sm text-gray-500 font-medium">급여확정완료</span>
-                                  ) : status === '검토완료' ? (
+                                  ) : status === '근무시간검토완료' ? (
                                     <button
                                       onClick={async (e) => {
                                         e.stopPropagation();
@@ -1776,7 +1791,7 @@ export default function WorkTimeComparison({
                                           setEmployeeReviewStatus(prev => {
                                             return prev.map(s => 
                                               s.employeeId === selectedEmployeeId && s.branchId === branchId
-                                                ? { ...s, status: '검토중' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' }
+                                                ? { ...s, status: '검토중' as '검토전' | '검토중' | '근무시간검토완료' | '근무시간검토완료' }
                                                 : s
                                             );
                                           });
@@ -1796,11 +1811,11 @@ export default function WorkTimeComparison({
                                       onClick={async (e) => {
                                         e.stopPropagation();
                                         if (confirm(`${branch?.name} 지점의 검토를 완료하시겠습니까?`)) {
-                                          // 🔥 상태를 '검토완료'로 변경
+                                          // 🔥 상태를 '근무시간검토완료'로 변경
                                           setEmployeeReviewStatus(prev => {
                                             return prev.map(s => 
                                               s.employeeId === selectedEmployeeId && s.branchId === branchId
-                                                ? { ...s, status: '검토완료' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' }
+                                                ? { ...s, status: '근무시간검토완료' as '검토전' | '검토중' | '근무시간검토완료' | '근무시간검토완료' }
                                                 : s
                                             );
                                           });
@@ -1808,7 +1823,7 @@ export default function WorkTimeComparison({
                                           // 🔥 비교 결과 테이블 강제 리렌더링을 위해 복사
                                           setComparisonResults([...comparisonResults]);
                                           
-                                          await saveReviewStatus(selectedEmployeeId, '검토완료');
+                                          await saveReviewStatus(selectedEmployeeId, '근무시간검토완료');
                                           // 🔥 loadReviewStatus 제거: 이미 상태를 업데이트했으므로 불필요
                                           // await loadReviewStatus(employees);
                                           
@@ -1833,7 +1848,7 @@ export default function WorkTimeComparison({
                                         if (confirm(`${branch?.name} 지점의 검토를 완료하시겠습니까?`)) {
                                           console.log('🔥🔥🔥 확인 클릭됨!');
                                           
-                                          // 🔥 상태를 '검토완료'로 변경
+                                          // 🔥 상태를 '근무시간검토완료'로 변경
                                           setEmployeeReviewStatus(prev => {
                                             const existing = prev.find(s => 
                                               s.employeeId === selectedEmployeeId && s.branchId === branchId
@@ -1844,7 +1859,7 @@ export default function WorkTimeComparison({
                                             if (existing) {
                                               const updated = prev.map(s => 
                                                 s.employeeId === selectedEmployeeId && s.branchId === branchId
-                                                  ? { ...s, status: '검토완료' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' }
+                                                  ? { ...s, status: '근무시간검토완료' as '검토전' | '검토중' | '근무시간검토완료' | '근무시간검토완료' }
                                                   : s
                                               );
                                               console.log('🔥🔥🔥 기존 상태 업데이트:', updated);
@@ -1854,7 +1869,7 @@ export default function WorkTimeComparison({
                                               const newStatus = { 
                                                 employeeId: selectedEmployeeId, 
                                                 branchId: branchId, 
-                                                status: '검토완료' as '검토전' | '검토중' | '검토완료' | '근무시간검토완료' 
+                                                status: '근무시간검토완료' as '검토전' | '검토중' | '근무시간검토완료' | '근무시간검토완료' 
                                               };
                                               console.log('🔥🔥🔥 새로운 상태 추가:', newStatus);
                                               return [...prev, newStatus];
@@ -1864,7 +1879,7 @@ export default function WorkTimeComparison({
                                           setComparisonResults([...comparisonResults]);
                                           
                                           console.log('🔥🔥🔥 saveReviewStatus 호출 직전, branchId:', branchId);
-                                          await saveReviewStatus(selectedEmployeeId, '검토완료');
+                                          await saveReviewStatus(selectedEmployeeId, '근무시간검토완료');
                                           console.log('🔥🔥🔥 saveReviewStatus 호출 완료');
                                         } else {
                                           console.log('🔥🔥🔥 확인 취소됨');
@@ -1999,7 +2014,7 @@ export default function WorkTimeComparison({
                             switch (status) {
                               case '검토전': return 'text-gray-600 bg-gray-50';
                               case '검토중': return 'text-orange-600 bg-orange-50';
-                              case '검토완료': return 'text-green-600 bg-green-50';
+                              case '근무시간검토완료': return 'text-green-600 bg-green-50';
                               case '급여확정완료': return 'text-purple-600 bg-purple-50';
                               default: return 'text-gray-600 bg-gray-50';
                             }
@@ -2190,7 +2205,7 @@ export default function WorkTimeComparison({
               const reviewStatus = employeeReviewStatus.find(status => 
                 status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
               );
-              return reviewStatus?.status === '검토완료';
+              return reviewStatus?.status === '근무시간검토완료';
             })()}
             className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 font-medium"
           >
@@ -2198,7 +2213,7 @@ export default function WorkTimeComparison({
               const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
               if (!selectedEmployee) return '근무시간 비교';
               const reviewStatus = employeeReviewStatus.find(status => status.employeeId === selectedEmployeeId);
-              return reviewStatus?.status === '검토완료' ? '검토완료 (비교 불가)' : '근무시간 비교';
+              return reviewStatus?.status === '근무시간검토완료' ? '검토완료 (비교 불가)' : '근무시간 비교';
             })()}
           </button>
         </div>
@@ -2211,7 +2226,7 @@ export default function WorkTimeComparison({
         const currentBranchStatus = employeeReviewStatus.find(status => 
           status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
         );
-        const isEditable = currentBranchStatus?.status !== '검토완료';
+        const isEditable = currentBranchStatus?.status !== '근무시간검토완료';
         
         return (
       <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -2291,7 +2306,7 @@ export default function WorkTimeComparison({
                   const currentBranchStatus = employeeReviewStatus.find(status => 
                     status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
                   );
-                  const isBranchReviewCompleted = currentBranchStatus?.status === '검토완료';
+                  const isBranchReviewCompleted = currentBranchStatus?.status === '근무시간검토완료';
                   
                   // 🔥 "확인완료"만 완료로 간주 ("시간일치"는 제외)
                   const completedCount = comparisonResults.filter(r => 
@@ -2478,7 +2493,7 @@ export default function WorkTimeComparison({
                                   const allCompleted = updatedResults.every(r => 
                                     r.status === 'review_completed' || r.status === 'time_match'
                                   );
-                                  const finalStatus: '검토전' | '검토중' | '검토완료' = allCompleted ? '검토완료' : '검토중';
+                                  const finalStatus: '검토전' | '검토중' | '근무시간검토완료' = allCompleted ? '근무시간검토완료' : '검토중';
                                   
                                   setEmployeeReviewStatus(prev => {
                                     const existingIndex = prev.findIndex(status => 
@@ -2518,7 +2533,7 @@ export default function WorkTimeComparison({
                                   const allCompleted = updatedResults.every(r => 
                                     r.status === 'review_completed' || r.status === 'time_match'
                                   );
-                                  const finalStatus: '검토전' | '검토중' | '검토완료' = allCompleted ? '검토완료' : '검토중';
+                                  const finalStatus: '검토전' | '검토중' | '근무시간검토완료' = allCompleted ? '근무시간검토완료' : '검토중';
                                   
                                   setEmployeeReviewStatus(prev => {
                                     const existingIndex = prev.findIndex(status => 
@@ -2568,7 +2583,7 @@ export default function WorkTimeComparison({
                                     const allCompleted = updatedResults.every(r => 
                                       r.status === 'review_completed' || r.status === 'time_match'
                                     );
-                                    const finalStatus: '검토전' | '검토중' | '검토완료' = allCompleted ? '검토완료' : '검토중';
+                                    const finalStatus: '검토전' | '검토중' | '근무시간검토완료' = allCompleted ? '근무시간검토완료' : '검토중';
                                     
                                     setEmployeeReviewStatus(prev => {
                                       const existingIndex = prev.findIndex(status => 

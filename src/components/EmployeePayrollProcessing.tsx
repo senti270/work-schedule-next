@@ -43,13 +43,15 @@ interface EmployeePayrollProcessingProps {
   isManager: boolean;
   onMonthChange?: (month: string) => void;
   onEmployeeChange?: (employeeId: string) => void;
+  onStatusChange?: () => void; // 상태 변경 시 호출되는 콜백
 }
 
 const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({ 
   userBranch, 
   isManager,
   onMonthChange,
-  onEmployeeChange
+  onEmployeeChange,
+  onStatusChange
 }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -79,6 +81,75 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     createdAt: Date;
     updatedAt: Date;
   }[]>([]);
+
+  // 급여 처리 상태 새로고침 함수 (개별 직원용)
+  const refreshEmployeeStatus = useCallback(async (employeeId: string) => {
+    try {
+      const employee = employees.find(emp => emp.id === employeeId);
+      if (!employee) return;
+
+      console.log(`\n=== ${employee.name} 상태 새로고침 ===`);
+      
+      // 1. 급여확정 상태 확인
+      const payrollQuery = query(
+        collection(db, 'confirmedPayrolls'),
+        where('employeeId', '==', employeeId),
+        where('month', '==', selectedMonth)
+      );
+      const payrollSnapshot = await getDocs(payrollQuery);
+      
+      // 2. 검토상태 확인
+      const allReviewStatusQuery = query(
+        collection(db, 'employeeReviewStatus'),
+        where('employeeId', '==', employeeId),
+        where('month', '==', selectedMonth)
+      );
+      const allReviewStatusSnapshot = await getDocs(allReviewStatusQuery);
+      
+      let status: '미처리' | '근무시간검토중' | '근무시간검토완료' | '급여확정완료' = '미처리';
+      
+      if (payrollSnapshot.docs.length > 0) {
+        status = '급여확정완료';
+      } else if (allReviewStatusSnapshot.docs.length > 0) {
+        const employeeBranches = employee.branches || [];
+        const allCompleted = employeeBranches.length > 0 && 
+          employeeBranches.every(branchId => {
+            const branchStatus = allReviewStatusSnapshot.docs.find(doc => doc.data().branchId === branchId);
+            return branchStatus && (
+              branchStatus.data().status === '검토완료' || 
+              branchStatus.data().status === '근무시간검토완료' || 
+              branchStatus.data().status === '급여확정완료'
+            );
+          });
+        
+        const hasInProgress = allReviewStatusSnapshot.docs.some(doc => 
+          doc.data().status === '검토중' || doc.data().status === '근무시간검토중'
+        );
+        
+        if (allCompleted) {
+          status = '근무시간검토완료';
+        } else if (hasInProgress) {
+          status = '근무시간검토중';
+        } else {
+          status = '미처리';
+        }
+      }
+      
+      // 3. 상태 업데이트
+      setPayrollStatuses(prev => {
+        const updated = prev.map(p => 
+          p.employeeId === employeeId 
+            ? { ...p, status, lastUpdated: new Date() }
+            : p
+        );
+        return updated;
+      });
+      
+      console.log(`${employee.name} 상태 업데이트됨:`, status);
+    } catch (error) {
+      console.error('직원 상태 새로고침 실패:', error);
+    }
+  }, [employees, selectedMonth]);
 
   // 급여 처리 상태 로드 (해당월, 해당직원 기준)
   const loadPayrollStatuses = useCallback(async (employeesData: Employee[]) => {
@@ -158,6 +229,26 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
       console.error('급여 처리 상태 로드 실패:', error);
     }
   }, [selectedMonth, selectedBranchId]);
+
+  // 전체 상태 새로고침 함수
+  const refreshAllStatuses = useCallback(async () => {
+    try {
+      console.log('=== 전체 상태 새로고침 시작 ===');
+      await loadPayrollStatuses(employees);
+      console.log('=== 전체 상태 새로고침 완료 ===');
+    } catch (error) {
+      console.error('전체 상태 새로고침 실패:', error);
+    }
+  }, [employees, loadPayrollStatuses]);
+
+  // 글로벌 상태 새로고침 함수 (window 객체에 등록)
+  useEffect(() => {
+    // 개별 직원 새로고침 함수 등록
+    (window as any).refreshEmployeeStatus = refreshEmployeeStatus;
+    return () => {
+      delete (window as any).refreshEmployeeStatus;
+    };
+  }, [refreshEmployeeStatus]);
 
   // 🔥 통합 데이터 로드 (무한루프 방지)
   const loadAllData = useCallback(async () => {
@@ -457,19 +548,29 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
         <p className="text-gray-600 mt-1">직원별로 근무시간 비교 및 급여계산을 체계적으로 관리합니다</p>
       </div>
 
-      {/* 상단 컨트롤 - 월 선택만 */}
+      {/* 상단 컨트롤 - 월 선택 및 새로고침 */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">처리할 월</label>
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => {
-              setSelectedMonth(e.target.value);
-              onMonthChange?.(e.target.value);
-            }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        <div className="flex items-center justify-between">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">처리할 월</label>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => {
+                setSelectedMonth(e.target.value);
+                onMonthChange?.(e.target.value);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={refreshAllStatuses}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-medium"
+            >
+              🔄 상태 새로고침
+            </button>
+          </div>
         </div>
       </div>
 
@@ -756,6 +857,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
                     hideEmployeeSelection={true}
                     hideBranchSelection={true}
                     selectedEmployeeBranches={selectedEmployee?.branches || []}
+                    onStatusChange={onStatusChange}
                   />
                 )}
 
@@ -770,6 +872,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
               onPayrollStatusChange={() => {
                 // 급여확정 상태 변경 시 직원 목록과 상태 다시 로드
                 loadAllData();
+                onStatusChange?.(); // 상태 변경 콜백 호출
               }}
             />
                   </>
