@@ -570,7 +570,7 @@ export default function WorkTimeComparison({
     } catch (error) {
       console.error('검토 상태 로드 실패:', error);
     }
-  }, [selectedMonth, selectedBranchId, isManager, userBranch]);
+  }, [selectedMonth, isManager, userBranch]);
 
   // 직원 목록이 로드되면 검토 상태 로드
   useEffect(() => {
@@ -624,6 +624,17 @@ export default function WorkTimeComparison({
         filteredSchedules = filteredSchedules.filter(schedule => schedule.employeeId === selectedEmployeeId);
       }
 
+      console.log('🔥 스케줄 로딩 완료:', {
+        전체스케줄: schedulesData.length,
+        월필터링후: schedulesData.filter(schedule => {
+          const scheduleDate = new Date(schedule.date);
+          return scheduleDate >= startDate && scheduleDate <= endDate;
+        }).length,
+        지점필터링후: filteredSchedules.length,
+        선택된직원: selectedEmployeeId,
+        선택된지점: selectedBranchId
+      });
+      
       setSchedules(filteredSchedules);
     } catch (error) {
       console.error('스케줄 로드 중 오류:', error);
@@ -867,7 +878,10 @@ export default function WorkTimeComparison({
 
     if (!actualWorkData.trim()) {
       // 실제근무 데이터가 없어도 스케줄 데이터만으로 리스트 표시
-      // console.log('실제근무 데이터 없음, 스케줄 데이터만으로 리스트 생성');
+      console.log('🔥 실제근무 데이터 없음, 스케줄 데이터만으로 리스트 생성');
+      console.log('🔥 전체 스케줄 수:', schedules.length);
+      console.log('🔥 선택된 직원 ID:', selectedEmployeeId);
+      console.log('🔥 필터링된 스케줄:', schedules.filter(schedule => schedule.employeeId === selectedEmployeeId));
       
       const scheduleOnlyComparisons: WorkTimeComparison[] = [];
       
