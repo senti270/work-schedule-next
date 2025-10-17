@@ -29,8 +29,8 @@ export default function UpdateReviewStatusPage() {
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
         <h2 className="text-lg font-semibold text-yellow-800 mb-2">⚠️ 주의사항</h2>
         <ul className="text-yellow-700 space-y-1">
-          <li>• 이 작업은 confirmedPayrolls에 데이터가 있는 모든 직원의 employeeReviewStatus를 "급여확정완료"로 변경합니다.</li>
-          <li>• 기존 상태가 "급여확정완료"가 아닌 경우에만 업데이트됩니다.</li>
+          <li>• 이 작업은 confirmedPayrolls에 데이터가 있는 모든 직원의 employeeReviewStatus를 &quot;급여확정완료&quot;로 변경합니다.</li>
+          <li>• 기존 상태가 &quot;급여확정완료&quot;가 아닌 경우에만 업데이트됩니다.</li>
           <li>• employeeReviewStatus에 해당 직원의 데이터가 없으면 새로 생성됩니다.</li>
         </ul>
       </div>
@@ -40,7 +40,7 @@ export default function UpdateReviewStatusPage() {
         <ol className="text-blue-700 space-y-1">
           <li>1. confirmedPayrolls 컬렉션에서 모든 급여확정 데이터 조회</li>
           <li>2. 각 직원별로 employeeReviewStatus 조회</li>
-          <li>3. 상태가 "급여확정완료"가 아닌 경우 업데이트</li>
+          <li>3. 상태가 &quot;급여확정완료&quot;가 아닌 경우 업데이트</li>
           <li>4. 해당 직원의 데이터가 없으면 새로 생성</li>
         </ol>
       </div>

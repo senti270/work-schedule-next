@@ -310,7 +310,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       alert('급여 계산 중 오류가 발생했습니다.');
       setPayrollResults([]);
     }
-  }, [employees, selectedEmployeeId, weeklySchedules, loadExistingPayroll]);
+  }, [employees, selectedEmployeeId, weeklySchedules, loadExistingPayroll, isPayrollConfirmed, selectedMonth]);
 
   // 메모 로드
   const loadMemos = useCallback(async () => {

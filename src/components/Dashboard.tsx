@@ -10,9 +10,7 @@ import EmployeeManagement from './EmployeeManagement';
 import ScheduleManagement from './ScheduleManagement';
 import BranchManagement from './BranchManagement';
 import ReportManagement from './ReportManagement';
-import WorkTimeComparison from './WorkTimeComparison';
 import ManagerAccountManagement from './ManagerAccountManagement';
-import PayrollCalculation from './PayrollCalculation';
 import FormManagement from './FormManagement';
 import EmployeePayrollProcessing from './EmployeePayrollProcessing';
 import TaxFileGeneration from './TaxFileGeneration';
@@ -51,7 +49,7 @@ interface Comment {
 export default function Dashboard({ user }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
   const [activeSubTab, setActiveSubTab] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [, setSelectedMonth] = useState<string>('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   
   // 디버깅용 로그

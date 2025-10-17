@@ -443,7 +443,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     } catch (error) {
       console.error('지점 목록 로드 실패:', error);
     }
-  }, [isManager, userBranch]);
+  }, []);
 
   // 월 초기화 (매월 5일까지는 전달 급여)
   useEffect(() => {

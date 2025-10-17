@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 export default function AuthForm() {
@@ -43,7 +43,7 @@ export default function AuthForm() {
           try {
             await signInWithEmailAndPassword(auth, testEmail, password);
             return; // 성공하면 함수 종료
-          } catch (error) {
+          } catch {
             console.log(`${testEmail} 로그인 실패, 다음 시도...`);
           }
         }
@@ -63,14 +63,14 @@ export default function AuthForm() {
       try {
         // 기존 Firebase Auth 계정으로 로그인 시도
         await signInWithEmailAndPassword(auth, email, firebasePassword);
-      } catch (authError) {
+      } catch {
         console.log('Firebase 계정이 없어서 생성합니다...');
         // Firebase Auth 계정이 없으면 생성 후 로그인
         await createUserWithEmailAndPassword(auth, email, firebasePassword);
       }
       
-    } catch (error) {
-      console.error('인증 오류:', error);
+    } catch {
+      console.error('인증 오류');
       alert('로그인에 실패했습니다. 관리자에게 문의하세요.');
     } finally {
       setLoading(false);

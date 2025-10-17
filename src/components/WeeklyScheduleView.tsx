@@ -78,7 +78,7 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
     });
 
     setWeeklySummaries(Array.from(summaryMap.values()));
-  }, [currentWeekStart, selectedBranchId]);
+  }, [currentWeekStart]);
 
   const loadSchedules = useCallback(async () => {
     setLoading(true);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc, orderBy, limit, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -71,7 +71,6 @@ export default function WorkTimeComparison({
   hideEmployeeSelection = false,
   hideBranchSelection = false,
   selectedEmployeeBranches: propSelectedEmployeeBranches = [],
-  onStatusChange
 }: WorkTimeComparisonProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [actualWorkData, setActualWorkData] = useState<string>('');
@@ -90,7 +89,7 @@ export default function WorkTimeComparison({
   }[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
   const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, branchId: string, status: '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료'}[]>([]);
-  const [payrollConfirmedEmployees, setPayrollConfirmedEmployees] = useState<string[]>([]);
+  const [payrollConfirmedEmployees] = useState<string[]>([]);
   const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: {admin: string, employee: string}}>({});
   
   // 전월 이월 연장근무시간 입력 팝업 상태
@@ -286,7 +285,6 @@ export default function WorkTimeComparison({
     if (selectedMonth) {
       loadSchedules(selectedMonth);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranchId, selectedEmployeeId, selectedMonth, loadEmployees]);
 
   // 메모 로드 (현재 비활성화)
@@ -314,7 +312,6 @@ export default function WorkTimeComparison({
       // 직원이 선택되지 않았으면 비교 결과 초기화
       setComparisonResults([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEmployeeId, selectedMonth]);
 
   const loadBranches = async () => {
@@ -353,37 +350,6 @@ export default function WorkTimeComparison({
   //   }
   // }, [selectedMonth, selectedBranchId, isManager, userBranch]);
 
-  // 직원별 급여메모 로드
-  const loadEmployeeMemos = useCallback(async () => {
-    try {
-      if (!selectedMonth) return;
-      
-      const memosQuery = query(
-        collection(db, 'employeeMemos'),
-        where('month', '==', selectedMonth)
-      );
-      const memosSnapshot = await getDocs(memosQuery);
-      
-      const memosMap: {[employeeId: string]: {admin: string, employee: string}} = {};
-      memosSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        const employeeId = data.employeeId;
-        const type: 'admin' | 'employee' = data.type || 'admin'; // 기본값은 admin
-        
-        if (!memosMap[employeeId]) {
-          memosMap[employeeId] = { admin: '', employee: '' };
-        }
-        
-        memosMap[employeeId][type] = data.memo || '';
-      });
-      
-      setEmployeeMemos(memosMap);
-      console.log('직원별 급여메모 로드됨:', memosMap);
-      
-    } catch (error) {
-      console.error('직원별 급여메모 로드 실패:', error);
-    }
-  }, [selectedMonth]);
 
   // 직원별 급여메모 저장
   const saveEmployeeMemo = async (employeeId: string, memo: string, type: 'admin' | 'employee') => {
@@ -575,7 +541,7 @@ export default function WorkTimeComparison({
     } catch (error) {
       console.error('검토 상태 로드 실패:', error);
     }
-  }, [selectedMonth, isManager, userBranch, selectedBranchId]);
+  }, [selectedMonth, selectedBranchId]);
 
   // 직원 목록이 로드되면 검토 상태 로드
   useEffect(() => {
@@ -2302,10 +2268,6 @@ export default function WorkTimeComparison({
                     ? 'bg-white' 
                     : 'bg-yellow-50';
                   
-                  // 🔥 전체 검토완료 여부 확인 (지점별 검토상태도 체크)
-                  const currentBranchStatus = employeeReviewStatus.find(status => 
-                    status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
-                  );
                   // const allReviewCompleted = isBranchReviewCompleted || (completedCount === comparisonResults.length && comparisonResults.length > 0);
                   
                   return (

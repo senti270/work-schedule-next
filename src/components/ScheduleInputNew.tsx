@@ -79,7 +79,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [payrollLocks] = useState<PayrollLock[]>([]);
   const [weeklyNote, setWeeklyNote] = useState<string>('');
   const [currentWeeklyNote, setCurrentWeeklyNote] = useState<WeeklyNote | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
@@ -293,7 +292,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const loadPayrollLocks = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'payrollLocks'));
-      const locksData = querySnapshot.docs.map(doc => ({
+      querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         lockedAt: doc.data().lockedAt?.toDate() || new Date()
@@ -324,8 +323,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     
     try {
       const weekDates = getWeekDates();
-      const weekStart = weekDates[0];
-      const weekEnd = weekDates[6];
       
       const lockQuery = query(
         collection(db, 'payrollLocks'),
@@ -347,8 +344,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     
     try {
       const weekDates = getWeekDates();
-      const weekStart = weekDates[0];
-      const weekEnd = weekDates[6];
       
       // 🔥 모든 주간비고를 가져온 후 정확히 일치하는 것만 찾기
       const querySnapshot = await getDocs(collection(db, 'weeklyNotes'));
@@ -358,8 +353,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         const noteWeekEnd = data.weekEnd?.toDate ? data.weekEnd.toDate() : new Date(data.weekEnd);
         
         return data.branchId === selectedBranchId &&
-               noteWeekStart.toDateString() === weekStart.toDateString() &&
-               noteWeekEnd.toDateString() === weekEnd.toDateString();
+               noteWeekStart.toDateString() === weekDates[0].toDateString() &&
+               noteWeekEnd.toDateString() === weekDates[6].toDateString();
       });
       
       if (existingNote) {
@@ -769,8 +764,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         const noteWeekEnd = data.weekEnd?.toDate ? data.weekEnd.toDate() : new Date(data.weekEnd);
         
         return data.branchId === selectedBranchId &&
-               noteWeekStart.toDateString() === weekStart.toDateString() &&
-               noteWeekEnd.toDateString() === weekEnd.toDateString();
+               noteWeekStart.toDateString() === weekDates[0].toDateString() &&
+               noteWeekEnd.toDateString() === weekDates[6].toDateString();
       });
       
       if (existingNote) {
