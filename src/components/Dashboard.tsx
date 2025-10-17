@@ -14,6 +14,7 @@ import ManagerAccountManagement from './ManagerAccountManagement';
 import FormManagement from './FormManagement';
 import EmployeePayrollProcessing from './EmployeePayrollProcessing';
 import TaxFileGeneration from './TaxFileGeneration';
+import ShortTermWorkerManagement from './ShortTermWorkerManagement';
 
 interface DashboardProps {
   user: User;
@@ -1452,14 +1453,10 @@ export default function Dashboard({ user }: DashboardProps) {
               )}
 
               {activeSubTab === 'short-term-worker' && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">단기알바 관리</h3>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                    <p className="text-sm text-yellow-800">
-                      <strong>개발 예정:</strong> 단기알바 관리 기능이 곧 추가됩니다.
-                    </p>
-                  </div>
-                </div>
+                <ShortTermWorkerManagement 
+                  userBranch={userBranch} 
+                  isManager={isManager} 
+                />
               )}
               
               {activeSubTab === 'tax-file' && (
