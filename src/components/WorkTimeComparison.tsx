@@ -890,6 +890,7 @@ export default function WorkTimeComparison({
         .forEach(schedule => {
           const scheduleDate = schedule.date.toISOString().split('T')[0];
           const breakTime = parseFloat(schedule.breakTime) || 0;
+          const actualBreakTime = breakTime; // 최초 스케줄 휴게시간으로 설정
           
           scheduleOnlyComparisons.push({
             employeeName: schedule.employeeName,
@@ -902,6 +903,7 @@ export default function WorkTimeComparison({
             actualTimeRange: '데이터 없음',
             isModified: false,
             breakTime: breakTime,
+            actualBreakTime: actualBreakTime, // 스케줄 휴게시간으로 설정
             actualWorkHours: 0
           });
         });
