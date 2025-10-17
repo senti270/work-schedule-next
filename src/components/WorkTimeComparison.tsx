@@ -1419,8 +1419,14 @@ export default function WorkTimeComparison({
           const currentStatus = employeeReviewStatus.find(status => status.employeeId === selectedEmployeeId)?.status;
           console.log('기존 데이터 발견, 현재 상태:', currentStatus, '직원:', selectedEmployeeId);
           
-          // 이미 검토완료 상태가 아닌 경우에만 검토중으로 변경
-          if (currentStatus !== '근무시간검토완료') {
+          // 🔥 급여확정완료 상태인지 확인
+          const isPayrollConfirmed = employeeReviewStatus.some(status => 
+            status.employeeId === selectedEmployeeId && status.status === '급여확정완료'
+          );
+          
+          if (isPayrollConfirmed) {
+            console.log('급여확정완료 상태이므로 상태 변경하지 않음:', selectedEmployeeId);
+          } else if (currentStatus !== '근무시간검토완료') {
             console.log('검토중 상태로 변경:', selectedEmployeeId);
             setEmployeeReviewStatus(prev => {
               const updated = prev.map(status => 
