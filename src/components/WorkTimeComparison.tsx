@@ -635,6 +635,16 @@ export default function WorkTimeComparison({
         선택된지점: selectedBranchId
       });
       
+      // 필터링된 스케줄 데이터 상세 로그
+      console.log('🔥 필터링된 스케줄 상세:', filteredSchedules.map(s => ({
+        employeeId: s.employeeId,
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        breakTime: s.breakTime,
+        totalHours: s.totalHours
+      })));
+      
       setSchedules(filteredSchedules);
     } catch (error) {
       console.error('스케줄 로드 중 오류:', error);
@@ -865,6 +875,12 @@ export default function WorkTimeComparison({
     if (!selectedEmployeeId) {
       alert('직원을 선택해주세요.');
       return;
+    }
+
+    // 스케줄 데이터가 없으면 먼저 로드
+    if (schedules.length === 0) {
+      console.log('🔥🔥🔥 스케줄 데이터가 없어서 로드 시작');
+      await loadSchedules(selectedMonth);
     }
 
     // 근무시간 비교 시작 시 자동으로 검토중 상태로 변경
@@ -1447,7 +1463,7 @@ export default function WorkTimeComparison({
       console.error('기존 비교 데이터 로드 실패:', error);
       setComparisonResults([]);
     }
-  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch, employeeReviewStatus]);
+  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch]);
 
   // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드
   useEffect(() => {
