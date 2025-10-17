@@ -430,9 +430,7 @@ export default function WorkTimeComparison({
 
   // 급여확정 여부 확인
   const isPayrollConfirmed = (employeeId: string) => {
-    const result = payrollConfirmedEmployees.includes(employeeId);
-    console.log(`🔥 isPayrollConfirmed(${employeeId}): ${result}, payrollConfirmedEmployees:`, payrollConfirmedEmployees);
-    return result;
+    return payrollConfirmedEmployees.includes(employeeId);
   };
 
   // 중복 데이터 정리 함수 (현재 사용하지 않음 - 전체 함수 제거)
@@ -580,6 +578,7 @@ export default function WorkTimeComparison({
   }, [employees, selectedMonth, loadReviewStatus]);
 
   const loadSchedules = async (month: string) => {
+    console.log('🔥🔥🔥 loadSchedules 함수 호출됨, 월:', month);
     try {
       setLoading(true);
       const [year, monthNum] = month.split('-').map(Number);
@@ -844,12 +843,12 @@ export default function WorkTimeComparison({
   };
 
   const compareWorkTimes = async () => {
-    // console.log('근무시간 비교 시작');
-    // console.log('선택된 지점:', selectedBranchId);
-    // console.log('선택된 월:', selectedMonth);
-    // console.log('선택된 직원:', selectedEmployeeId);
-    // console.log('실제근무 데이터 길이:', actualWorkData.length);
-    // console.log('스케줄 개수:', schedules.length);
+    console.log('🔥🔥🔥 compareWorkTimes 함수 호출됨');
+    console.log('🔥🔥🔥 선택된 지점:', selectedBranchId);
+    console.log('🔥🔥🔥 선택된 월:', selectedMonth);
+    console.log('🔥🔥🔥 선택된 직원:', selectedEmployeeId);
+    console.log('🔥🔥🔥 실제근무 데이터 길이:', actualWorkData.length);
+    console.log('🔥🔥🔥 스케줄 개수:', schedules.length);
 
     // 필수 항목 검증
     if (!selectedBranchId) {
