@@ -302,6 +302,53 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
     }
   };
 
+  // 입금 상세 추가
+  const handleAddDepositDetail = async (workerId: string, depositDate: string, depositAmount: number, notes: string) => {
+    try {
+      const worker = workers.find(w => w.id === workerId);
+      if (!worker) return;
+
+      const newDeposit: DepositDetail = {
+        id: Date.now().toString(),
+        depositDate: depositDate,
+        depositAmount: depositAmount,
+        notes: notes
+      };
+
+      const updatedDepositDetails = [...(worker.depositDetails || []), newDeposit];
+
+      await updateDoc(doc(db, 'shortTermWorkers', workerId), {
+        depositDetails: updatedDepositDetails,
+        updatedAt: new Date()
+      });
+
+      loadWorkers();
+    } catch (error) {
+      console.error('입금 상세 추가 실패:', error);
+      alert('입금 상세 추가에 실패했습니다.');
+    }
+  };
+
+  // 입금 상세 삭제
+  const handleDeleteDepositDetail = async (workerId: string, depositIndex: number) => {
+    try {
+      const worker = workers.find(w => w.id === workerId);
+      if (!worker) return;
+
+      const updatedDepositDetails = worker.depositDetails?.filter((_, index) => index !== depositIndex) || [];
+
+      await updateDoc(doc(db, 'shortTermWorkers', workerId), {
+        depositDetails: updatedDepositDetails,
+        updatedAt: new Date()
+      });
+
+      loadWorkers();
+    } catch (error) {
+      console.error('입금 상세 삭제 실패:', error);
+      alert('입금 상세 삭제에 실패했습니다.');
+    }
+  };
+
   // 엑셀형 근무 추가 - 행 추가
   const addExcelRow = () => {
     setExcelWorkDetails(prev => [...prev, { workDate: '', startTime: '', endTime: '', breakTime: 0, notes: '' }]);
