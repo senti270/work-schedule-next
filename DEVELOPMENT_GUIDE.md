@@ -74,9 +74,31 @@ work-schedule-next/
 {
   id: string;
   name: string;
-  type: string; // '근로소득자', '사업소득자', '일용직', '외국인'
-  branchId: string;
-  weeklyWorkHours?: number; // 기본값 40
+  phone?: string;
+  email?: string;
+  residentNumber?: string;
+  hireDate?: Date;
+  resignationDate?: Date;
+  status?: 'active' | 'inactive';
+  contractFile?: string; // 근로계약서 파일 URL
+  // 급여관리용 은행 정보
+  bankName?: string;
+  bankCode?: string;
+  accountNumber?: string;
+  accountHolder?: string; // 예금주명
+  // 수습기간 관리
+  probationStartDate?: Date; // 수습 시작일
+  probationEndDate?: Date; // 수습 종료일
+  probationPeriod?: number; // 수습기간 (개월)
+  isOnProbation?: boolean; // 현재 수습 중인지 여부
+  // 지점 정보 (표시용)
+  branchNames?: string[]; // 소속 지점명들
+  // 메모
+  memo?: string; // 직원 메모
+  // 스케줄 노출 여부
+  hideFromSchedule?: boolean; // 스케줄 관리 화면에서 숨김 여부
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -93,6 +115,9 @@ work-schedule-next/
   endDate?: Date; // 종료일이 없으면 현재까지 유효
   contractFile?: string; // Base64 또는 Storage URL
   contractFileName?: string;
+  includesWeeklyHolidayInWage?: boolean; // 주휴수당 포함 여부
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -101,11 +126,22 @@ work-schedule-next/
 {
   id: string;
   employeeId: string;
+  employeeName: string;
   branchId: string;
+  branchName: string;
   date: Date;
   startTime: string; // "09:00"
   endTime: string; // "18:00"
-  breakTime: number; // 휴게시간 (시간 단위)
+  breakTime: string; // "1.0" (시간 단위)
+  totalHours: number; // 총 근무시간
+  timeSlots?: Array<{
+    startTime: string;
+    endTime: string;
+    breakTime: number;
+  }>; // 다중 시간대 지원
+  originalInput?: string; // 원본 입력 형식 저장 (예: "10-13, 19-23(0.5)")
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -116,6 +152,7 @@ work-schedule-next/
   employeeId: string;
   employeeName: string;
   branchId: string;
+  branchName: string;
   month: string; // "2025-09"
   date: string; // "2025-09-15"
   scheduledHours: number;
@@ -128,33 +165,35 @@ work-schedule-next/
   actualTimeRange: string; // "09:05-18:10"
   isModified: boolean;
   modifiedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
-#### 5. `employeeReviewStatus` - 직원별 검토 상태
+#### 5. `workTimeComparisonResults` - 근무시간 비교 결과
 ```typescript
 {
   id: string;
   employeeId: string;
-  month: string; // "2025-09"
+  employeeName: string;
   branchId: string;
-  status: '검토전' | '검토중' | '검토완료';
-  updatedAt: Date;
-}
-```
-
-#### 6. `employeeMemos` - 직원별 급여메모
-```typescript
-{
-  id: string;
-  employeeId: string;
+  branchName: string;
   month: string; // "2025-09"
-  memo: string;
+  date: string; // "2025-09-15"
+  scheduledHours: number;
+  actualHours: number;
+  difference: number;
+  status: 'time_match' | 'review_required' | 'review_completed';
+  scheduledTimeRange: string;
+  actualTimeRange: string;
+  isModified: boolean;
+  modifiedAt?: Date;
+  createdAt: Date;
   updatedAt: Date;
 }
 ```
 
-#### 7. `payrollRecords` - 급여확정 기록
+#### 6. `employeeReviewStatus` - 직원별 검토 상태
 ```typescript
 {
   id: string;
@@ -162,6 +201,31 @@ work-schedule-next/
   employeeName: string;
   month: string; // "2025-09"
   branchId: string;
+  status: '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료';
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### 7. `employeeMemos` - 직원별 급여메모
+```typescript
+{
+  id: string;
+  employeeId: string;
+  month: string; // "2025-09"
+  type: 'admin' | 'employee'; // 관리자 메모 또는 직원 메모
+  memo: string;
+  updatedAt: Date;
+}
+```
+
+#### 8. `confirmedPayrolls` - 급여확정 기록
+```typescript
+{
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  month: string; // "2025-09"
   
   // 계산된 금액값 (변경 불가)
   totalWorkHours: number;
@@ -174,7 +238,7 @@ work-schedule-next/
     branchId: string;
     branchName: string;
     workHours: number;
-    reviewStatus: '검토전' | '검토중' | '검토완료';
+    reviewStatus: '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료';
   }>;
   
   // 급여 계산 근거
@@ -193,7 +257,7 @@ work-schedule-next/
 }
 ```
 
-#### 8. `overtimeRecords` - 연장근무 기록
+#### 9. `overtimeRecords` - 연장근무 기록
 ```typescript
 {
   id: string;
@@ -201,6 +265,101 @@ work-schedule-next/
   weekStart: Date;
   accumulatedOvertime: number;
   createdAt: Date;
+}
+```
+
+#### 10. `branches` - 지점 정보
+```typescript
+{
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  ceoName?: string; // 대표자명
+  businessNumber?: string; // 사업자등록번호
+  companyName?: string; // 회사명
+  managerId?: string; // 담당 매니저 ID
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### 11. `managerAccounts` - 매니저 계정
+```typescript
+{
+  id: string;
+  userId: string;
+  branchId: string; // 'master'는 전체 관리자
+  managerEmail?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### 12. `employeeBranches` - 직원-지점 관계
+```typescript
+{
+  id: string;
+  employeeId: string;
+  branchId: string;
+  createdAt: Date;
+}
+```
+
+#### 13. `weeklyNotes` - 주간 비고
+```typescript
+{
+  id: string;
+  branchId: string;
+  branchName: string;
+  weekStart: Date;
+  weekEnd: Date;
+  note: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### 14. `payrollLocks` - 급여 잠금 상태
+```typescript
+{
+  id: string;
+  branchId: string;
+  weekStart: Date;
+  weekEnd: Date;
+  lockedAt: Date;
+  lockedBy: string;
+}
+```
+
+#### 15. `comments` - 댓글/메모
+```typescript
+{
+  id: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+#### 16. `formDocuments` - 양식 문서
+```typescript
+{
+  id: string;
+  branchId: string;
+  branchName: string;
+  formName: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  fileType: string;
+  authorId: string;
+  authorName: string;
+  isBase64?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -323,24 +482,83 @@ work-schedule-next/
 ## 🔄 데이터 흐름
 
 ### 1. 스케줄 입력 → 근무시간 비교
-1. 스케줄 입력
-2. 실제 근무 데이터 입력 (POS 데이터 파싱)
-3. 근무시간 비교 실행
-4. 차이점 확인 및 수정
-5. 검토완료 상태로 변경
+1. **스케줄 입력** (`schedules` 컬렉션)
+   - 직원별 주간 스케줄 입력
+   - 다중 시간대 지원 (timeSlots)
+   - 원본 입력 형식 저장 (originalInput)
+
+2. **실제 근무 데이터 입력** (`actualWorkRecords` 컬렉션)
+   - POS 데이터 파싱 또는 수동 입력
+   - 스케줄과 실제 근무시간 비교
+
+3. **근무시간 비교 실행** (`workTimeComparisonResults` 컬렉션)
+   - 차이점 계산 및 상태 관리
+   - `time_match`, `review_required`, `review_completed` 상태
+
+4. **검토 상태 업데이트** (`employeeReviewStatus` 컬렉션)
+   - `검토전` → `검토중` → `근무시간검토완료`
 
 ### 2. 근무시간 비교 → 급여계산
-1. 모든 지점의 검토완료 확인
-2. 직원 선택 (검토완료된 직원만)
-3. 해당 월에 유효한 시급으로 계산
-4. 지점별 근무시간 합산
-5. 급여확정 (모든 금액값 DB 저장)
+1. **검토완료 확인**
+   - 모든 지점의 `근무시간검토완료` 상태 확인
+   - `employeeReviewStatus` 컬렉션 조회
 
-### 3. 급여메모 관리
-1. 급여계산작업 또는 근무시간비교에서 메모 입력
-2. 실시간 로컬 상태 업데이트
-3. 포커스 해제 시 DB 저장
-4. 모든 화면에서 동일한 메모 표시
+2. **직원 선택** (검토완료된 직원만)
+   - `workTimeComparisonResults`에서 데이터 로드
+   - 해당 월에 유효한 계약서 확인
+
+3. **시급 계산**
+   - `employmentContracts`에서 해당 월 유효 계약서 조회
+   - 시급/월급, 고용형태별 계산 로직 적용
+
+4. **지점별 근무시간 합산**
+   - 모든 지점의 근무시간 통합
+   - 지점별 상태 확인
+
+5. **급여확정** (`confirmedPayrolls` 컬렉션)
+   - 모든 계산된 금액값 저장 (변경 불가)
+   - 계산 근거 및 감사 추적 정보 저장
+   - `employeeReviewStatus`를 `급여확정완료`로 업데이트
+
+### 3. 급여메모 관리 (`employeeMemos` 컬렉션)
+1. **메모 입력**
+   - 급여계산작업 또는 근무시간비교에서 입력
+   - `admin` 또는 `employee` 타입 구분
+
+2. **실시간 동기화**
+   - 로컬 상태 실시간 업데이트
+   - 포커스 해제 시 DB 저장
+
+3. **통합 관리**
+   - 월별 직원당 하나의 메모 (다지점 근무해도 통합)
+   - 모든 화면에서 동일한 메모 표시
+
+### 4. 연장근무 관리 (`overtimeRecords` 컬렉션)
+1. **연장근무 누적**
+   - 주간별 연장근무 시간 누적
+   - 근로소득, 사업소득자만 적용
+
+2. **이월 처리**
+   - 전월 연장근무시간을 다음 주로 이월
+   - 자동 계산 및 수동 조정 지원
+
+### 5. 지점별 데이터 분리
+1. **독립적 관리**
+   - 각 지점별로 완전히 분리된 데이터
+   - `branchId` 필드로 구분
+
+2. **상태 독립**
+   - 지점별로 독립적인 검토 상태 관리
+   - 매니저는 자신의 지점만 관리 가능
+
+### 6. 권한 관리 (`managerAccounts` 컬렉션)
+1. **매니저 계정**
+   - 지점별 매니저 권한 설정
+   - `master`는 전체 관리자
+
+2. **접근 제어**
+   - 지점별 데이터 필터링
+   - Firebase Authentication 연동
 
 ## 🚨 주의사항
 
