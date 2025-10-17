@@ -535,8 +535,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       }
       
       // 해당 직원만 상태 새로고침
-      if ((window as any).refreshEmployeeStatus && selectedEmployeeId) {
-        (window as any).refreshEmployeeStatus(selectedEmployeeId);
+      if ((window as unknown as { refreshEmployeeStatus?: (id: string) => void }).refreshEmployeeStatus && selectedEmployeeId) {
+        (window as unknown as { refreshEmployeeStatus: (id: string) => void }).refreshEmployeeStatus(selectedEmployeeId);
       }
     } catch (error) {
       console.error('급여 확정 실패:', error);
@@ -662,8 +662,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       }
       
       // 해당 직원만 상태 새로고침
-      if ((window as any).refreshEmployeeStatus && selectedEmployeeId) {
-        (window as any).refreshEmployeeStatus(selectedEmployeeId);
+      if ((window as unknown as { refreshEmployeeStatus?: (id: string) => void }).refreshEmployeeStatus && selectedEmployeeId) {
+        (window as unknown as { refreshEmployeeStatus: (id: string) => void }).refreshEmployeeStatus(selectedEmployeeId);
       }
     } catch (error) {
       console.error('급여 확정 취소 실패:', error);

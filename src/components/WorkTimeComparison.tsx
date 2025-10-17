@@ -487,8 +487,8 @@ export default function WorkTimeComparison({
       console.log('🔵 검토 상태 저장 완료, loadReviewStatus 호출 예정');
       
       // 해당 직원만 상태 새로고침
-      if ((window as any).refreshEmployeeStatus && selectedEmployeeId) {
-        (window as any).refreshEmployeeStatus(selectedEmployeeId);
+      if ((window as unknown as { refreshEmployeeStatus?: (id: string) => void }).refreshEmployeeStatus && selectedEmployeeId) {
+        (window as unknown as { refreshEmployeeStatus: (id: string) => void }).refreshEmployeeStatus(selectedEmployeeId);
       }
     } catch (error) {
       console.error('❌ 검토 상태 저장 실패:', error);
@@ -575,7 +575,7 @@ export default function WorkTimeComparison({
     } catch (error) {
       console.error('검토 상태 로드 실패:', error);
     }
-  }, [selectedMonth, isManager, userBranch]);
+  }, [selectedMonth, isManager, userBranch, selectedBranchId]);
 
   // 직원 목록이 로드되면 검토 상태 로드
   useEffect(() => {
@@ -1478,7 +1478,7 @@ export default function WorkTimeComparison({
       console.error('기존 비교 데이터 로드 실패:', error);
       setComparisonResults([]);
     }
-  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch]);
+  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch, employeeReviewStatus]);
 
   // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드
   useEffect(() => {
@@ -2306,12 +2306,6 @@ export default function WorkTimeComparison({
                   const currentBranchStatus = employeeReviewStatus.find(status => 
                     status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
                   );
-                  const isBranchReviewCompleted = currentBranchStatus?.status === '근무시간검토완료';
-                  
-                  // 🔥 "확인완료"만 완료로 간주 ("시간일치"는 제외)
-                  const completedCount = comparisonResults.filter(r => 
-                    r.status === 'review_completed'
-                  ).length;
                   // const allReviewCompleted = isBranchReviewCompleted || (completedCount === comparisonResults.length && comparisonResults.length > 0);
                   
                   return (

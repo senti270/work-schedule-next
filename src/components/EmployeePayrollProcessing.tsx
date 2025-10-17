@@ -244,9 +244,9 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
   // 글로벌 상태 새로고침 함수 (window 객체에 등록)
   useEffect(() => {
     // 개별 직원 새로고침 함수 등록
-    (window as any).refreshEmployeeStatus = refreshEmployeeStatus;
+    (window as unknown as { refreshEmployeeStatus?: (id: string) => void }).refreshEmployeeStatus = refreshEmployeeStatus;
     return () => {
-      delete (window as any).refreshEmployeeStatus;
+      delete (window as unknown as { refreshEmployeeStatus?: (id: string) => void }).refreshEmployeeStatus;
     };
   }, [refreshEmployeeStatus]);
 
