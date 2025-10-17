@@ -178,12 +178,12 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     // 기존 데이터가 없으면 새로 계산
     // 월급직의 경우 스케줄 데이터가 없어도 계산 가능
     const isMonthlySalary = employee.salaryType === 'monthly';
-    if (!weeklySchedules.length && !isMonthlySalary) {
-      console.log('🔥 스케줄 데이터 없음 - 근무시간비교가 완료되지 않았을 수 있음');
-      setNoScheduleData(true);
-      setPayrollResults([]);
+    
+    // 스케줄 데이터 로드 (상태에 의존하지 않고 직접 로드)
+    let schedulesToUse = weeklySchedules;
+    if (!schedulesToUse.length && !isMonthlySalary) {
+      console.log('🔥 weeklySchedules가 비어있음 - workTimeComparisonResults에서 직접 로드');
       
-      // 근무시간비교 데이터가 있는지 확인
       try {
         const comparisonQuery = query(
           collection(db, 'workTimeComparisonResults'),
@@ -195,14 +195,40 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         if (comparisonSnapshot.empty) {
           console.log('🔥 근무시간비교 데이터가 없음 - 근무시간비교를 먼저 완료해주세요');
           alert('근무시간비교를 먼저 완료해주세요.');
+          setNoScheduleData(true);
+          setPayrollResults([]);
+          return;
         } else {
-          console.log('🔥 근무시간비교 데이터는 있지만 스케줄 로딩 실패 - 페이지를 새로고침하거나 다른 직원을 선택 후 다시 시도해주세요');
-          alert('데이터 로딩에 문제가 있습니다. 페이지를 새로고침하거나 다른 직원을 선택 후 다시 시도해주세요.');
+          console.log('🔥 workTimeComparisonResults에서 직접 로드:', comparisonSnapshot.docs.length, '건');
+          
+          // workTimeComparisonResults에서 직접 스케줄 데이터 생성
+          schedulesToUse = comparisonSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              employeeId: data.employeeId,
+              date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
+              actualWorkHours: data.actualWorkHours || 0,
+              branchId: data.branchId,
+              branchName: data.branchName,
+              breakTime: data.breakTime || 0
+            };
+          }) as Schedule[];
+          
+          console.log('🔥 직접 로드된 스케줄 데이터:', schedulesToUse.length, '건');
         }
       } catch (error) {
         console.error('근무시간비교 데이터 확인 실패:', error);
+        alert('데이터 로딩에 문제가 있습니다. 페이지를 새로고침하거나 다른 직원을 선택 후 다시 시도해주세요.');
+        setNoScheduleData(true);
+        setPayrollResults([]);
+        return;
       }
-      
+    }
+    
+    if (!schedulesToUse.length && !isMonthlySalary) {
+      console.log('🔥 최종적으로 스케줄 데이터 없음');
+      setNoScheduleData(true);
+      setPayrollResults([]);
       return;
     }
     
@@ -231,8 +257,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       };
 
       // 스케줄 데이터 처리 (월급직의 경우 빈 배열)
-      const scheduleData = weeklySchedules.length > 0 ? 
-        await Promise.all(weeklySchedules.map(async (schedule) => {
+      const scheduleData = schedulesToUse.length > 0 ? 
+        await Promise.all(schedulesToUse.map(async (schedule) => {
           let branchName = schedule.branchName;
           
           // branchName이 없으면 branchId로 조회
