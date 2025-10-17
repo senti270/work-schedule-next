@@ -1745,7 +1745,7 @@ export default function WorkTimeComparison({
                                   </span>
                                 </div>
                                 {/* 급여확정완료 상태일 때는 버튼 숨김 */}
-                                <div className="flex space-x-2">
+                                <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
                                   {status === '급여확정완료' ? (
                                     <span className="text-sm text-gray-500 font-medium">급여확정완료</span>
                                   ) : status === '근무시간검토완료' ? (
