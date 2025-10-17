@@ -398,7 +398,10 @@ export default function WorkTimeComparison({
 
   // 급여확정 여부 확인
   const isPayrollConfirmed = (employeeId: string) => {
-    return payrollConfirmedEmployees.includes(employeeId);
+    // employeeReviewStatus에서 급여확정완료 상태인지 확인
+    return employeeReviewStatus.some(status => 
+      status.employeeId === employeeId && status.status === '급여확정완료'
+    );
   };
 
   // 중복 데이터 정리 함수 (현재 사용하지 않음 - 전체 함수 제거)
