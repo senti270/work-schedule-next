@@ -70,6 +70,16 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
     notes: ''
   });
 
+  // 엑셀형 근무 추가 상태
+  const [showExcelForm, setShowExcelForm] = useState(false);
+  const [excelWorkDetails, setExcelWorkDetails] = useState<Array<{
+    workDate: string;
+    startTime: string;
+    endTime: string;
+    breakTime: number;
+    notes: string;
+  }>>([{ workDate: '', startTime: '', endTime: '', breakTime: 0, notes: '' }]);
+
   // 지점 목록 로드
   const loadBranches = async () => {
     try {
@@ -272,6 +282,70 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
     }
   };
 
+  // 엑셀형 근무 추가 - 행 추가
+  const addExcelRow = () => {
+    setExcelWorkDetails(prev => [...prev, { workDate: '', startTime: '', endTime: '', breakTime: 0, notes: '' }]);
+  };
+
+  // 엑셀형 근무 추가 - 행 삭제
+  const removeExcelRow = (index: number) => {
+    if (excelWorkDetails.length > 1) {
+      setExcelWorkDetails(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  // 엑셀형 근무 추가 - 데이터 변경
+  const updateExcelRow = (index: number, field: string, value: string | number) => {
+    setExcelWorkDetails(prev => prev.map((row, i) => 
+      i === index ? { ...row, [field]: value } : row
+    ));
+  };
+
+  // 엑셀형 근무 일괄 추가
+  const handleExcelAddWorkDetails = async (workerId: string) => {
+    const validRows = excelWorkDetails.filter(row => 
+      row.workDate && row.startTime && row.endTime
+    );
+
+    if (validRows.length === 0) {
+      alert('유효한 근무 데이터를 입력해주세요.');
+      return;
+    }
+
+    try {
+      const worker = workers.find(w => w.id === workerId);
+      if (!worker) return;
+
+      const newWorkDetails: WorkDetail[] = validRows.map(row => ({
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        workDate: row.workDate,
+        startTime: row.startTime,
+        endTime: row.endTime,
+        breakTime: row.breakTime,
+        workHours: calculateWorkHours(row.startTime, row.endTime, row.breakTime)
+      }));
+
+      const updatedWorkDetails = [...worker.workDetails, ...newWorkDetails];
+      const totalWorkHours = calculateTotalWorkHours(updatedWorkDetails);
+      const totalPay = calculateTotalPay(worker.hourlyWage, totalWorkHours);
+
+      await updateDoc(doc(db, 'shortTermWorkers', workerId), {
+        workDetails: updatedWorkDetails,
+        totalWorkHours: totalWorkHours,
+        totalPay: totalPay,
+        updatedAt: new Date()
+      });
+
+      // 폼 초기화
+      setExcelWorkDetails([{ workDate: '', startTime: '', endTime: '', breakTime: 0, notes: '' }]);
+      setShowExcelForm(false);
+      loadWorkers();
+    } catch (error) {
+      console.error('엑셀형 근무 추가 실패:', error);
+      alert('근무 추가에 실패했습니다.');
+    }
+  };
+
   // 월별 데이터 로드
   useEffect(() => {
     loadWorkers();
@@ -464,23 +538,134 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                           <div className="space-y-4">
                             <div className="flex justify-between items-center">
                               <h4 className="text-lg font-medium text-gray-900">{worker.name} 근무 상세</h4>
-                              <button
-                                onClick={() => {
-                                  const workDate = prompt('근무일 (YYYY-MM-DD):');
-                                  const startTime = prompt('출근시각 (HH:MM):');
-                                  const endTime = prompt('퇴근시각 (HH:MM):');
-                                  const breakTime = Number(prompt('휴식시간 (분):') || '0');
-                                  
-                                  if (workDate && startTime && endTime) {
-                                    setNewWorkDetail({ workDate, startTime, endTime, breakTime, notes: '' });
-                                    handleAddWorkDetail(worker.id);
-                                  }
-                                }}
-                                className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-                              >
-                                근무 추가
-                              </button>
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => setShowExcelForm(!showExcelForm)}
+                                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                                >
+                                  {showExcelForm ? '엑셀형 닫기' : '엑셀형 추가'}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const workDate = prompt('근무일 (YYYY-MM-DD):');
+                                    const startTime = prompt('출근시각 (HH:MM):');
+                                    const endTime = prompt('퇴근시각 (HH:MM):');
+                                    const breakTime = Number(prompt('휴식시간 (분):') || '0');
+                                    
+                                    if (workDate && startTime && endTime) {
+                                      setNewWorkDetail({ workDate, startTime, endTime, breakTime, notes: '' });
+                                      handleAddWorkDetail(worker.id);
+                                    }
+                                  }}
+                                  className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                                >
+                                  개별 추가
+                                </button>
+                              </div>
                             </div>
+                            
+                            {/* 엑셀형 근무 추가 폼 */}
+                            {showExcelForm && (
+                              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                                <h5 className="text-md font-medium text-gray-900 mb-3">엑셀형 근무 추가</h5>
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-100">
+                                      <tr>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">근무일</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">출근시각</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">퇴근시각</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">휴식시간(분)</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">비고</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">작업</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                      {excelWorkDetails.map((row, index) => (
+                                        <tr key={index}>
+                                          <td className="px-3 py-2">
+                                            <input
+                                              type="date"
+                                              value={row.workDate}
+                                              onChange={(e) => updateExcelRow(index, 'workDate', e.target.value)}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                            />
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            <input
+                                              type="time"
+                                              value={row.startTime}
+                                              onChange={(e) => updateExcelRow(index, 'startTime', e.target.value)}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                            />
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            <input
+                                              type="time"
+                                              value={row.endTime}
+                                              onChange={(e) => updateExcelRow(index, 'endTime', e.target.value)}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                            />
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            <input
+                                              type="number"
+                                              value={row.breakTime}
+                                              onChange={(e) => updateExcelRow(index, 'breakTime', Number(e.target.value))}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                              min="0"
+                                            />
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            <input
+                                              type="text"
+                                              value={row.notes}
+                                              onChange={(e) => updateExcelRow(index, 'notes', e.target.value)}
+                                              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                              placeholder="비고"
+                                            />
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            <div className="flex space-x-1">
+                                              <button
+                                                onClick={addExcelRow}
+                                                className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600"
+                                                title="행 추가"
+                                              >
+                                                +
+                                              </button>
+                                              {excelWorkDetails.length > 1 && (
+                                                <button
+                                                  onClick={() => removeExcelRow(index)}
+                                                  className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+                                                  title="행 삭제"
+                                                >
+                                                  -
+                                                </button>
+                                              )}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                <div className="flex justify-end space-x-2 mt-3">
+                                  <button
+                                    onClick={() => setShowExcelForm(false)}
+                                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                                  >
+                                    취소
+                                  </button>
+                                  <button
+                                    onClick={() => handleExcelAddWorkDetails(worker.id)}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                  >
+                                    일괄 추가
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                             
                             <div className="overflow-x-auto">
                               <table className="min-w-full divide-y divide-gray-200">
