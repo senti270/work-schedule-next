@@ -96,17 +96,19 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
       let workersQuery;
       
       if (isManager && userBranch) {
-        // 매니저는 자신의 지점만 조회 (임시로 orderBy 제거)
+        // 매니저는 자신의 지점만 조회
         workersQuery = query(
           collection(db, 'shortTermWorkers'),
           where('branchId', '==', userBranch.id),
-          where('month', '==', selectedMonth)
+          where('month', '==', selectedMonth),
+          orderBy('createdAt', 'desc')
         );
       } else {
-        // 관리자는 모든 지점 조회 (임시로 orderBy 제거)
+        // 관리자는 모든 지점 조회
         workersQuery = query(
           collection(db, 'shortTermWorkers'),
-          where('month', '==', selectedMonth)
+          where('month', '==', selectedMonth),
+          orderBy('createdAt', 'desc')
         );
       }
 
@@ -121,8 +123,6 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
         } as ShortTermWorker;
       });
 
-      // 클라이언트에서 정렬 (최신순)
-      workersData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
       setWorkers(workersData);
     } catch (error) {
