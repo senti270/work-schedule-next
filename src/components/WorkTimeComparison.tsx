@@ -285,7 +285,7 @@ export default function WorkTimeComparison({
     if (selectedMonth) {
       loadSchedules(selectedMonth);
     }
-  }, [selectedBranchId, selectedEmployeeId, selectedMonth, loadEmployees, loadSchedules]);
+  }, [selectedBranchId, selectedEmployeeId, selectedMonth, loadEmployees]);
 
   // 메모 로드 (현재 비활성화)
   // useEffect(() => {
