@@ -120,7 +120,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           setEditableDeductions(payrollData.editableDeductions);
         }
         
-        return payrollData.calculations || [];
+        const calculations = payrollData.calculations || [];
+        console.log('🔥 calculations 배열:', calculations);
+        console.log('🔥 calculations 길이:', calculations.length);
+        return calculations;
       }
       
       return null;
@@ -148,9 +151,13 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     if (isPayrollConfirmed) {
       console.log('🔥 급여 확정됨 - 재계산 방지, 기존 데이터 사용');
       const existingPayroll = await loadExistingPayroll();
+      console.log('🔥 기존 급여 데이터:', existingPayroll);
       if (existingPayroll && existingPayroll.length > 0) {
         setPayrollResults(existingPayroll);
+        console.log('🔥 기존 급여 데이터 설정 완료:', existingPayroll.length, '건');
         return;
+      } else {
+        console.log('🔥 기존 급여 데이터가 없거나 비어있음, 새로 계산 진행');
       }
     }
     
