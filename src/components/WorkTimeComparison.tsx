@@ -1752,6 +1752,16 @@ export default function WorkTimeComparison({
                                     <button
                                       onClick={async (e) => {
                                         e.stopPropagation();
+                                        // 🔥 급여확정완료 상태 확인
+                                        const isPayrollConfirmed = employeeReviewStatus.some(s => 
+                                          s.employeeId === selectedEmployeeId && s.status === '급여확정완료'
+                                        );
+                                        
+                                        if (isPayrollConfirmed) {
+                                          alert('급여확정완료 상태에서는 검토상태를 변경할 수 없습니다.');
+                                          return;
+                                        }
+                                        
                                         if (confirm(`${branch?.name} 지점의 검토완료를 취소하시겠습니까?`)) {
                                           // 🔥 상태를 '검토중'으로 변경
                                           setEmployeeReviewStatus(prev => {
@@ -1776,6 +1786,16 @@ export default function WorkTimeComparison({
                                     <button
                                       onClick={async (e) => {
                                         e.stopPropagation();
+                                        // 🔥 급여확정완료 상태 확인
+                                        const isPayrollConfirmed = employeeReviewStatus.some(s => 
+                                          s.employeeId === selectedEmployeeId && s.status === '급여확정완료'
+                                        );
+                                        
+                                        if (isPayrollConfirmed) {
+                                          alert('급여확정완료 상태에서는 검토상태를 변경할 수 없습니다.');
+                                          return;
+                                        }
+                                        
                                         if (confirm(`${branch?.name} 지점의 검토를 완료하시겠습니까?`)) {
                                           // 🔥 상태를 '근무시간검토완료'로 변경
                                           setEmployeeReviewStatus(prev => {
