@@ -404,7 +404,7 @@ export default function WorkTimeComparison({
   // 중복 데이터 정리 함수 (현재 사용하지 않음 - 전체 함수 제거)
 
   // 검토 상태를 DB에 저장 (지점별로 분리)
-  const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '근무시간검토완료') => {
+  const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료') => {
     try {
       console.log('🔵 검토 상태 저장 시작:', { employeeId, status, selectedMonth, selectedBranchId });
       
@@ -486,7 +486,7 @@ export default function WorkTimeComparison({
         return {
           employeeId: data.employeeId,
           branchId: data.branchId,
-          status: data.status as '검토전' | '검토중' | '근무시간검토완료'
+          status: data.status as '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료'
         };
       });
       
