@@ -280,12 +280,12 @@ export default function WorkTimeComparison({
 
 
   // 지점이나 직원이 변경될 때 스케줄 다시 로드
-  // useEffect(() => {
-  //   if (selectedMonth) {
-  //     loadSchedules(selectedMonth);
-  //   }
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [selectedBranchId, selectedEmployeeId, selectedMonth, loadEmployees]);
+  useEffect(() => {
+    if (selectedMonth) {
+      loadSchedules(selectedMonth);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBranchId, selectedEmployeeId, selectedMonth, loadEmployees]);
 
   // 메모 로드 (현재 비활성화)
   // useEffect(() => {
