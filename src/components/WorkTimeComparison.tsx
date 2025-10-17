@@ -2025,11 +2025,23 @@ export default function WorkTimeComparison({
 
       {/* 실제근무 데이터 입력 */}
       {!isPayrollConfirmed(selectedEmployeeId) && (() => {
-        // 급여확정완료 상태인지 확인
-        const reviewStatus = employeeReviewStatus.find(status => 
-          status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
+        // 급여확정완료 상태인지 확인 (모든 지점이 급여확정완료인지 확인)
+        const employeeStatuses = employeeReviewStatus.filter(status => 
+          status.employeeId === selectedEmployeeId
         );
-        return reviewStatus?.status !== '급여확정완료';
+        
+        // 해당 직원의 모든 지점이 급여확정완료 상태인지 확인
+        const allConfirmed = employeeStatuses.length > 0 && 
+          employeeStatuses.every(status => status.status === '급여확정완료');
+        
+        console.log('🔥 급여확정완료 상태 확인:', {
+          selectedEmployeeId,
+          employeeStatuses: employeeStatuses.length,
+          allConfirmed,
+          statuses: employeeStatuses.map(s => ({ branchId: s.branchId, status: s.status }))
+        });
+        
+        return !allConfirmed;
       })() && (
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
