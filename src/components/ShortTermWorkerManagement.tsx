@@ -8,6 +8,7 @@ interface ShortTermWorker {
   id: string;
   branchId: string;
   branchName: string;
+  month: string;
   name: string;
   socialSecurityNumber: string; // 주민번호 (마스킹 처리)
   hourlyWage: number;
@@ -17,8 +18,20 @@ interface ShortTermWorker {
   depositDate: string;
   notes: string;
   workDetails: WorkDetail[];
+  depositDetails: DepositDetail[];
+  // 계좌정보
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+interface DepositDetail {
+  id: string;
+  depositDate: string;
+  depositAmount: number;
+  notes: string;
 }
 
 interface WorkDetail {
@@ -58,7 +71,10 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
     name: '',
     socialSecurityNumber: '',
     hourlyWage: 0,
-    notes: ''
+    notes: '',
+    bankName: '',
+    accountNumber: '',
+    accountHolder: ''
   });
 
   // 근무 상세 추가 폼 상태
@@ -208,12 +224,16 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
         depositDate: '',
         notes: newWorker.notes,
         workDetails: [],
+        depositDetails: [],
+        bankName: newWorker.bankName,
+        accountNumber: newWorker.accountNumber,
+        accountHolder: newWorker.accountHolder,
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
       await addDoc(collection(db, 'shortTermWorkers'), workerData);
-      setNewWorker({ branchId: '', name: '', socialSecurityNumber: '', hourlyWage: 0, notes: '' });
+      setNewWorker({ branchId: '', name: '', socialSecurityNumber: '', hourlyWage: 0, notes: '', bankName: '', accountNumber: '', accountHolder: '' });
       setShowAddForm(false);
       loadWorkers();
     } catch (error) {
@@ -473,10 +493,12 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시급</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">총근무시간</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">총급여</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">입금액</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">공제액(3.3%)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">실지급액</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">총입금액</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">입금일</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">비고</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">근무상세보기</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상세보기</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -499,26 +521,16 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatTime(worker.totalWorkHours)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{worker.totalPay.toLocaleString()}원</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <input
-                          type="number"
-                          value={worker.depositAmount}
-                          onChange={(e) => {
-                            const amount = Number(e.target.value);
-                            handleUpdateDeposit(worker.id, amount, worker.depositDate);
-                          }}
-                          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                          placeholder="입금액"
-                        />
+                        {Math.round(worker.totalPay * 0.033).toLocaleString()}원
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <input
-                          type="date"
-                          value={worker.depositDate}
-                          onChange={(e) => {
-                            handleUpdateDeposit(worker.id, worker.depositAmount, e.target.value);
-                          }}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm"
-                        />
+                        {Math.round(worker.totalPay * 0.967).toLocaleString()}원
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {worker.depositDetails?.reduce((sum, deposit) => sum + deposit.depositAmount, 0).toLocaleString() || 0}원
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {worker.depositDate}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-xs truncate">{worker.notes}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -526,18 +538,20 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                           onClick={() => toggleWorkDetails(worker.id)}
                           className="text-blue-600 hover:text-blue-800 font-medium"
                         >
-                          {expandedWorker === worker.id ? '접기' : '펼쳐보기'}
+                          {expandedWorker === worker.id ? '접기' : '상세보기 ▼'}
                         </button>
                       </td>
                     </tr>
                     
-                    {/* 근무 상세 보기 */}
+                    {/* 상세보기 */}
                     {expandedWorker === worker.id && (
                       <tr>
-                        <td colSpan={10} className="px-6 py-4 bg-gray-50">
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                              <h4 className="text-lg font-medium text-gray-900">{worker.name} 근무 상세</h4>
+                        <td colSpan={11} className="px-6 py-4 bg-gray-50">
+                          <div className="space-y-6">
+                            {/* 근무내역 상세보기 */}
+                            <div>
+                              <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-lg font-medium text-gray-900">근무내역 상세보기</h4>
                               <div className="flex space-x-2">
                                 <button
                                   onClick={() => setShowExcelForm(!showExcelForm)}
@@ -705,6 +719,98 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                                   </tr>
                                 </tbody>
                               </table>
+                            </div>
+                            </div>
+                            
+                            {/* 입금내역 상세보기 */}
+                            <div>
+                              <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-lg font-medium text-gray-900">입금내역 상세보기</h4>
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => {
+                                      const depositDate = prompt('입금일 (YYYY-MM-DD):');
+                                      const depositAmount = Number(prompt('입금액:') || '0');
+                                      const notes = prompt('비고:') || '';
+                                      
+                                      if (depositDate && depositAmount > 0) {
+                                        handleAddDepositDetail(worker.id, depositDate, depositAmount, notes);
+                                      }
+                                    }}
+                                    className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                                  >
+                                    입금 추가
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {/* 계좌정보 */}
+                              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                                <h5 className="text-sm font-medium text-gray-900 mb-2">계좌정보</h5>
+                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                  <div>
+                                    <span className="text-gray-600">은행:</span>
+                                    <span className="ml-2 font-medium">{worker.bankName || '미입력'}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-600">계좌번호:</span>
+                                    <span className="ml-2 font-medium">{worker.accountNumber || '미입력'}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-600">예금주:</span>
+                                    <span className="ml-2 font-medium">{worker.accountHolder || '미입력'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* 입금내역 테이블 */}
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                  <thead className="bg-gray-100">
+                                    <tr>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">입금일</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">입금액</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">비고</th>
+                                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">작업</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {worker.depositDetails?.map((deposit, index) => (
+                                      <tr key={index}>
+                                        <td className="px-4 py-2 text-sm text-gray-900">{deposit.depositDate}</td>
+                                        <td className="px-4 py-2 text-sm text-gray-900">{deposit.depositAmount.toLocaleString()}원</td>
+                                        <td className="px-4 py-2 text-sm text-gray-900">{deposit.notes}</td>
+                                        <td className="px-4 py-2 text-sm text-gray-900">
+                                          <div className="flex space-x-1">
+                                            <button
+                                              onClick={() => handleDeleteDepositDetail(worker.id, index)}
+                                              className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+                                            >
+                                              삭제
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )) || []}
+                                    {(!worker.depositDetails || worker.depositDetails.length === 0) && (
+                                      <tr>
+                                        <td colSpan={4} className="px-4 py-2 text-center text-gray-500">등록된 입금내역이 없습니다.</td>
+                                      </tr>
+                                    )}
+                                    {/* 합계 행 */}
+                                    {worker.depositDetails && worker.depositDetails.length > 0 && (
+                                      <tr className="bg-gray-100 font-medium">
+                                        <td className="px-4 py-2 text-sm text-gray-900">합계</td>
+                                        <td className="px-4 py-2 text-sm text-gray-900">
+                                          {worker.depositDetails.reduce((sum, deposit) => sum + deposit.depositAmount, 0).toLocaleString()}원
+                                        </td>
+                                        <td className="px-4 py-2 text-sm text-gray-900">-</td>
+                                        <td className="px-4 py-2 text-sm text-gray-900">-</td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
                           </div>
                         </td>

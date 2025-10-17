@@ -2708,76 +2708,6 @@ export default function WorkTimeComparison({
             </table>
           </div>
           
-          {/* 급여메모 편집 */}
-          {selectedEmployeeId && (
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-              <div className="space-y-4">
-                {/* 관리자용 메모 */}
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-gray-600 text-sm">🔒</span>
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">급여메모 (관리자용)</h4>
-                    <textarea
-                      value={employeeMemos[selectedEmployeeId]?.admin || ''}
-                      onChange={(e) => {
-                        const memo = e.target.value;
-                        setEmployeeMemos(prev => ({
-                          ...prev,
-                          [selectedEmployeeId]: {
-                            ...prev[selectedEmployeeId],
-                            admin: memo
-                          }
-                        }));
-                      }}
-                      onBlur={(e) => {
-                        const memo = e.target.value;
-                        saveEmployeeMemo(selectedEmployeeId, memo, 'admin');
-                      }}
-                      placeholder="관리자용 메모를 입력하세요..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      rows={3}
-                    />
-                  </div>
-                </div>
-
-                {/* 해당직원공지용 메모 */}
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 text-sm">📢</span>
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">급여메모 (해당직원공지용)</h4>
-                    <textarea
-                      value={employeeMemos[selectedEmployeeId]?.employee || ''}
-                      onChange={(e) => {
-                        const memo = e.target.value;
-                        setEmployeeMemos(prev => ({
-                          ...prev,
-                          [selectedEmployeeId]: {
-                            ...prev[selectedEmployeeId],
-                            employee: memo
-                          }
-                        }));
-                      }}
-                      onBlur={(e) => {
-                        const memo = e.target.value;
-                        saveEmployeeMemo(selectedEmployeeId, memo, 'employee');
-                      }}
-                      placeholder="해당직원공지용 메모를 입력하세요..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      rows={3}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
           </div>
         )}
 
@@ -2818,6 +2748,80 @@ export default function WorkTimeComparison({
       </div>
         );
       })()}
+
+      {/* 급여메모 편집 - 항상 표시 */}
+      {selectedEmployeeId && (
+        <div className="mt-6 bg-white shadow rounded-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">급여메모</h3>
+          </div>
+          <div className="px-6 py-4 space-y-4">
+            {/* 관리자용 메모 */}
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                  <span className="text-gray-600 text-sm">🔒</span>
+                </div>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">급여메모 (관리자용)</h4>
+                <textarea
+                  value={employeeMemos[selectedEmployeeId]?.admin || ''}
+                  onChange={(e) => {
+                    const memo = e.target.value;
+                    setEmployeeMemos(prev => ({
+                      ...prev,
+                      [selectedEmployeeId]: {
+                        ...prev[selectedEmployeeId],
+                        admin: memo
+                      }
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    const memo = e.target.value;
+                    saveEmployeeMemo(selectedEmployeeId, memo, 'admin');
+                  }}
+                  placeholder="관리자용 메모를 입력하세요..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            {/* 해당직원공지용 메모 */}
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 text-sm">📢</span>
+                </div>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">급여메모 (해당직원공지용)</h4>
+                <textarea
+                  value={employeeMemos[selectedEmployeeId]?.employee || ''}
+                  onChange={(e) => {
+                    const memo = e.target.value;
+                    setEmployeeMemos(prev => ({
+                      ...prev,
+                      [selectedEmployeeId]: {
+                        ...prev[selectedEmployeeId],
+                        employee: memo
+                      }
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    const memo = e.target.value;
+                    saveEmployeeMemo(selectedEmployeeId, memo, 'employee');
+                  }}
+                  placeholder="해당직원조회용 메모를 입력하세요..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  rows={3}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 전월 이월 연장근무시간 입력 팝업 */}
       {showOvertimePopup && (
