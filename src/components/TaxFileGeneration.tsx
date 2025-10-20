@@ -309,13 +309,13 @@ const TaxFileGeneration: React.FC = () => {
                         {row.accountNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                        {row.netPay.toLocaleString()}원
+                        {(row.netPay || 0).toLocaleString()}원
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {row.employeeName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                        {row.grossPay.toLocaleString()}원
+                        {(row.grossPay || 0).toLocaleString()}원
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         <div className="flex items-center space-x-2">
