@@ -12,7 +12,9 @@ interface ShortTermWorker {
   name: string;
   socialSecurityNumber: string; // 주민번호 (마스킹 처리)
   phoneNumber: string; // 핸드폰 번호
+  workType: 'hourly' | 'fixed'; // 근무형태: 시급 또는 총금액
   hourlyWage: number;
+  fixedAmount: number; // 총금액인 경우
   totalWorkHours: number;
   totalPay: number;
   depositAmount: number;
@@ -76,7 +78,9 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
     name: '',
     socialSecurityNumber: '',
     phoneNumber: '',
+    workType: 'hourly' as 'hourly' | 'fixed',
     hourlyWage: 0,
+    fixedAmount: 0,
     notes: '',
     bankName: '',
     accountNumber: '',
@@ -211,7 +215,10 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
   };
 
   // 총 급여 계산
-  const calculateTotalPay = (hourlyWage: number, totalWorkHours: number): number => {
+  const calculateTotalPay = (workType: 'hourly' | 'fixed', hourlyWage: number, totalWorkHours: number, fixedAmount: number = 0): number => {
+    if (workType === 'fixed') {
+      return fixedAmount;
+    }
     return Math.round(hourlyWage * totalWorkHours);
   };
 
@@ -237,13 +244,25 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
 
   // 새 직원 추가
   const handleAddWorker = async () => {
-    if (!newWorker.name || !newWorker.socialSecurityNumber || !newWorker.branchId) {
-      alert('필수 정보를 입력해주세요.');
+    // 필수항목 검증
+    if (!newWorker.branchId || !newWorker.name || !newWorker.socialSecurityNumber) {
+      alert('지점, 이름, 주민번호는 필수항목입니다.');
       return;
     }
 
     if (!selectedMonth) {
       alert('월을 선택해주세요.');
+      return;
+    }
+
+    // 근무형태별 검증
+    if (newWorker.workType === 'hourly' && newWorker.hourlyWage <= 0) {
+      alert('시급을 입력해주세요.');
+      return;
+    }
+
+    if (newWorker.workType === 'fixed' && newWorker.fixedAmount <= 0) {
+      alert('총금액을 입력해주세요.');
       return;
     }
 
@@ -256,9 +275,11 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
         name: newWorker.name,
         socialSecurityNumber: newWorker.socialSecurityNumber,
         phoneNumber: newWorker.phoneNumber,
-        hourlyWage: newWorker.hourlyWage,
+        workType: newWorker.workType,
+        hourlyWage: newWorker.workType === 'hourly' ? newWorker.hourlyWage : 0,
+        fixedAmount: newWorker.workType === 'fixed' ? newWorker.fixedAmount : 0,
         totalWorkHours: 0,
-        totalPay: 0,
+        totalPay: newWorker.workType === 'fixed' ? newWorker.fixedAmount : 0,
         depositAmount: 0,
         depositDate: '',
         notes: newWorker.notes,
@@ -272,7 +293,19 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
       };
 
       await addDoc(collection(db, 'shortTermWorkers'), workerData);
-      setNewWorker({ branchId: '', name: '', socialSecurityNumber: '', phoneNumber: '', hourlyWage: 0, notes: '', bankName: '', accountNumber: '', accountHolder: '' });
+      setNewWorker({ 
+        branchId: '', 
+        name: '', 
+        socialSecurityNumber: '', 
+        phoneNumber: '', 
+        workType: 'hourly',
+        hourlyWage: 0,
+        fixedAmount: 0,
+        notes: '', 
+        bankName: '', 
+        accountNumber: '', 
+        accountHolder: '' 
+      });
       setShowAddForm(false);
       loadWorkers();
     } catch (error) {
@@ -397,7 +430,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
       );
 
       const totalWorkHours = calculateTotalWorkHours(updatedWorkDetails);
-      const totalPay = calculateTotalPay(worker.hourlyWage, totalWorkHours);
+      const totalPay = calculateTotalPay(worker.workType, worker.hourlyWage, totalWorkHours, worker.fixedAmount);
 
       await updateDoc(doc(db, 'shortTermWorkers', workerId), {
         workDetails: updatedWorkDetails,
@@ -434,7 +467,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
 
       const updatedWorkDetails = worker.workDetails.filter(detail => detail.id !== detailId);
       const totalWorkHours = calculateTotalWorkHours(updatedWorkDetails);
-      const totalPay = calculateTotalPay(worker.hourlyWage, totalWorkHours);
+      const totalPay = calculateTotalPay(worker.workType, worker.hourlyWage, totalWorkHours, worker.fixedAmount);
 
       await updateDoc(doc(db, 'shortTermWorkers', workerId), {
         workDetails: updatedWorkDetails,
@@ -572,13 +605,23 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
         updatedAt: new Date()
       };
       
-      // 시급이 변경된 경우 급여 재계산
-      if (hourlyWageChanged) {
+      // 시급, 총금액, 또는 근무형태가 변경된 경우 급여 재계산
+      const workTypeChanged = updatedData.workType !== undefined && updatedData.workType !== workerToEdit.workType;
+      const fixedAmountChanged = updatedData.fixedAmount !== undefined && updatedData.fixedAmount !== workerToEdit.fixedAmount;
+      
+      if (hourlyWageChanged || workTypeChanged || fixedAmountChanged) {
         const totalWorkHours = workerToEdit.totalWorkHours || 0;
-        const totalPay = calculateTotalPay(updatedData.hourlyWage!, totalWorkHours);
+        const totalPay = calculateTotalPay(
+          updatedData.workType || workerToEdit.workType, 
+          updatedData.hourlyWage || workerToEdit.hourlyWage, 
+          totalWorkHours, 
+          updatedData.fixedAmount || workerToEdit.fixedAmount
+        );
         
         console.log('🔥 급여 재계산:', {
-          hourlyWage: updatedData.hourlyWage,
+          workType: updatedData.workType || workerToEdit.workType,
+          hourlyWage: updatedData.hourlyWage || workerToEdit.hourlyWage,
+          fixedAmount: updatedData.fixedAmount || workerToEdit.fixedAmount,
           totalWorkHours,
           totalPay
         });
@@ -674,7 +717,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
 
       const updatedWorkDetails = [...worker.workDetails, ...newWorkDetails];
       const totalWorkHours = calculateTotalWorkHours(updatedWorkDetails);
-      const totalPay = calculateTotalPay(worker.hourlyWage, totalWorkHours);
+      const totalPay = calculateTotalPay(worker.workType, worker.hourlyWage, totalWorkHours, worker.fixedAmount);
 
       await updateDoc(doc(db, 'shortTermWorkers', workerId), {
         workDetails: updatedWorkDetails,
@@ -786,6 +829,63 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                 placeholder="핸드폰 번호를 입력하세요"
               />
             </div>
+
+            {/* 근무형태 선택 */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">근무형태</label>
+              <div className="flex space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="workType"
+                    value="hourly"
+                    checked={newWorker.workType === 'hourly'}
+                    onChange={(e) => setNewWorker({...newWorker, workType: e.target.value as 'hourly' | 'fixed'})}
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700">시급</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="workType"
+                    value="fixed"
+                    checked={newWorker.workType === 'fixed'}
+                    onChange={(e) => setNewWorker({...newWorker, workType: e.target.value as 'hourly' | 'fixed'})}
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700">총금액</span>
+                </label>
+              </div>
+            </div>
+
+            {/* 시급 입력 (시급 선택 시) */}
+            {newWorker.workType === 'hourly' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">시급 (원)</label>
+                <input
+                  type="number"
+                  value={newWorker.hourlyWage}
+                  onChange={(e) => setNewWorker({...newWorker, hourlyWage: Number(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="시급을 입력하세요"
+                />
+              </div>
+            )}
+
+            {/* 총금액 입력 (총금액 선택 시) */}
+            {newWorker.workType === 'fixed' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">총금액 (원)</label>
+                <input
+                  type="number"
+                  value={newWorker.fixedAmount}
+                  onChange={(e) => setNewWorker({...newWorker, fixedAmount: Number(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="총금액을 입력하세요"
+                />
+              </div>
+            )}
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">은행</label>
@@ -871,7 +971,8 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">지점</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름/주민번호</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">핸드폰</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시급</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">근무형태</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시급/총금액</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">총근무시간</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">총급여</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">공제액</th>
@@ -916,10 +1017,25 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                         <div>{worker.phoneNumber || '-'}</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div>{worker.hourlyWage.toLocaleString()}원</div>
+                        <div className="font-semibold">
+                          {worker.workType === 'hourly' ? '시급' : '총금액'}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div>{formatTime(worker.totalWorkHours)}</div>
+                        <div className="font-semibold text-blue-600">
+                          {worker.workType === 'hourly' 
+                            ? `${worker.hourlyWage.toLocaleString()}원/시간`
+                            : `${worker.fixedAmount.toLocaleString()}원`
+                          }
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        <div>
+                          {worker.workType === 'hourly' 
+                            ? formatTime(worker.totalWorkHours)
+                            : '-'
+                          }
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="font-semibold text-blue-600">{worker.totalPay.toLocaleString()}원</div>
@@ -1438,16 +1554,61 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
+
+              {/* 근무형태 선택 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">시급</label>
-                <input
-                  type="number"
-                  value={workerToEdit.hourlyWage}
-                  onChange={(e) => setWorkerToEdit({...workerToEdit, hourlyWage: Number(e.target.value)})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">근무형태</label>
+                <div className="flex space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="editWorkType"
+                      value="hourly"
+                      checked={workerToEdit.workType === 'hourly'}
+                      onChange={(e) => setWorkerToEdit({...workerToEdit, workType: e.target.value as 'hourly' | 'fixed'})}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">시급</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="editWorkType"
+                      value="fixed"
+                      checked={workerToEdit.workType === 'fixed'}
+                      onChange={(e) => setWorkerToEdit({...workerToEdit, workType: e.target.value as 'hourly' | 'fixed'})}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">총금액</span>
+                  </label>
+                </div>
               </div>
+
+              {/* 시급 입력 (시급 선택 시) */}
+              {workerToEdit.workType === 'hourly' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">시급 (원)</label>
+                  <input
+                    type="number"
+                    value={workerToEdit.hourlyWage}
+                    onChange={(e) => setWorkerToEdit({...workerToEdit, hourlyWage: Number(e.target.value)})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+
+              {/* 총금액 입력 (총금액 선택 시) */}
+              {workerToEdit.workType === 'fixed' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">총금액 (원)</label>
+                  <input
+                    type="number"
+                    value={workerToEdit.fixedAmount}
+                    onChange={(e) => setWorkerToEdit({...workerToEdit, fixedAmount: Number(e.target.value)})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">은행</label>
