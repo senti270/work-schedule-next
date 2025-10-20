@@ -215,11 +215,16 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
   };
 
   // 총 급여 계산
-  const calculateTotalPay = (workType: 'hourly' | 'fixed', hourlyWage: number, totalWorkHours: number, fixedAmount: number = 0): number => {
-    if (workType === 'fixed') {
-      return fixedAmount;
+  const calculateTotalPay = (workType: 'hourly' | 'fixed' | undefined, hourlyWage: number | undefined, totalWorkHours: number | undefined, fixedAmount: number | undefined = 0): number => {
+    const safeWorkType = workType || 'hourly';
+    const safeHourlyWage = hourlyWage || 0;
+    const safeTotalWorkHours = totalWorkHours || 0;
+    const safeFixedAmount = fixedAmount || 0;
+    
+    if (safeWorkType === 'fixed') {
+      return safeFixedAmount;
     }
-    return Math.round(hourlyWage * totalWorkHours);
+    return Math.round(safeHourlyWage * safeTotalWorkHours);
   };
 
   // 주민번호 마스킹
@@ -1018,33 +1023,33 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="font-semibold">
-                          {worker.workType === 'hourly' ? '시급' : '총금액'}
+                          {(worker.workType || 'hourly') === 'hourly' ? '시급' : '총금액'}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="font-semibold text-blue-600">
-                          {worker.workType === 'hourly' 
-                            ? `${worker.hourlyWage.toLocaleString()}원/시간`
-                            : `${worker.fixedAmount.toLocaleString()}원`
+                          {(worker.workType || 'hourly') === 'hourly' 
+                            ? `${(worker.hourlyWage || 0).toLocaleString()}원/시간`
+                            : `${(worker.fixedAmount || 0).toLocaleString()}원`
                           }
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div>
-                          {worker.workType === 'hourly' 
-                            ? formatTime(worker.totalWorkHours)
+                          {(worker.workType || 'hourly') === 'hourly' 
+                            ? formatTime(worker.totalWorkHours || 0)
                             : '-'
                           }
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="font-semibold text-blue-600">{worker.totalPay.toLocaleString()}원</div>
+                        <div className="font-semibold text-blue-600">{(worker.totalPay || 0).toLocaleString()}원</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div>{Math.round(worker.totalPay * 0.033).toLocaleString()}원</div>
+                        <div>{Math.round((worker.totalPay || 0) * 0.033).toLocaleString()}원</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        <div className="font-semibold text-green-600">{Math.round(worker.totalPay * 0.967).toLocaleString()}원</div>
+                        <div className="font-semibold text-green-600">{Math.round((worker.totalPay || 0) * 0.967).toLocaleString()}원</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="font-semibold text-purple-600">
