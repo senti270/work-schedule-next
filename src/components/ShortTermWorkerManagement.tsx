@@ -792,7 +792,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
           <h3 className="text-lg font-medium text-gray-900 mb-4">새 직원 추가</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">지점</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">지점 <span className="text-red-500">*</span></label>
               <select
                 value={newWorker.branchId}
                 onChange={(e) => setNewWorker({...newWorker, branchId: e.target.value})}
@@ -805,7 +805,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">이름</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">이름 <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={newWorker.name}
@@ -815,7 +815,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">주민번호</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">주민번호 <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={newWorker.socialSecurityNumber}
@@ -867,7 +867,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
             {/* 시급 입력 (시급 선택 시) */}
             {newWorker.workType === 'hourly' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">시급 (원)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">시급 (원) <span className="text-red-500">*</span></label>
                 <input
                   type="number"
                   value={newWorker.hourlyWage}
@@ -881,7 +881,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
             {/* 총금액 입력 (총금액 선택 시) */}
             {newWorker.workType === 'fixed' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">총금액 (원)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">총금액 (원) <span className="text-red-500">*</span></label>
                 <input
                   type="number"
                   value={newWorker.fixedAmount}
@@ -1531,7 +1531,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">이름</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">이름 <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={workerToEdit.name}
@@ -1541,7 +1541,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">주민번호</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">주민번호 <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={workerToEdit.socialSecurityNumber}
@@ -1592,7 +1592,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
               {/* 시급 입력 (시급 선택 시) */}
               {workerToEdit.workType === 'hourly' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">시급 (원)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">시급 (원) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     value={workerToEdit.hourlyWage}
@@ -1605,7 +1605,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
               {/* 총금액 입력 (총금액 선택 시) */}
               {workerToEdit.workType === 'fixed' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">총금액 (원)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">총금액 (원) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     value={workerToEdit.fixedAmount}
