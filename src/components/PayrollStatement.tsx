@@ -122,16 +122,19 @@ const PayrollStatement: React.FC = () => {
     
     try {
       setLoading(true);
+      // 인덱스 없이 작동하도록 orderBy 제거
       const payrollsQuery = query(
         collection(db, 'confirmedPayrolls'),
-        where('month', '==', selectedMonth),
-        orderBy('employeeName', 'asc')
+        where('month', '==', selectedMonth)
       );
       const payrollsSnapshot = await getDocs(payrollsQuery);
       const payrollsData = payrollsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as ConfirmedPayroll[];
+      
+      // 클라이언트 사이드에서 정렬
+      payrollsData.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
       setConfirmedPayrolls(payrollsData);
     } catch (error) {
       console.error('급여 확정 데이터 로드 실패:', error);
@@ -145,16 +148,19 @@ const PayrollStatement: React.FC = () => {
     if (!selectedMonth) return;
     
     try {
+      // 인덱스 없이 작동하도록 orderBy 제거
       const comparisonsQuery = query(
         collection(db, 'workTimeComparisonResults'),
-        where('month', '==', selectedMonth),
-        orderBy('employeeName', 'asc')
+        where('month', '==', selectedMonth)
       );
       const comparisonsSnapshot = await getDocs(comparisonsQuery);
       const comparisonsData = comparisonsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as WorkTimeComparisonResult[];
+      
+      // 클라이언트 사이드에서 정렬
+      comparisonsData.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
       setWorkTimeComparisons(comparisonsData);
     } catch (error) {
       console.error('근무시간 비교 데이터 로드 실패:', error);
