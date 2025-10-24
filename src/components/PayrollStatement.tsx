@@ -225,6 +225,18 @@ const PayrollStatement: React.FC = () => {
   const selectedWorkTimeComparison = workTimeComparisons.find(w => w.employeeId === selectedEmployee);
   const selectedEmployeeInfo = employees.find(e => e.id === selectedEmployee);
 
+  // 데이터 찾기 디버깅
+  if (selectedEmployee) {
+    console.log('🔍 데이터 찾기 디버깅:', {
+      selectedEmployee,
+      confirmedPayrollsCount: confirmedPayrolls.length,
+      workTimeComparisonsCount: workTimeComparisons.length,
+      selectedPayroll: selectedPayroll ? 'FOUND' : 'NOT_FOUND',
+      selectedWorkTimeComparison: selectedWorkTimeComparison ? 'FOUND' : 'NOT_FOUND',
+      selectedEmployeeInfo: selectedEmployeeInfo ? 'FOUND' : 'NOT_FOUND'
+    });
+  }
+
   // 필터링된 직원 목록 계산
   const filteredEmployees = employees.filter(employee => {
     if (filterWithWorkHistory) {
@@ -259,6 +271,19 @@ const PayrollStatement: React.FC = () => {
     filterWithWorkHistory,
     filterWithConfirmedPayroll
   });
+
+  // 김유정 데이터 특별 디버깅
+  if (selectedEmployee && selectedEmployeeInfo?.name === '김유정') {
+    console.log('🔥 김유정 특별 디버깅:', {
+      selectedEmployee,
+      selectedEmployeeInfo,
+      selectedPayroll,
+      selectedWorkTimeComparison,
+      confirmedPayrollsForKim: confirmedPayrolls.filter(p => p.employeeId === selectedEmployee),
+      workTimeComparisonsForKim: workTimeComparisons.filter(w => w.employeeId === selectedEmployee),
+      selectedMonth
+    });
+  }
 
   // PDF 다운로드
   const handleDownloadPDF = async () => {
@@ -410,17 +435,17 @@ ${selectedMonth} 급여명세서를 전달드립니다.
             <th width="20%">성명</th>
             <td width="30%">${selectedEmployeeInfo.name}</td>
             <th width="20%">지점</th>
-            <td width="30%">${selectedWorkTimeComparison.branchName}</td>
+            <td width="30%">${selectedWorkTimeComparison?.branchName}</td>
           </tr>
           <tr>
             <th>총 스케줄 시간</th>
-            <td>${selectedWorkTimeComparison.totalScheduleHours.toFixed(2)}시간</td>
+            <td>${selectedWorkTimeComparison?.totalScheduleHours.toFixed(2)}시간</td>
             <th>총 실제 근무시간</th>
-            <td>${selectedWorkTimeComparison.totalActualHours.toFixed(2)}시간</td>
+            <td>${selectedWorkTimeComparison?.totalActualHours.toFixed(2)}시간</td>
           </tr>
           <tr>
             <th>시간 차이</th>
-            <td>${selectedWorkTimeComparison.totalDifference.toFixed(2)}시간</td>
+            <td>${selectedWorkTimeComparison?.totalDifference.toFixed(2)}시간</td>
             <th>출력일</th>
             <td>${new Date().toLocaleDateString()}</td>
           </tr>
@@ -440,7 +465,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
             </tr>
           </thead>
           <tbody>
-            ${selectedWorkTimeComparison.comparisonResults.map(result => `
+            ${(selectedWorkTimeComparison?.comparisonResults || []).map(result => `
               <tr>
                 <td>${result.date}</td>
                 <td>${result.dayOfWeek}</td>
@@ -633,15 +658,15 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">총 스케줄 시간:</span>
-                    <span className="ml-2 font-medium text-blue-600">{(selectedWorkTimeComparison.totalScheduleHours || 0).toFixed(2)}시간</span>
+                    <span className="ml-2 font-medium text-blue-600">{(selectedWorkTimeComparison?.totalScheduleHours || 0).toFixed(2)}시간</span>
                   </div>
                   <div>
                     <span className="text-gray-600">총 실제 근무시간:</span>
-                    <span className="ml-2 font-medium text-blue-600">{(selectedWorkTimeComparison.totalActualHours || 0).toFixed(2)}시간</span>
+                    <span className="ml-2 font-medium text-blue-600">{(selectedWorkTimeComparison?.totalActualHours || 0).toFixed(2)}시간</span>
                   </div>
                   <div>
                     <span className="text-gray-600">시간 차이:</span>
-                    <span className="ml-2 font-medium text-purple-600">{(selectedWorkTimeComparison.totalDifference || 0).toFixed(2)}시간</span>
+                    <span className="ml-2 font-medium text-purple-600">{(selectedWorkTimeComparison?.totalDifference || 0).toFixed(2)}시간</span>
                   </div>
                 </div>
               </div>
@@ -774,7 +799,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4">직원명</td>
                     <td className="border border-gray-400 p-2 w-1/4">{selectedEmployeeInfo.name}</td>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4">지점</td>
-                    <td className="border border-gray-400 p-2 w-1/4">{selectedWorkTimeComparison.branchName || '-'}</td>
+                    <td className="border border-gray-400 p-2 w-1/4">{selectedWorkTimeComparison?.branchName || '-'}</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">주민번호</td>
@@ -800,7 +825,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedWorkTimeComparison.comparisonResults.map((result, index) => (
+                  {(selectedWorkTimeComparison?.comparisonResults || []).map((result, index) => (
                     <tr key={index}>
                       <td className="border border-gray-400 p-2 text-center">{result.date}</td>
                       <td className="border border-gray-400 p-2 text-center">{result.dayOfWeek}</td>
@@ -821,16 +846,16 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
                     <div className="text-sm text-gray-600">총 스케줄 시간</div>
-                    <div className="text-lg font-bold text-blue-600">{(selectedWorkTimeComparison.totalScheduleHours || 0).toFixed(2)}시간</div>
+                    <div className="text-lg font-bold text-blue-600">{(selectedWorkTimeComparison?.totalScheduleHours || 0).toFixed(2)}시간</div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-600">총 실제 근무시간</div>
-                    <div className="text-lg font-bold text-green-600">{(selectedWorkTimeComparison.totalActualHours || 0).toFixed(2)}시간</div>
+                    <div className="text-lg font-bold text-green-600">{(selectedWorkTimeComparison?.totalActualHours || 0).toFixed(2)}시간</div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-600">시간 차이</div>
-                    <div className={`text-lg font-bold ${(selectedWorkTimeComparison.totalDifference || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {(selectedWorkTimeComparison.totalDifference || 0).toFixed(2)}시간
+                    <div className={`text-lg font-bold ${(selectedWorkTimeComparison?.totalDifference || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {(selectedWorkTimeComparison?.totalDifference || 0).toFixed(2)}시간
                     </div>
                   </div>
                 </div>
