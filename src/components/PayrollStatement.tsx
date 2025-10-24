@@ -148,10 +148,13 @@ const PayrollStatement: React.FC = () => {
       
       // 각 직원의 모든 지점 데이터를 합산하여 총합 계산
       const processedPayrollsData = payrollsData.map(payroll => {
-        const totalGrossPay = payroll.calculations.reduce((sum, calc) => sum + calc.grossPay, 0);
-        const totalDeductions = payroll.calculations.reduce((sum, calc) => sum + calc.deductions, 0);
-        const totalNetPay = payroll.calculations.reduce((sum, calc) => sum + calc.netPay, 0);
-        const totalWorkHours = payroll.calculations.reduce((sum, calc) => sum + calc.workHours, 0);
+        // calculations 배열이 존재하는지 확인
+        const calculations = payroll.calculations || [];
+        
+        const totalGrossPay = calculations.reduce((sum, calc) => sum + (calc.grossPay || 0), 0);
+        const totalDeductions = calculations.reduce((sum, calc) => sum + (calc.deductions || 0), 0);
+        const totalNetPay = calculations.reduce((sum, calc) => sum + (calc.netPay || 0), 0);
+        const totalWorkHours = calculations.reduce((sum, calc) => sum + (calc.workHours || 0), 0);
         
         return {
           ...payroll,
@@ -312,11 +315,11 @@ const PayrollStatement: React.FC = () => {
       const shareData = {
         employeeName: selectedEmployeeInfo.name,
         month: selectedMonth,
-        grossPay: selectedPayroll.totalGrossPay || 0,
-        deductions: selectedPayroll.totalDeductions || 0,
-        netPay: selectedPayroll.totalNetPay || 0,
-        branchName: selectedPayroll.calculations[0]?.branchName || '-',
-        confirmedAt: selectedPayroll.confirmedAt
+        grossPay: selectedPayroll?.totalGrossPay || 0,
+        deductions: selectedPayroll?.totalDeductions || 0,
+        netPay: selectedPayroll?.totalNetPay || 0,
+        branchName: selectedPayroll?.calculations?.[0]?.branchName || '-',
+        confirmedAt: selectedPayroll?.confirmedAt
       };
 
       // 공유 링크 생성 (실제로는 서버에서 처리해야 함)
@@ -350,10 +353,10 @@ const PayrollStatement: React.FC = () => {
 ${selectedMonth} 급여명세서를 전달드립니다.
 
 - 직원명: ${selectedEmployeeInfo.name}
-- 지점: ${selectedPayroll.calculations[0]?.branchName || '-'}
-- 기본급: ${(selectedPayroll.totalGrossPay || 0).toLocaleString()}원
-- 공제액: ${(selectedPayroll.totalDeductions || 0).toLocaleString()}원
-- 실지급액: ${(selectedPayroll.totalNetPay || 0).toLocaleString()}원
+- 지점: ${selectedPayroll?.calculations?.[0]?.branchName || '-'}
+- 기본급: ${(selectedPayroll?.totalGrossPay || 0).toLocaleString()}원
+- 공제액: ${(selectedPayroll?.totalDeductions || 0).toLocaleString()}원
+- 실지급액: ${(selectedPayroll?.totalNetPay || 0).toLocaleString()}원
 
 자세한 내용은 첨부된 PDF 파일을 확인해주세요.
 
@@ -582,15 +585,15 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">기본급:</span>
-                    <span className="ml-2 font-medium text-green-600">{(selectedPayroll.totalGrossPay || 0).toLocaleString()}원</span>
+                    <span className="ml-2 font-medium text-green-600">{(selectedPayroll?.totalGrossPay || 0).toLocaleString()}원</span>
                   </div>
                   <div>
                     <span className="text-gray-600">공제액:</span>
-                    <span className="ml-2 font-medium text-red-600">-{(selectedPayroll.totalDeductions || 0).toLocaleString()}원</span>
+                    <span className="ml-2 font-medium text-red-600">-{(selectedPayroll?.totalDeductions || 0).toLocaleString()}원</span>
                   </div>
                   <div>
                     <span className="text-gray-600">실지급액:</span>
-                    <span className="ml-2 font-medium text-blue-600">{(selectedPayroll.totalNetPay || 0).toLocaleString()}원</span>
+                    <span className="ml-2 font-medium text-blue-600">{(selectedPayroll?.totalNetPay || 0).toLocaleString()}원</span>
                   </div>
                 </div>
                 
@@ -666,10 +669,10 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">지점</td>
-                    <td className="border border-gray-400 p-2">{selectedPayroll.calculations[0]?.branchName || '-'}</td>
+                    <td className="border border-gray-400 p-2">{selectedPayroll?.calculations?.[0]?.branchName || '-'}</td>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">급여지급일</td>
                     <td className="border border-gray-400 p-2">
-                      {selectedPayroll.confirmedAt 
+                      {selectedPayroll?.confirmedAt 
                         ? (selectedPayroll.confirmedAt instanceof Date 
                             ? selectedPayroll.confirmedAt.toLocaleDateString()
                             : new Date(selectedPayroll.confirmedAt).toLocaleDateString())
@@ -697,42 +700,42 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 <tbody>
                   <tr>
                     <td className="border border-gray-400 p-2">기본급</td>
-                    <td className="border border-gray-400 p-2 text-right">{(selectedPayroll.totalGrossPay || 0).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right">{(selectedPayroll?.totalGrossPay || 0).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">국민연금</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.045).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.045).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">건강보험</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.03495).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.03495).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">장기요양보험</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.0088).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.0088).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">고용보험</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.008).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.008).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">소득세</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.03).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.03).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">지방소득세</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.003).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.003).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr className="bg-gray-50 font-bold">
                     <td className="border border-gray-400 p-2">실지급액</td>
-                    <td className="border border-gray-400 p-2 text-right text-blue-600">{(selectedPayroll.totalNetPay || 0).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-blue-600">{(selectedPayroll?.totalNetPay || 0).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                 </tbody>
