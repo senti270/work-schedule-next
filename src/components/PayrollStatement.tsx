@@ -90,6 +90,8 @@ const PayrollStatement: React.FC = () => {
   const [workTimeComparisons, setWorkTimeComparisons] = useState<WorkTimeComparisonResult[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [filterWithWorkHistory, setFilterWithWorkHistory] = useState(false);
+  const [filterWithConfirmedPayroll, setFilterWithConfirmedPayroll] = useState(false);
 
   // 현재 월 설정
   useEffect(() => {
@@ -122,6 +124,8 @@ const PayrollStatement: React.FC = () => {
     
     try {
       setLoading(true);
+      console.log('🔥 급여 확정 데이터 로드 시작:', selectedMonth);
+      
       // 인덱스 없이 작동하도록 orderBy 제거
       const payrollsQuery = query(
         collection(db, 'confirmedPayrolls'),
@@ -132,6 +136,12 @@ const PayrollStatement: React.FC = () => {
         id: doc.id,
         ...doc.data()
       })) as ConfirmedPayroll[];
+      
+      console.log('🔥 급여 확정 데이터 로드 결과:', {
+        month: selectedMonth,
+        count: payrollsData.length,
+        data: payrollsData
+      });
       
       // 클라이언트 사이드에서 정렬
       payrollsData.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
@@ -148,6 +158,8 @@ const PayrollStatement: React.FC = () => {
     if (!selectedMonth) return;
     
     try {
+      console.log('🔥 근무시간 비교 데이터 로드 시작:', selectedMonth);
+      
       // 인덱스 없이 작동하도록 orderBy 제거
       const comparisonsQuery = query(
         collection(db, 'workTimeComparisonResults'),
@@ -158,6 +170,12 @@ const PayrollStatement: React.FC = () => {
         id: doc.id,
         ...doc.data()
       })) as WorkTimeComparisonResult[];
+      
+      console.log('🔥 근무시간 비교 데이터 로드 결과:', {
+        month: selectedMonth,
+        count: comparisonsData.length,
+        data: comparisonsData
+      });
       
       // 클라이언트 사이드에서 정렬
       comparisonsData.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
@@ -182,6 +200,41 @@ const PayrollStatement: React.FC = () => {
   const selectedPayroll = confirmedPayrolls.find(p => p.employeeId === selectedEmployee);
   const selectedWorkTimeComparison = workTimeComparisons.find(w => w.employeeId === selectedEmployee);
   const selectedEmployeeInfo = employees.find(e => e.id === selectedEmployee);
+
+  // 필터링된 직원 목록 계산
+  const filteredEmployees = employees.filter(employee => {
+    if (filterWithWorkHistory) {
+      const hasWorkHistory = workTimeComparisons.some(comparison => comparison.employeeId === employee.id);
+      if (!hasWorkHistory) return false;
+    }
+    
+    if (filterWithConfirmedPayroll) {
+      const hasConfirmedPayroll = confirmedPayrolls.some(payroll => payroll.employeeId === employee.id);
+      if (!hasConfirmedPayroll) return false;
+    }
+    
+    return true;
+  });
+
+  // 필터링이 변경될 때 선택된 직원이 필터링된 목록에 없으면 선택 해제
+  useEffect(() => {
+    if (selectedEmployee && !filteredEmployees.some(emp => emp.id === selectedEmployee)) {
+      setSelectedEmployee('');
+    }
+  }, [filteredEmployees, selectedEmployee]);
+
+  // 디버깅을 위한 로그
+  console.log('🔍 급여명세서 디버깅:', {
+    selectedEmployee,
+    selectedPayroll,
+    selectedEmployeeInfo,
+    confirmedPayrolls: confirmedPayrolls.length,
+    workTimeComparisons: workTimeComparisons.length,
+    employees: employees.length,
+    filteredEmployees: filteredEmployees.length,
+    filterWithWorkHistory,
+    filterWithConfirmedPayroll
+  });
 
   // PDF 다운로드
   const handleDownloadPDF = async () => {
@@ -431,12 +484,34 @@ ${selectedMonth} 급여명세서를 전달드립니다.
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">직원을 선택하세요</option>
-              {employees.map(employee => (
+              {filteredEmployees.map(employee => (
                 <option key={employee.id} value={employee.id}>
                   {employee.name}
                 </option>
               ))}
             </select>
+            
+            {/* 필터링 옵션 */}
+            <div className="mt-3 space-y-2">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={filterWithWorkHistory}
+                  onChange={(e) => setFilterWithWorkHistory(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">근무시간비교 데이터가 있는 직원만</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={filterWithConfirmedPayroll}
+                  onChange={(e) => setFilterWithConfirmedPayroll(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">급여확정 데이터가 있는 직원만</span>
+              </label>
+            </div>
           </div>
 
           <div className="flex items-end space-x-4">
@@ -570,9 +645,16 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">지점</td>
-                    <td className="border border-gray-400 p-2">{selectedPayroll.branchName}</td>
+                    <td className="border border-gray-400 p-2">{selectedPayroll.branchName || '-'}</td>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">급여지급일</td>
-                    <td className="border border-gray-400 p-2">{new Date(selectedPayroll.confirmedAt).toLocaleDateString()}</td>
+                    <td className="border border-gray-400 p-2">
+                      {selectedPayroll.confirmedAt 
+                        ? (selectedPayroll.confirmedAt instanceof Date 
+                            ? selectedPayroll.confirmedAt.toLocaleDateString()
+                            : new Date(selectedPayroll.confirmedAt).toLocaleDateString())
+                        : '-'
+                      }
+                    </td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">은행</td>
