@@ -10,6 +10,7 @@ interface Employee {
   id: string;
   name: string;
   residentNumber?: string;
+  email?: string;
   bankName?: string;
   accountNumber?: string;
 }
@@ -257,9 +258,14 @@ const PayrollStatement: React.FC = () => {
       return;
     }
 
+    if (!selectedEmployeeInfo.email) {
+      alert('직원의 이메일 주소가 등록되지 않았습니다.');
+      return;
+    }
+
     const subject = `급여명세서 - ${selectedEmployeeInfo.name} (${selectedMonth})`;
     const body = `
-안녕하세요.
+안녕하세요 ${selectedEmployeeInfo.name}님.
 
 ${selectedMonth} 급여명세서를 전달드립니다.
 
@@ -274,7 +280,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
 감사합니다.
     `;
 
-    const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const mailtoUrl = `mailto:${selectedEmployeeInfo.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailtoUrl);
   };
 
@@ -494,12 +500,24 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   >
                     🔗 링크 공유
                   </button>
-                  <button
-                    onClick={handleEmailShare}
-                    className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600"
-                  >
-                    📧 이메일 공유
-                  </button>
+                  <div className="relative">
+                    <button
+                      onClick={handleEmailShare}
+                      disabled={!selectedEmployeeInfo?.email}
+                      className={`px-3 py-1 rounded text-sm ${
+                        selectedEmployeeInfo?.email
+                          ? 'bg-green-500 text-white hover:bg-green-600'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      📧 이메일 공유
+                    </button>
+                    {!selectedEmployeeInfo?.email && (
+                      <div className="absolute top-full left-0 mt-1 text-xs text-gray-500 whitespace-nowrap">
+                        이메일주소가 없습니다
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -574,8 +592,33 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-400 p-2">공제액</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{(selectedPayroll.deductions || 0).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2">국민연금</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.045).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right">-</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 p-2">건강보험</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.03495).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right">-</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 p-2">장기요양보험</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.0088).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right">-</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 p-2">고용보험</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.008).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right">-</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 p-2">소득세</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.03).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right">-</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 p-2">지방소득세</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.003).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr className="bg-gray-50 font-bold">
