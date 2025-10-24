@@ -350,7 +350,7 @@ const PayrollStatement: React.FC = () => {
 ${selectedMonth} 급여명세서를 전달드립니다.
 
 - 직원명: ${selectedEmployeeInfo.name}
-- 지점: ${selectedPayroll.branchName}
+- 지점: ${selectedPayroll.calculations[0]?.branchName || '-'}
 - 기본급: ${(selectedPayroll.totalGrossPay || 0).toLocaleString()}원
 - 공제액: ${(selectedPayroll.totalDeductions || 0).toLocaleString()}원
 - 실지급액: ${(selectedPayroll.totalNetPay || 0).toLocaleString()}원
@@ -586,11 +586,11 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   </div>
                   <div>
                     <span className="text-gray-600">공제액:</span>
-                    <span className="ml-2 font-medium text-red-600">-{(selectedPayroll.deductions || 0).toLocaleString()}원</span>
+                    <span className="ml-2 font-medium text-red-600">-{(selectedPayroll.totalDeductions || 0).toLocaleString()}원</span>
                   </div>
                   <div>
                     <span className="text-gray-600">실지급액:</span>
-                    <span className="ml-2 font-medium text-blue-600">{(selectedPayroll.netPay || 0).toLocaleString()}원</span>
+                    <span className="ml-2 font-medium text-blue-600">{(selectedPayroll.totalNetPay || 0).toLocaleString()}원</span>
                   </div>
                 </div>
                 
@@ -666,7 +666,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">지점</td>
-                    <td className="border border-gray-400 p-2">{selectedPayroll.branchName || '-'}</td>
+                    <td className="border border-gray-400 p-2">{selectedPayroll.calculations[0]?.branchName || '-'}</td>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">급여지급일</td>
                     <td className="border border-gray-400 p-2">
                       {selectedPayroll.confirmedAt 
@@ -697,42 +697,42 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 <tbody>
                   <tr>
                     <td className="border border-gray-400 p-2">기본급</td>
-                    <td className="border border-gray-400 p-2 text-right">{(selectedPayroll.grossPay || 0).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right">{(selectedPayroll.totalGrossPay || 0).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">국민연금</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.045).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.045).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">건강보험</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.03495).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.03495).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">장기요양보험</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.0088).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.0088).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">고용보험</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.008).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.008).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">소득세</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.03).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.03).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr>
                     <td className="border border-gray-400 p-2">지방소득세</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.grossPay || 0) * 0.003).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll.totalGrossPay || 0) * 0.003).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                   <tr className="bg-gray-50 font-bold">
                     <td className="border border-gray-400 p-2">실지급액</td>
-                    <td className="border border-gray-400 p-2 text-right text-blue-600">{(selectedPayroll.netPay || 0).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 text-right text-blue-600">{(selectedPayroll.totalNetPay || 0).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
                 </tbody>
