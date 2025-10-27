@@ -184,26 +184,32 @@ const PayrollStatement: React.FC = () => {
     try {
       console.log('🔥 근무시간 비교 데이터 로드 시작:', selectedMonth);
       
-      // 인덱스 없이 작동하도록 orderBy 제거
-      const comparisonsQuery = query(
-        collection(db, 'workTimeComparisonResults'),
-        where('month', '==', selectedMonth)
-      );
-      const comparisonsSnapshot = await getDocs(comparisonsQuery);
-      const comparisonsData = comparisonsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as WorkTimeComparisonResult[];
+      // 전체 데이터를 가져와서 클라이언트에서 필터링
+      const comparisonsSnapshot = await getDocs(collection(db, 'workTimeComparisonResults'));
+      console.log('🔥 전체 workTimeComparisonResults 문서 수:', comparisonsSnapshot.docs.length);
       
-      console.log('🔥 근무시간 비교 데이터 로드 결과:', {
+      const allComparisonsData = comparisonsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('🔥 문서 데이터:', { id: doc.id, month: data.month, employeeName: data.employeeName });
+        return {
+          id: doc.id,
+          ...data
+        };
+      }) as WorkTimeComparisonResult[];
+      
+      // 클라이언트에서 월별 필터링
+      const filteredData = allComparisonsData.filter(item => item.month === selectedMonth);
+      
+      console.log('🔥 필터링된 근무시간 비교 데이터:', {
         month: selectedMonth,
-        count: comparisonsData.length,
-        data: comparisonsData
+        totalCount: allComparisonsData.length,
+        filteredCount: filteredData.length,
+        filteredData: filteredData
       });
       
       // 클라이언트 사이드에서 정렬
-      comparisonsData.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
-      setWorkTimeComparisons(comparisonsData);
+      filteredData.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+      setWorkTimeComparisons(filteredData);
     } catch (error) {
       console.error('근무시간 비교 데이터 로드 실패:', error);
     }
@@ -233,8 +239,30 @@ const PayrollStatement: React.FC = () => {
       workTimeComparisonsCount: workTimeComparisons.length,
       selectedPayroll: selectedPayroll ? 'FOUND' : 'NOT_FOUND',
       selectedWorkTimeComparison: selectedWorkTimeComparison ? 'FOUND' : 'NOT_FOUND',
-      selectedEmployeeInfo: selectedEmployeeInfo ? 'FOUND' : 'NOT_FOUND'
+      selectedEmployeeInfo: selectedEmployeeInfo ? 'FOUND' : 'NOT_FOUND',
+      workTimeComparisonsData: workTimeComparisons.map(w => ({
+        employeeId: w.employeeId,
+        employeeName: w.employeeName,
+        month: w.month,
+        totalScheduleHours: w.totalScheduleHours,
+        totalActualHours: w.totalActualHours,
+        comparisonResultsCount: w.comparisonResults?.length || 0
+      }))
     });
+    
+    if (selectedWorkTimeComparison) {
+      console.log('🔍 selectedWorkTimeComparison 상세:', {
+        id: selectedWorkTimeComparison.id,
+        employeeId: selectedWorkTimeComparison.employeeId,
+        employeeName: selectedWorkTimeComparison.employeeName,
+        branchName: selectedWorkTimeComparison.branchName,
+        month: selectedWorkTimeComparison.month,
+        totalScheduleHours: selectedWorkTimeComparison.totalScheduleHours,
+        totalActualHours: selectedWorkTimeComparison.totalActualHours,
+        totalDifference: selectedWorkTimeComparison.totalDifference,
+        comparisonResults: selectedWorkTimeComparison.comparisonResults
+      });
+    }
   }
 
   // 필터링된 직원 목록 계산
@@ -751,7 +779,18 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 <div className="border border-gray-400 p-4">
                   <div className="text-right">
                     <div className="mb-2">청담장어마켓 동탄점</div>
-                    <div>대표자: 이진영(인)</div>
+                    <div className="relative">
+                      대표자: 이진영
+                      <span className="relative inline-block ml-2">
+                        (인)
+                        <img 
+                          src="/images/signature.png" 
+                          alt="서명" 
+                          className="absolute top-0 left-0 w-16 h-8 object-contain opacity-80"
+                          style={{ transform: 'translateY(-2px)' }}
+                        />
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
