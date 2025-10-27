@@ -95,6 +95,7 @@ const PayrollStatement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [filterWithWorkHistory, setFilterWithWorkHistory] = useState(false);
   const [filterWithConfirmedPayroll, setFilterWithConfirmedPayroll] = useState(false);
+  const [employeeMemos, setEmployeeMemos] = useState<Array<{id: string, employeeId: string, memo: string, createdAt: Date}>>([]);
 
   // 현재 월 설정
   useEffect(() => {
@@ -177,6 +178,23 @@ const PayrollStatement: React.FC = () => {
     }
   };
 
+  // 직원 메모 로드
+  const loadEmployeeMemos = async () => {
+    try {
+      const memosSnapshot = await getDocs(collection(db, 'employeeMemos'));
+      const memosData = memosSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date()
+      })) as Array<{id: string, employeeId: string, memo: string, createdAt: Date}>;
+      
+      console.log('🔥 직원 메모 로드:', memosData.length, '개');
+      setEmployeeMemos(memosData);
+    } catch (error) {
+      console.error('직원 메모 로드 실패:', error);
+    }
+  };
+
   // 근무시간 비교 데이터 로드
   const loadWorkTimeComparisons = async () => {
     if (!selectedMonth) return;
@@ -217,6 +235,7 @@ const PayrollStatement: React.FC = () => {
 
   useEffect(() => {
     loadEmployees();
+    loadEmployeeMemos();
   }, []);
 
   useEffect(() => {
@@ -830,86 +849,156 @@ ${selectedMonth} 급여명세서를 전달드립니다.
             totalScheduleHours: selectedWorkTimeComparison?.totalScheduleHours || 0,
             totalActualHours: selectedWorkTimeComparison?.totalActualHours || 0
           });
+
+          // 선택된 직원의 데이터만 필터링
+          const selectedEmployeeComparisons = workTimeComparisons.filter(comparison => comparison.employeeId === selectedEmployee);
+          
+          // 지점별로 그룹화 (WorkTimeComparisonResult 레벨에서)
+          const branchGroups = selectedEmployeeComparisons.reduce((groups: {[key: string]: WorkTimeComparisonResult[]}, comparison) => {
+            const branchName = comparison.branchName || '미지정지점';
+            if (!groups[branchName]) {
+              groups[branchName] = [];
+            }
+            groups[branchName].push(comparison);
+            return groups;
+          }, {});
+
+          // 시간을 HH:MM 형식으로 변환하는 함수
+          const formatTime = (hours: number) => {
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+          };
+
+          // 날짜를 YY.MM.DD(요일) 형식으로 변환
+          const formatDate = (dateStr: string) => {
+            const date = new Date(dateStr);
+            const year = date.getFullYear().toString().slice(-2);
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+            const dayOfWeek = dayNames[date.getDay()];
+            return `${year}.${month}.${day}(${dayOfWeek})`;
+          };
+
           return (
             <div className="mt-6 bg-white shadow rounded-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">근무내역 미리보기</h3>
               <div className="border border-gray-300 p-6 bg-white">
-              <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">근무내역</h1>
-                <p className="text-gray-600">{selectedEmployeeInfo.name} - {selectedMonth}</p>
-              </div>
+                <div className="text-center mb-6">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">근무내역</h1>
+                  <p className="text-gray-600">{selectedEmployeeInfo.name} - {selectedMonth}</p>
+                </div>
 
-              {/* 직원 정보 테이블 */}
-              <table className="w-full border-collapse border border-gray-400 mb-6">
-                <tbody>
-                  <tr>
-                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4">직원명</td>
-                    <td className="border border-gray-400 p-2 w-1/4">{selectedEmployeeInfo.name}</td>
-                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4">지점</td>
-                    <td className="border border-gray-400 p-2 w-1/4">{selectedWorkTimeComparison?.branchName || '-'}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">주민번호</td>
-                    <td className="border border-gray-400 p-2">{selectedEmployeeInfo.residentNumber || '-'}</td>
-                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">근무기간</td>
-                    <td className="border border-gray-400 p-2">{selectedMonth}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* 근무내역 테이블 */}
-              <table className="w-full border-collapse border border-gray-400 mb-6">
-                <thead>
-                  <tr>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/8">날짜</th>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/12">요일</th>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">스케줄 출근</th>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">스케줄 퇴근</th>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/12">스케줄 시간</th>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">실제 출근</th>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">실제 퇴근</th>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/12">실제 시간</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(selectedWorkTimeComparison?.comparisonResults || []).map((result, index) => (
-                    <tr key={index}>
-                      <td className="border border-gray-400 p-2 text-center">{result.date}</td>
-                      <td className="border border-gray-400 p-2 text-center">{result.dayOfWeek}</td>
-                      <td className="border border-gray-400 p-2 text-center">{result.scheduleStartTime || '-'}</td>
-                      <td className="border border-gray-400 p-2 text-center">{result.scheduleEndTime || '-'}</td>
-                      <td className="border border-gray-400 p-2 text-center">{(result.scheduleWorkHours || 0).toFixed(2)}시간</td>
-                      <td className="border border-gray-400 p-2 text-center">{result.actualStartTime || '-'}</td>
-                      <td className="border border-gray-400 p-2 text-center">{result.actualEndTime || '-'}</td>
-                      <td className="border border-gray-400 p-2 text-center">{(result.actualWorkHours || 0).toFixed(2)}시간</td>
+                {/* 직원 정보 테이블 */}
+                <table className="w-full border-collapse border border-gray-400 mb-6">
+                  <tbody>
+                    <tr>
+                      <td className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4">직원명</td>
+                      <td className="border border-gray-400 p-2 w-1/4">{selectedEmployeeInfo.name}</td>
+                      <td className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4">주민번호</td>
+                      <td className="border border-gray-400 p-2 w-1/4">{selectedEmployeeInfo.residentNumber || '-'}</td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                    <tr>
+                      <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">근무기간</td>
+                      <td className="border border-gray-400 p-2">{selectedMonth}</td>
+                      <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">총 실근무시간</td>
+                      <td className="border border-gray-400 p-2 font-bold text-blue-600">
+                        {formatTime(selectedWorkTimeComparison?.totalActualHours || 0)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
 
-              {/* 근무시간 요약 */}
-              <div className="mt-6 p-4 bg-gray-50 border border-gray-300">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">근무시간 요약</h3>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-sm text-gray-600">총 스케줄 시간</div>
-                    <div className="text-lg font-bold text-blue-600">{(selectedWorkTimeComparison?.totalScheduleHours || 0).toFixed(2)}시간</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">총 실제 근무시간</div>
-                    <div className="text-lg font-bold text-green-600">{(selectedWorkTimeComparison?.totalActualHours || 0).toFixed(2)}시간</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-600">시간 차이</div>
-                    <div className={`text-lg font-bold ${(selectedWorkTimeComparison?.totalDifference || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {(selectedWorkTimeComparison?.totalDifference || 0).toFixed(2)}시간
+                {/* 지점별 근무내역 */}
+                {Object.entries(branchGroups).map(([branchName, comparisons]) => {
+                  // 해당 지점의 모든 근무내역을 하나의 배열로 합치기
+                  const allResults = comparisons.flatMap(comparison => comparison.comparisonResults || []);
+                  const branchTotalHours = allResults.reduce((sum, result) => sum + (result.actualWorkHours || 0), 0);
+                  
+                  return (
+                    <div key={branchName} className="mb-8">
+                      {/* 지점명 */}
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">{branchName}</h3>
+                      
+                      {/* 근무내역표 */}
+                      <table className="w-full border-collapse border border-gray-400 mb-4">
+                        <thead>
+                          <tr>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">날짜</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">POS</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">실근무</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">휴게시간</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">근무시간</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">합계</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allResults.map((result, index) => (
+                            <tr key={index}>
+                              <td className="border border-gray-400 p-2 text-center">{formatDate(result.date)}</td>
+                              <td className="border border-gray-400 p-2 text-center" colSpan={2}>
+                                <div className="text-sm">
+                                  <div>출근 {result.actualStartTime || '-'}</div>
+                                  <div>퇴근 {result.actualEndTime || '-'}</div>
+                                </div>
+                              </td>
+                              <td className="border border-gray-400 p-2 text-center">
+                                {formatTime(result.actualBreakTime || 0)}
+                              </td>
+                              <td className="border border-gray-400 p-2 text-center font-semibold">
+                                {formatTime(result.actualWorkHours || 0)}
+                              </td>
+                              <td className="border border-gray-400 p-2 text-center font-bold text-blue-600">
+                                {formatTime(result.actualWorkHours || 0)}
+                              </td>
+                            </tr>
+                          ))}
+                          {/* 지점별 합계 */}
+                          <tr className="bg-gray-50 font-bold">
+                            <td className="border border-gray-400 p-2 text-center" colSpan={5}>합계</td>
+                            <td className="border border-gray-400 p-2 text-center text-blue-600">
+                              {formatTime(branchTotalHours)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+
+                {/* 총합계 */}
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-300">
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-gray-900 mb-2">총합계</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {formatTime(selectedWorkTimeComparison?.totalActualHours || 0)}
                     </div>
                   </div>
                 </div>
+
+                {/* 해당 직원용 메모 */}
+                {(() => {
+                  const employeeMemo = employeeMemos.find(memo => memo.employeeId === selectedEmployee);
+                  if (employeeMemo) {
+                    return (
+                      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300">
+                        <h4 className="text-md font-semibold text-gray-900 mb-2">해당직원공지용 메모</h4>
+                        <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                          {employeeMemo.memo}
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          작성일: {employeeMemo.createdAt.toLocaleDateString('ko-KR')}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* 로딩 상태 */}
