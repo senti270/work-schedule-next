@@ -692,25 +692,6 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4">주민번호</td>
                     <td className="border border-gray-400 p-2 w-1/4">{selectedEmployeeInfo.residentNumber || '-'}</td>
                   </tr>
-                  <tr>
-                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">지점</td>
-                    <td className="border border-gray-400 p-2">{selectedPayroll?.calculations?.[0]?.branchName || '-'}</td>
-                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">급여지급일</td>
-                    <td className="border border-gray-400 p-2">
-                      {selectedPayroll?.confirmedAt 
-                        ? (selectedPayroll.confirmedAt instanceof Date 
-                            ? selectedPayroll.confirmedAt.toLocaleDateString()
-                            : new Date(selectedPayroll.confirmedAt).toLocaleDateString())
-                        : '-'
-                      }
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">은행</td>
-                    <td className="border border-gray-400 p-2">{selectedEmployeeInfo.bankName || '-'}</td>
-                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">계좌번호</td>
-                    <td className="border border-gray-400 p-2">{selectedEmployeeInfo.accountNumber || '-'}</td>
-                  </tr>
                 </tbody>
               </table>
 
@@ -766,16 +747,12 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 </tbody>
               </table>
 
-              <div className="flex justify-between mt-8">
-                <div className="text-center">
-                  <div className="mb-2">급여지급자</div>
-                  <div className="border-b border-gray-400 w-32 h-8 mb-1"></div>
-                  <div className="text-sm">(인)</div>
-                </div>
-                <div className="text-center">
-                  <div className="mb-2">급여수령자</div>
-                  <div className="border-b border-gray-400 w-32 h-8 mb-1"></div>
-                  <div className="text-sm">(인)</div>
+              <div className="mt-8">
+                <div className="border border-gray-400 p-4">
+                  <div className="text-right">
+                    <div className="mb-2">청담장어마켓 동탄점</div>
+                    <div>대표자: 이진영(인)</div>
+                  </div>
                 </div>
               </div>
             </div>
