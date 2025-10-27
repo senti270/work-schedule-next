@@ -16,6 +16,8 @@ interface Schedule {
   endTime: string;
   breakTime: string;
   totalHours: number;
+  timeSlots?: Array<{startTime: string; endTime: string; breakTime: number}>;
+  originalInput?: string; // 원본 입력 형식 저장 (예: "10-13, 19-23(0.5)")
   createdAt: Date;
   updatedAt: Date;
 }
@@ -163,6 +165,8 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
           endTime: data.endTime,
           breakTime: data.breakTime,
           totalHours: data.totalHours,
+          timeSlots: data.timeSlots,
+          originalInput: data.originalInput,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
         };
@@ -262,8 +266,30 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
             }
           };
           
-          const scheduleText = schedule.originalInput || 
-            `${formatTime(schedule.startTime)}-${formatTime(schedule.endTime)}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
+          // originalInput이 있으면 우선 사용, 없으면 timeSlots 또는 기본 형식 사용
+          let scheduleText = '';
+          
+          if (schedule.originalInput) {
+            scheduleText = schedule.originalInput;
+          } else if (schedule.timeSlots && schedule.timeSlots.length > 0) {
+            const timeToDecimal = (timeStr: string) => {
+              const [hours, minutes] = timeStr.split(':').map(Number);
+              if (minutes === 0) return hours.toString();
+              const decimalMinutes = minutes / 60;
+              if (decimalMinutes === 0.5) return `${hours}.5`;
+              if (decimalMinutes === 0.25) return `${hours}.25`;
+              if (decimalMinutes === 0.75) return `${hours}.75`;
+              return (hours + decimalMinutes).toString();
+            };
+            
+            scheduleText = schedule.timeSlots.map((slot: {startTime: string; endTime: string; breakTime: number}) => {
+              const start = timeToDecimal(slot.startTime);
+              const end = timeToDecimal(slot.endTime);
+              return `${start}-${end}${slot.breakTime > 0 ? `(${slot.breakTime})` : ''}`;
+            }).join(', ');
+          } else {
+            scheduleText = `${formatTime(schedule.startTime)}-${formatTime(schedule.endTime)}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
+          }
           
           otherBranchSchedulesMap[key].push({
             branchName: getBranchShortName(schedule.branchName),
@@ -355,7 +381,39 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   };
 
   const formatScheduleDisplay = (schedule: Schedule) => {
-    // 시:분 형태를 소수점 형태로 변환 (18:30 -> 18.5)
+    // originalInput이 있으면 우선 사용
+    if (schedule.originalInput) {
+      return {
+        name: schedule.employeeName,
+        time: schedule.originalInput
+      };
+    }
+    
+    // timeSlots가 있으면 여러 시간대 표시
+    if (schedule.timeSlots && schedule.timeSlots.length > 0) {
+      const timeToDecimal = (timeStr: string) => {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        if (minutes === 0) return hours.toString();
+        const decimalMinutes = minutes / 60;
+        if (decimalMinutes === 0.5) return `${hours}.5`;
+        if (decimalMinutes === 0.25) return `${hours}.25`;
+        if (decimalMinutes === 0.75) return `${hours}.75`;
+        return (hours + decimalMinutes).toString();
+      };
+      
+      const timeSlotsText = schedule.timeSlots.map((slot: {startTime: string; endTime: string; breakTime: number}) => {
+        const start = timeToDecimal(slot.startTime);
+        const end = timeToDecimal(slot.endTime);
+        return `${start}-${end}${slot.breakTime > 0 ? `(${slot.breakTime})` : ''}`;
+      }).join(', ');
+      
+      return {
+        name: schedule.employeeName,
+        time: timeSlotsText
+      };
+    }
+    
+    // 기본 단일 시간대 표시
     const timeToDecimal = (timeStr: string) => {
       const [hours, minutes] = timeStr.split(':').map(Number);
       if (minutes === 0) {
