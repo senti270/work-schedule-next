@@ -755,6 +755,20 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   </div>
                 </div>
               </div>
+
+              {/* 증명 문구 및 발급일 */}
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-700 mb-2">
+                  위 내역과 같이 급여가 지급되었음을 증명합니다.
+                </p>
+                <p className="text-sm text-gray-600">
+                  발급일: {new Date().toLocaleDateString('ko-KR', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </p>
+              </div>
             </div>
           </div>
         )}
