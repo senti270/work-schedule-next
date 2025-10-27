@@ -260,8 +260,17 @@ const PayrollStatement: React.FC = () => {
         totalScheduleHours: selectedWorkTimeComparison.totalScheduleHours,
         totalActualHours: selectedWorkTimeComparison.totalActualHours,
         totalDifference: selectedWorkTimeComparison.totalDifference,
-        comparisonResults: selectedWorkTimeComparison.comparisonResults
+        comparisonResultsLength: selectedWorkTimeComparison.comparisonResults?.length || 0,
+        comparisonResults: selectedWorkTimeComparison.comparisonResults?.slice(0, 3) // 처음 3개만 로그
       });
+      
+      // comparisonResults가 비어있는지 확인
+      if (!selectedWorkTimeComparison.comparisonResults || selectedWorkTimeComparison.comparisonResults.length === 0) {
+        console.log('⚠️ comparisonResults가 비어있습니다!');
+        console.log('전체 데이터 구조:', selectedWorkTimeComparison);
+      } else {
+        console.log('✅ comparisonResults 데이터 있음:', selectedWorkTimeComparison.comparisonResults.length, '개');
+      }
     }
   }
 
@@ -813,10 +822,18 @@ ${selectedMonth} 급여명세서를 전달드립니다.
         )}
 
         {/* 근무내역 미리보기 */}
-        {selectedWorkTimeComparison && selectedEmployeeInfo && (
-          <div className="mt-6 bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">근무내역 미리보기</h3>
-            <div className="border border-gray-300 p-6 bg-white">
+        {selectedWorkTimeComparison && selectedEmployeeInfo && (() => {
+          console.log('🔍 근무내역 미리보기 렌더링:', {
+            hasSelectedWorkTimeComparison: !!selectedWorkTimeComparison,
+            hasSelectedEmployeeInfo: !!selectedEmployeeInfo,
+            comparisonResultsLength: selectedWorkTimeComparison?.comparisonResults?.length || 0,
+            totalScheduleHours: selectedWorkTimeComparison?.totalScheduleHours || 0,
+            totalActualHours: selectedWorkTimeComparison?.totalActualHours || 0
+          });
+          return (
+            <div className="mt-6 bg-white shadow rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">근무내역 미리보기</h3>
+              <div className="border border-gray-300 p-6 bg-white">
               <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">근무내역</h1>
                 <p className="text-gray-600">{selectedEmployeeInfo.name} - {selectedMonth}</p>
