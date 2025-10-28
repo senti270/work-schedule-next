@@ -1355,7 +1355,7 @@ export default function WorkTimeComparison({
           employeeName: result.employeeName,
           month: selectedMonth,
           branchId: branchId,
-          branchName: branchNameSnapshot || result.branchName || '',
+          branchName: branchNameSnapshot || (result as any).branchName || '',
           date: result.date,
           scheduledHours: result.scheduledHours,
           actualHours: result.actualHours,
