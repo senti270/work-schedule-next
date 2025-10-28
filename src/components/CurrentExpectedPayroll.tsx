@@ -142,10 +142,12 @@ const CurrentExpectedPayroll: React.FC = () => {
   }, [selectedMonthKey]);
 
   const rows = useMemo(() => {
-    // 직원별로 현재일까지의 비교결과를 스케줄로 변환 후 PayrollCalculator로 계산
+    // 직원별, 지점별로 현재일까지의 비교결과를 스케줄로 변환 후 PayrollCalculator로 계산
     const result: Array<{
       employeeId: string;
       employeeName: string;
+      branchId: string;
+      branchName: string;
       employmentType: EmploymentType;
       salaryLabel: string;
       totalHours: number;
@@ -171,7 +173,24 @@ const CurrentExpectedPayroll: React.FC = () => {
       return target[0];
     };
 
-    employees.forEach((emp) => {
+    // 직원별로 그룹화
+    const employeeGroups = employees.reduce((acc, emp) => {
+      if (!acc[emp.id]) {
+        acc[emp.id] = {
+          employee: emp,
+          schedules: schedules.filter((s) => {
+            if (s.employeeId !== emp.id || !s.date) return false;
+            const sd = toDateSafe(s.date);
+            if (!sd) return false;
+            const sdOnly = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate());
+            return sdOnly <= selectedDateOnly;
+          })
+        };
+      }
+      return acc;
+    }, {} as Record<string, { employee: any; schedules: any[] }>);
+
+    Object.values(employeeGroups).forEach(({ employee: emp, schedules: empSchedules }) => {
       const eff = pickEffectiveContract(emp.id);
       // 고용형태/급여는 계약서만 신뢰, 계약 없으면 미입력 및 0 처리
       const displayEmploymentType = (eff?.employmentType || '미입력') as EmploymentType;
@@ -181,74 +200,86 @@ const CurrentExpectedPayroll: React.FC = () => {
       const salaryType = ((rawSalaryType === '월급' ? 'monthly' : rawSalaryType === '시급' ? 'hourly' : rawSalaryType) || 'hourly') as any;
       const salaryAmount = Number(eff?.salaryAmount || 0);
 
-      // 현재일까지의 스케줄 구성 (schedules 컬렉션 기반)
-      const schedulesForEmp = schedules
-        .filter((s) => {
-          if (s.employeeId !== emp.id || !s.date) return false;
-          const sd = toDateSafe(s.date);
-          if (!sd) return false;
-          const sdOnly = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate());
-          return sdOnly <= selectedDateOnly;
-        })
-        .map((s) => ({
+      // 지점별로 그룹화
+      const branchGroups = empSchedules.reduce((acc, s) => {
+        const branchId = s.branchId || 'N/A';
+        const branchName = s.branchName || '합산';
+        if (!acc[branchId]) {
+          acc[branchId] = {
+            branchId,
+            branchName,
+            schedules: []
+          };
+        }
+        acc[branchId].schedules.push({
           date: toDateSafe(s.date) || new Date(),
-          // 요구사항: 해당일까지의 totalHours 합산 기준. 없으면 시간으로 계산
           actualWorkHours: Number((s.totalHours ?? calcHoursFromTimes(s.startTime, s.endTime, s.breakTime) ?? 0)),
           branchId: s.branchId || 'N/A',
           branchName: s.branchName || '합산',
-        }));
+        });
+        return acc;
+      }, {} as Record<string, { branchId: string; branchName: string; schedules: any[] }>);
 
-      const summedHours = schedulesForEmp.reduce((sum, r) => sum + (Number(r.actualWorkHours) || 0), 0);
+      // 각 지점별로 계산
+      Object.values(branchGroups).forEach(({ branchId, branchName, schedules: branchSchedules }) => {
+        const summedHours = branchSchedules.reduce((sum, r) => sum + (Number(r.actualWorkHours) || 0), 0);
 
-      // 계약 객체 구성
-      const contract = {
-        employmentType: displayEmploymentType,
-        salaryType: salaryType,
-        salaryAmount: salaryAmount,
-        weeklyWorkHours: eff?.weeklyWorkHours,
-        includeHolidayAllowance: eff?.includeHolidayAllowance,
-      } as any;
+        // 계약 객체 구성
+        const contract = {
+          employmentType: displayEmploymentType,
+          salaryType: salaryType,
+          salaryAmount: salaryAmount,
+          weeklyWorkHours: eff?.weeklyWorkHours,
+          includeHolidayAllowance: eff?.includeHolidayAllowance,
+        } as any;
 
-      // 직원 객체 구성
-      const employeeForCalc = {
-        id: emp.id,
-        name: emp.name,
-        employmentType,
-        salaryType,
-        salaryAmount,
-        weeklyWorkHours: eff?.weeklyWorkHours,
-        includesWeeklyHolidayInWage: emp.includesWeeklyHolidayInWage,
-      } as any;
+        // 직원 객체 구성
+        const employeeForCalc = {
+          id: emp.id,
+          name: emp.name,
+          employmentType,
+          salaryType,
+          salaryAmount,
+          weeklyWorkHours: eff?.weeklyWorkHours,
+          includesWeeklyHolidayInWage: emp.includesWeeklyHolidayInWage,
+        } as any;
 
-      // 월급제 근로소득의 경우 스케줄이 없어도 월급 기준으로 계산됨
-      // '미입력'은 계산 제외(0 처리). 지정된 유형은 그대로 계산 유틸 사용
-      let calcResult: any = {
-        actualWorkHours: summedHours,
-        grossPay: 0,
-        deductions: { total: 0 },
-        netPay: 0,
-      };
-      if (employmentType !== '미입력' && salaryAmount > 0) {
-        const calculator = new PayrollCalculator(employeeForCalc, contract, schedulesForEmp);
-        calcResult = calculator.calculate();
-      }
+        // 월급제 근로소득의 경우 스케줄이 없어도 월급 기준으로 계산됨
+        // '미입력'은 계산 제외(0 처리). 지정된 유형은 그대로 계산 유틸 사용
+        let calcResult: any = {
+          actualWorkHours: summedHours,
+          grossPay: 0,
+          deductions: { total: 0 },
+          netPay: 0,
+        };
+        if (employmentType !== '미입력' && salaryAmount > 0) {
+          const calculator = new PayrollCalculator(employeeForCalc, contract, branchSchedules);
+          calcResult = calculator.calculate();
+        }
 
-      const salaryLabel = salaryType === 'hourly' ? `${salaryAmount.toLocaleString()}원/시` : `${salaryAmount.toLocaleString()}원/월`;
+        const salaryLabel = salaryType === 'hourly' ? `${salaryAmount.toLocaleString()}원/시` : `${salaryAmount.toLocaleString()}원/월`;
 
-      result.push({
-        employeeId: emp.id,
-        employeeName: emp.name,
-        employmentType,
-        salaryLabel,
-        totalHours: Number(summedHours || 0),
-        grossPay: Number(calcResult.grossPay || 0),
-        totalDeductions: Number(calcResult.deductions?.total || 0),
-        netPay: Number(calcResult.netPay || 0),
+        result.push({
+          employeeId: emp.id,
+          employeeName: emp.name,
+          branchId,
+          branchName,
+          employmentType,
+          salaryLabel,
+          totalHours: Number(summedHours || 0),
+          grossPay: Number(calcResult.grossPay || 0),
+          totalDeductions: Number(calcResult.deductions?.total || 0),
+          netPay: Number(calcResult.netPay || 0),
+        });
       });
     });
 
-    // 이름순 정렬
-    result.sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'ko'));
+    // 이름순, 지점순 정렬
+    result.sort((a, b) => {
+      const nameCompare = a.employeeName.localeCompare(b.employeeName, 'ko');
+      if (nameCompare !== 0) return nameCompare;
+      return a.branchName.localeCompare(b.branchName, 'ko');
+    });
     return result;
   }, [employees, schedules, selectedDateObj]);
 
@@ -347,6 +378,7 @@ const CurrentExpectedPayroll: React.FC = () => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-3 py-2 text-left text-sm font-semibold text-gray-700 border-b">직원이름</th>
+              <th className="px-3 py-2 text-left text-sm font-semibold text-gray-700 border-b">지점</th>
               <th className="px-3 py-2 text-left text-sm font-semibold text-gray-700 border-b">고용형태</th>
               <th className="px-3 py-2 text-right text-sm font-semibold text-gray-700 border-b">총 근무시간</th>
               <th className="px-3 py-2 text-right text-sm font-semibold text-gray-700 border-b">시급/월급</th>
@@ -358,17 +390,18 @@ const CurrentExpectedPayroll: React.FC = () => {
           <tbody>
             {loading && (
               <tr>
-                <td className="px-3 py-3 text-center text-sm text-gray-500" colSpan={7}>불러오는 중...</td>
+                <td className="px-3 py-3 text-center text-sm text-gray-500" colSpan={8}>불러오는 중...</td>
               </tr>
             )}
             {!loading && rows.length === 0 && (
               <tr>
-                <td className="px-3 py-3 text-center text-sm text-gray-500" colSpan={7}>데이터가 없습니다.</td>
+                <td className="px-3 py-3 text-center text-sm text-gray-500" colSpan={8}>데이터가 없습니다.</td>
               </tr>
             )}
-            {!loading && rows.map((r) => (
-              <tr key={r.employeeId} className="odd:bg-white even:bg-gray-50">
+            {!loading && rows.map((r, index) => (
+              <tr key={`${r.employeeId}-${r.branchId}-${index}`} className="odd:bg-white even:bg-gray-50">
                 <td className="px-3 py-2 text-sm text-gray-900 border-b">{r.employeeName}</td>
+                <td className="px-3 py-2 text-sm text-gray-700 border-b">{r.branchName}</td>
                 <td className="px-3 py-2 text-sm text-gray-700 border-b">{r.employmentType}</td>
                 <td className="px-3 py-2 text-sm text-right text-gray-700 border-b">{r.totalHours.toFixed(2)}</td>
                 <td className="px-3 py-2 text-sm text-right text-gray-700 border-b">{r.salaryLabel}</td>
