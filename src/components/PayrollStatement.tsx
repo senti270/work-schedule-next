@@ -454,7 +454,7 @@ const PayrollStatement: React.FC = () => {
              
              // 모든 요소의 인라인 스타일도 제거
              const allElements = clonedDoc.querySelectorAll('*');
-             allElements.forEach(el => {
+             (allElements as NodeListOf<HTMLElement>).forEach(el => {
                if (el.style) {
                  el.style.color = '#000000';
                  el.style.backgroundColor = '#ffffff';
