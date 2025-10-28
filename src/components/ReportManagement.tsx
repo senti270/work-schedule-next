@@ -174,13 +174,14 @@ export default function ReportManagement() {
       );
     }
 
-    // 직원별 데이터 집계
-    const employeeMap = new Map<string, ReportData>();
+    // 직원+지점 별 데이터 집계 (동일 직원이 여러 지점에서 근무 시 지점별로 별도 행 생성)
+    const employeeBranchMap = new Map<string, ReportData>();
     
     filteredSchedules.forEach(schedule => {
-      const key = schedule.employeeId;
-      if (!employeeMap.has(key)) {
-        employeeMap.set(key, {
+      const branchId = schedule.branchId || 'N/A';
+      const key = `${schedule.employeeId}__${branchId}`;
+      if (!employeeBranchMap.has(key)) {
+        employeeBranchMap.set(key, {
           employeeName: schedule.employeeName,
           branchName: schedule.branchName,
           totalWorkDays: 0,
@@ -190,19 +191,23 @@ export default function ReportManagement() {
         });
       }
       
-      const data = employeeMap.get(key)!;
+      const data = employeeBranchMap.get(key)!;
       data.totalWorkDays += 1;
       data.totalWorkHours += schedule.totalHours;
       data.schedules.push(schedule);
     });
 
     // 평균 근무시간 계산
-    employeeMap.forEach(data => {
+    employeeBranchMap.forEach(data => {
       data.averageWorkHours = data.totalWorkDays > 0 ? data.totalWorkHours / data.totalWorkDays : 0;
     });
 
-    const reportDataArray = Array.from(employeeMap.values())
-      .sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'ko'));
+    const reportDataArray = Array.from(employeeBranchMap.values())
+      .sort((a, b) => {
+        const nameCompare = a.employeeName.localeCompare(b.employeeName, 'ko');
+        if (nameCompare !== 0) return nameCompare;
+        return (a.branchName || '').localeCompare(b.branchName || '', 'ko');
+      });
 
     setReportData(reportDataArray);
 
