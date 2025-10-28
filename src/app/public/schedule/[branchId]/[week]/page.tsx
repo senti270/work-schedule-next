@@ -239,15 +239,15 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       
       allSchedules.forEach(schedule => {
         // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
-        const scheduleDate = schedule.date.toISOString().split('T')[0];
-        const weekStartStr = weekStart.toISOString().split('T')[0];
-        const weekEndStr = weekEnd.toISOString().split('T')[0];
+        const scheduleDate = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
+        const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+        const weekEndStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
         
         if (schedule.branchId !== resolvedParams.branchId && 
             scheduleDate >= weekStartStr && 
             scheduleDate <= weekEndStr) {
           
-          const dateString = schedule.date.toISOString().split('T')[0];
+          const dateString = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
           const key = `${schedule.employeeId}-${dateString}`;
           
           if (!otherBranchSchedulesMap[key]) {
@@ -351,10 +351,10 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   };
 
   const getSchedulesForDate = (date: Date) => {
-    // 🔥 타임존 이슈 해결: 날짜만 비교 (시간 무시)
-    const targetDateString = date.toISOString().split('T')[0];
+    // 로컬 시간 기준으로 날짜만 비교 (타임존 문제 해결)
+    const targetDateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     return schedules.filter(schedule => {
-      const scheduleDateString = schedule.date.toISOString().split('T')[0];
+      const scheduleDateString = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
       return scheduleDateString === targetDateString;
     });
   };

@@ -263,7 +263,12 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        date: doc.data().date?.toDate() || new Date()
+        date: doc.data().date?.toDate ? (() => {
+          const firebaseDate = doc.data().date.toDate();
+          // 타임존 보정: UTC 시간을 로컬 시간으로 변환
+          const localDate = new Date(firebaseDate.getTime() + firebaseDate.getTimezoneOffset() * 60000);
+          return localDate;
+        })() : new Date()
       })) as Schedule[];
       
       setSchedules(schedulesData);

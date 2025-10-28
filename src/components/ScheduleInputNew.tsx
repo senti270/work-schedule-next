@@ -200,7 +200,12 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           employeeName: data.employeeName,
           branchId: data.branchId,
           branchName: data.branchName,
-          date: data.date?.toDate ? data.date.toDate() : new Date(),
+          date: data.date?.toDate ? (() => {
+            const firebaseDate = data.date.toDate();
+            // 타임존 보정: UTC 시간을 로컬 시간으로 변환
+            const localDate = new Date(firebaseDate.getTime() + firebaseDate.getTimezoneOffset() * 60000);
+            return localDate;
+          })() : new Date(),
           startTime: data.startTime,
           endTime: data.endTime,
           breakTime: data.breakTime,
@@ -217,15 +222,15 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       allSchedules.forEach(schedule => {
         // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
-        const scheduleDate = schedule.date.toISOString().split('T')[0];
-        const weekStartStr = weekDates[0].toISOString().split('T')[0];
-        const weekEndStr = weekDates[6].toISOString().split('T')[0];
+        const scheduleDate = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
+        const weekStartStr = `${weekDates[0].getFullYear()}-${String(weekDates[0].getMonth() + 1).padStart(2, '0')}-${String(weekDates[0].getDate()).padStart(2, '0')}`;
+        const weekEndStr = `${weekDates[6].getFullYear()}-${String(weekDates[6].getMonth() + 1).padStart(2, '0')}-${String(weekDates[6].getDate()).padStart(2, '0')}`;
         
         if (schedule.branchId !== selectedBranchId && 
             scheduleDate >= weekStartStr && 
             scheduleDate <= weekEndStr) {
           
-          const dateString = schedule.date.toISOString().split('T')[0];
+          const dateString = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
           const key = `${schedule.employeeId}-${dateString}`;
           
           if (!otherBranchSchedulesMap[key]) {
