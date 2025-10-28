@@ -44,7 +44,6 @@ interface WorkTimeComparison {
   breakTime?: number; // 휴게시간 (시간) - 기존 필드
   actualBreakTime?: number; // 실휴게시간 (시간) - 신규 필드 (편집 가능)
   actualWorkHours?: number; // 실근무시간 (actualTimeRange시간 - actualBreakTime)
-  posTimeRange?: string; // POS 원본 시간 범위 - 신규 필드
 }
 
 interface WorkTimeComparisonProps {
