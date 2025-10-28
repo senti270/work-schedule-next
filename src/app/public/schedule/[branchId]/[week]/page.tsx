@@ -711,23 +711,55 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                 // 각 시간대별로 근무 인원 계산
                 const hourlyData = timeSlots.map(hour => {
                   const dayData = weekDates.map(date => {
-                    const workingEmployees = schedules.filter(schedule => {
+                    // 해당 날짜의 모든 스케줄 필터링
+                    const daySchedules = schedules.filter(schedule => {
                       const scheduleDate = schedule.date;
                       const isSameDate = scheduleDate.toDateString() === date.toDateString();
-                      
-                      if (!isSameDate) return false;
-                      
-                      // 시작시간과 종료시간을 숫자로 변환
-                      const startHour = parseFloat(schedule.startTime.split(':')[0]) + 
-                                      (parseFloat(schedule.startTime.split(':')[1]) / 60);
-                      const endHour = parseFloat(schedule.endTime.split(':')[0]) + 
-                                    (parseFloat(schedule.endTime.split(':')[1]) / 60);
-                      
-                      // 해당 시간대에 근무하는지 확인
-                      return startHour <= hour && endHour > hour;
+                      return isSameDate;
                     });
                     
-                    return workingEmployees.length;
+                    // 해당 시간에 근무하는 직원들 찾기
+                    const workingEmployeeIds = new Set();
+                    
+                    daySchedules.forEach(schedule => {
+                      let isWorkingAtHour = false;
+                      
+                      if (schedule.originalInput) {
+                        // originalInput 파싱 (예: "10-13.5(0.5),19-22(0.5)")
+                        const timeRanges = schedule.originalInput.split(',').map(range => range.trim());
+                        isWorkingAtHour = timeRanges.some(range => {
+                          const match = range.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(?:\(([\d.]+)\))?$/);
+                          if (match) {
+                            const startHour = parseFloat(match[1]);
+                            const endHour = parseFloat(match[2]);
+                            return startHour <= hour && endHour > hour;
+                          }
+                          return false;
+                        });
+                      } else if (schedule.timeSlots && schedule.timeSlots.length > 0) {
+                        // timeSlots 처리
+                        isWorkingAtHour = schedule.timeSlots.some(slot => {
+                          const startHour = parseFloat(slot.startTime.split(':')[0]) + 
+                                          (parseFloat(slot.startTime.split(':')[1]) / 60);
+                          const endHour = parseFloat(slot.endTime.split(':')[0]) + 
+                                        (parseFloat(slot.endTime.split(':')[1]) / 60);
+                          return startHour <= hour && endHour > hour;
+                        });
+                      } else {
+                        // 단일 시간대 처리
+                        const startHour = parseFloat(schedule.startTime.split(':')[0]) + 
+                                        (parseFloat(schedule.startTime.split(':')[1]) / 60);
+                        const endHour = parseFloat(schedule.endTime.split(':')[0]) + 
+                                      (parseFloat(schedule.endTime.split(':')[1]) / 60);
+                        isWorkingAtHour = startHour <= hour && endHour > hour;
+                      }
+                      
+                      if (isWorkingAtHour) {
+                        workingEmployeeIds.add(schedule.employeeId);
+                      }
+                    });
+                    
+                    return workingEmployeeIds.size;
                   });
                   
                   return { hour, dayData };

@@ -1326,37 +1326,34 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           }
           
           try {
-            if (existingSchedule) {
-              // 수정
-              await updateDoc(doc(db, 'schedules', existingSchedule.id), {
-                startTime: parsed.startTime,
-                endTime: parsed.endTime,
-                breakTime: parsed.breakTime,
-                totalHours: totalHours,
-                timeSlots: parsed.timeSlots, // 여러 시간대 정보 저장
-                originalInput: inputValue, // 원본 입력 형식 저장
-                month: `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`, // YYYY-MM 형식
-                updatedAt: new Date()
-              });
-            } else {
-              // 추가
-              await addDoc(collection(db, 'schedules'), {
-                employeeId: employeeId,
-                employeeName: employee.name,
-                branchId: selectedBranchId,
-                branchName: branch.name,
-                date: date,
-                startTime: parsed.startTime,
-                endTime: parsed.endTime,
-                breakTime: parsed.breakTime,
-                totalHours: totalHours,
-                timeSlots: parsed.timeSlots, // 여러 시간대 정보 저장
-                originalInput: inputValue, // 원본 입력 형식 저장
-                month: `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`, // YYYY-MM 형식
-                createdAt: new Date(),
-                updatedAt: new Date()
-              });
+            // 같은 직원의 같은 날짜에 있는 모든 기존 스케줄 삭제 (중복 방지)
+            const existingSchedules = schedules.filter(schedule => 
+              schedule.employeeId === employeeId &&
+              schedule.branchId === selectedBranchId &&
+              schedule.date.toDateString() === date.toDateString()
+            );
+            
+            for (const existingSchedule of existingSchedules) {
+              await deleteDoc(doc(db, 'schedules', existingSchedule.id));
             }
+            
+            // 새 스케줄 추가
+            await addDoc(collection(db, 'schedules'), {
+              employeeId: employeeId,
+              employeeName: employee.name,
+              branchId: selectedBranchId,
+              branchName: branch.name,
+              date: date,
+              startTime: parsed.startTime,
+              endTime: parsed.endTime,
+              breakTime: parsed.breakTime,
+              totalHours: totalHours,
+              timeSlots: parsed.timeSlots, // 여러 시간대 정보 저장
+              originalInput: inputValue, // 원본 입력 형식 저장
+              month: `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`, // YYYY-MM 형식
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
             await loadSchedules();
           } catch (error) {
             console.error('스케줄 저장 오류:', error);
@@ -1744,16 +1741,30 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           }
         }
         
-        // 대상 셀에 스케줄 추가/수정
-        const existingTargetSchedule = getScheduleForDate(targetCell.employeeId, targetCell.date);
+        // 대상 셀의 모든 기존 스케줄 삭제 (중복 방지)
+        const existingTargetSchedules = schedules.filter(schedule => 
+          schedule.employeeId === targetCell.employeeId &&
+          schedule.branchId === selectedBranchId &&
+          schedule.date.toDateString() === targetCell.date.toDateString()
+        );
+        
+        for (const existingSchedule of existingTargetSchedules) {
+          await deleteDoc(doc(db, 'schedules', existingSchedule.id));
+        }
         
         // Firebase에 저장할 데이터 준비 (undefined 값 완전 제거)
         const scheduleData: Record<string, unknown> = {
+          employeeId: targetCell.employeeId,
+          employeeName: employee.name,
+          branchId: selectedBranchId,
+          branchName: branch.name,
+          date: targetCell.date,
           startTime: sourceSchedule.startTime,
           endTime: sourceSchedule.endTime,
           breakTime: sourceSchedule.breakTime,
           totalHours: sourceSchedule.totalHours,
           month: `${targetCell.date.getFullYear()}-${(targetCell.date.getMonth() + 1).toString().padStart(2, '0')}`, // YYYY-MM 형식
+          createdAt: new Date(),
           updatedAt: new Date()
         };
 
@@ -1767,21 +1778,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           scheduleData.originalInput = sourceSchedule.originalInput;
         }
 
-        if (existingTargetSchedule) {
-          // 수정
-          await updateDoc(doc(db, 'schedules', existingTargetSchedule.id), scheduleData);
-        } else {
-          // 추가
-          await addDoc(collection(db, 'schedules'), {
-            employeeId: targetCell.employeeId,
-            employeeName: employee.name,
-            branchId: selectedBranchId,
-            branchName: branch.name,
-            date: targetCell.date,
-            createdAt: new Date(),
-            ...scheduleData
-          });
-        }
+        // 새 스케줄 추가
+        await addDoc(collection(db, 'schedules'), scheduleData);
 
         // 복사 모드가 아니면 원본 삭제
         if (!isCopyMode) {
@@ -2308,19 +2306,34 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
               // 각 시간대별로 근무 인원 계산
               const hourlyData = timeSlots.map(hour => {
                 const dayData = weekDates.map(date => {
-                  const workingEmployees = schedules.filter(schedule => {
+                  // 해당 날짜의 모든 스케줄 필터링
+                  const daySchedules = schedules.filter(schedule => {
                     const scheduleDate = schedule.date;
                     const isSameDate = scheduleDate.toDateString() === date.toDateString();
+                    return isSameDate && schedule.branchId === selectedBranchId;
+                  });
+                  
+                  // 해당 시간에 근무하는 직원들 찾기
+                  const workingEmployeeIds = new Set();
+                  
+                  daySchedules.forEach(schedule => {
+                    let isWorkingAtHour = false;
                     
-                    if (!isSameDate) return false;
-                    
-                    // 지점 필터링 추가
-                    if (schedule.branchId !== selectedBranchId) return false;
-                    
-                    // timeSlots가 있으면 각 시간대별로 확인, 없으면 기존 방식
-                    if (schedule.timeSlots && schedule.timeSlots.length > 0) {
-                      // 여러 시간대 중 하나라도 해당 시간에 포함되는지 확인
-                      return schedule.timeSlots.some(slot => {
+                    if (schedule.originalInput) {
+                      // originalInput 파싱 (예: "10-13.5(0.5),19-22(0.5)")
+                      const timeRanges = schedule.originalInput.split(',').map(range => range.trim());
+                      isWorkingAtHour = timeRanges.some(range => {
+                        const match = range.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(?:\(([\d.]+)\))?$/);
+                        if (match) {
+                          const startHour = parseFloat(match[1]);
+                          const endHour = parseFloat(match[2]);
+                          return startHour <= hour && endHour > hour;
+                        }
+                        return false;
+                      });
+                    } else if (schedule.timeSlots && schedule.timeSlots.length > 0) {
+                      // timeSlots 처리
+                      isWorkingAtHour = schedule.timeSlots.some(slot => {
                         const startHour = parseFloat(slot.startTime.split(':')[0]) + 
                                         (parseFloat(slot.startTime.split(':')[1]) / 60);
                         const endHour = parseFloat(slot.endTime.split(':')[0]) + 
@@ -2328,16 +2341,20 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                         return startHour <= hour && endHour > hour;
                       });
                     } else {
-                      // 단일 시간대인 경우 (기존 로직)
+                      // 단일 시간대 처리
                       const startHour = parseFloat(schedule.startTime.split(':')[0]) + 
                                       (parseFloat(schedule.startTime.split(':')[1]) / 60);
                       const endHour = parseFloat(schedule.endTime.split(':')[0]) + 
                                     (parseFloat(schedule.endTime.split(':')[1]) / 60);
-                      return startHour <= hour && endHour > hour;
+                      isWorkingAtHour = startHour <= hour && endHour > hour;
+                    }
+                    
+                    if (isWorkingAtHour) {
+                      workingEmployeeIds.add(schedule.employeeId);
                     }
                   });
                   
-                  return workingEmployees.length;
+                  return workingEmployeeIds.size;
                 });
                 
                 return { hour, dayData };
