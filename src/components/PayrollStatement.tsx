@@ -932,7 +932,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   <div className="text-sm text-gray-700 space-y-1">
                     {selectedPayroll.calculations.map((calc, idx) => (
                       <div key={idx} className="border border-gray-200 p-2">
-                        <div className="font-medium">{(calc.branches && calc.branches[0]?.branchName) || '-'} 기준</div>
+                        <div className="font-medium">{(((calc as any).branchName) || (((calc as any).branches && (calc as any).branches[0]?.branchName)) || '-')} 기준</div>
                         {(calc.probationHours || 0) + (calc.regularHours || 0) > 0 && (
                           <div>
                             수습/정규 시간: {(calc.probationHours || 0).toFixed ? calc.probationHours!.toFixed(2) : (calc.probationHours || 0)}h / {(calc.regularHours || 0).toFixed ? calc.regularHours!.toFixed(2) : (calc.regularHours || 0)}h
