@@ -532,7 +532,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const dateRange = `${formatDate(weekStart)}-${formatDate(weekEnd)}`;
 
       // 공유 URL 생성
-      const weekString = currentWeekStart.toISOString().split('T')[0];
+      const weekString = `${currentWeekStart.getFullYear()}-${String(currentWeekStart.getMonth() + 1).padStart(2, '0')}-${String(currentWeekStart.getDate()).padStart(2, '0')}`;
       const shareUrl = `${window.location.origin}/public/schedule/${selectedBranchId || 'all'}/${weekString}`;
 
       // 포맷된 텍스트 생성
@@ -582,7 +582,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const dateRange = `${formatDate(weekStart)}-${formatDate(weekEnd)}`;
 
       // 공유 URL 생성
-      const weekString = currentWeekStart.toISOString().split('T')[0];
+      const weekString = `${currentWeekStart.getFullYear()}-${String(currentWeekStart.getMonth() + 1).padStart(2, '0')}-${String(currentWeekStart.getDate()).padStart(2, '0')}`;
       const shareUrl = `${window.location.origin}/public/schedule/${selectedBranchId || 'all'}/${weekString}`;
 
       // 포맷된 텍스트 생성
@@ -840,10 +840,10 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 해당 날짜의 스케줄 가져오기 (지점별 필터링 포함)
   const getScheduleForDate = (employeeId: string, date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     return schedules.find(schedule => 
       schedule.employeeId === employeeId &&
-      schedule.date.toISOString().split('T')[0] === dateString &&
+      `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}` === dateString &&
       schedule.branchId === selectedBranchId // 지점별 필터링 추가
     );
   };
@@ -887,12 +887,12 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 시간 겹침 검증 함수
   const checkTimeOverlap = (employeeId: string, date: Date, startTime: string, endTime: string, excludeScheduleId?: string) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     
     // 해당 직원의 같은 날짜 모든 스케줄 확인 (모든 지점 포함)
     const employeeSchedules = schedules.filter(schedule => 
       schedule.employeeId === employeeId &&
-      schedule.date.toISOString().split('T')[0] === dateString &&
+      `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}` === dateString &&
       (excludeScheduleId ? schedule.id !== excludeScheduleId : true)
     );
 
@@ -1106,7 +1106,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       return;
     }
     
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     setEditingCell({ employeeId, date: dateString });
     
     // 기존 스케줄이 있으면 입력 필드에 표시
@@ -1150,7 +1150,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 셀 편집 완료
   const handleCellSave = async (employeeId: string, date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const inputKey = `${employeeId}-${dateString}`;
     const inputValue = scheduleInputs[inputKey] || '';
     
@@ -1245,7 +1245,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 셀 편집 취소
   const handleCellCancel = (employeeId: string, date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const inputKey = `${employeeId}-${dateString}`;
     
     setEditingCell(null);
@@ -1879,7 +1879,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                     </div>
                   </td>
                   {weekDates.map((date, index) => {
-                    const dateString = date.toISOString().split('T')[0];
+                    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                     const inputKey = `${employee.id}-${dateString}`;
                     const isEditing = editingCell?.employeeId === employee.id && editingCell?.date === dateString;
                     const existingSchedule = getScheduleForDate(employee.id, date);
