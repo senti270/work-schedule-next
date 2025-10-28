@@ -209,6 +209,21 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         const weekStartStr = `${weekDates[0].getFullYear()}-${String(weekDates[0].getMonth() + 1).padStart(2, '0')}-${String(weekDates[0].getDate()).padStart(2, '0')}`;
         const weekEndStr = `${weekDates[6].getFullYear()}-${String(weekDates[6].getMonth() + 1).padStart(2, '0')}-${String(weekDates[6].getDate()).padStart(2, '0')}`;
         
+        // 🔥 끄엉 월요일 디버깅
+        if (schedule.employeeName === '끄엉' && scheduleDate === weekStartStr) {
+          console.log('🔥 끄엉 월요일 스케줄 발견:', {
+            id: schedule.id,
+            branchName: schedule.branchName,
+            branchId: schedule.branchId,
+            date: scheduleDate,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+            breakTime: schedule.breakTime,
+            originalInput: schedule.originalInput,
+            createdAt: schedule.createdAt.toISOString()
+          });
+        }
+        
         if (schedule.branchId !== selectedBranchId && 
             scheduleDate >= weekStartStr && 
             scheduleDate <= weekEndStr) {
@@ -242,17 +257,37 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             `${formatTime(schedule.startTime)}-${formatTime(schedule.endTime)}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
           
           
+          // 🔥 끄엉 월요일 타지점 스케줄 디버깅
+          if (schedule.employeeName === '끄엉' && scheduleDate === weekStartStr) {
+            console.log('🔥 끄엉 월요일 타지점 스케줄 처리:', {
+              key,
+              branchName: getBranchShortName(schedule.branchName),
+              scheduleText,
+              existingSchedules: otherBranchSchedulesMap[key] || []
+            });
+          }
+          
           // 🔥 같은 지점의 스케줄이 이미 있는지 확인
           const existingBranchSchedule = otherBranchSchedulesMap[key].find(item => 
             item.branchName === getBranchShortName(schedule.branchName)
           );
           
           if (existingBranchSchedule) {
-            // 같은 지점에 이미 스케줄이 있으면 시간을 합쳐서 표시
-            existingBranchSchedule.schedule = `${existingBranchSchedule.schedule}, ${scheduleText}`;
+            // 같은 지점에 이미 스케줄이 있으면 중복 체크 후 합치기
+            const existingSchedules = existingBranchSchedule.schedule.split(', ').map(s => s.trim());
+            if (!existingSchedules.includes(scheduleText.trim())) {
+              existingBranchSchedule.schedule = `${existingBranchSchedule.schedule}, ${scheduleText}`;
+              console.log('🔥 스케줄 추가됨:', existingBranchSchedule.schedule);
+            } else {
+              console.log('🔥 중복 스케줄 무시됨:', scheduleText);
+            }
           } else {
             // 새로운 지점 스케줄 추가
             otherBranchSchedulesMap[key].push({
+              branchName: getBranchShortName(schedule.branchName),
+              schedule: scheduleText
+            });
+            console.log('🔥 새 지점 스케줄 추가됨:', {
               branchName: getBranchShortName(schedule.branchName),
               schedule: scheduleText
             });
@@ -326,6 +361,63 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             })));
           }
         });
+
+        // 10/31 특별 확인
+        const oct31Schedules = parkSchedules.filter(schedule => {
+          const dateStr = schedule.date.toISOString().split('T')[0];
+          return dateStr === '2025-10-31';
+        });
+
+        console.log(`🔥 박일심 10/31 스케줄 (${oct31Schedules.length}개):`, oct31Schedules.map(s => ({
+          id: s.id,
+          branchName: s.branchName,
+          branchId: s.branchId,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          breakTime: s.breakTime,
+          originalInput: s.originalInput,
+          createdAt: s.createdAt.toISOString()
+        })));
+
+        // 중복 스케줄 삭제 함수
+        window.deleteDuplicateSchedules = async () => {
+          try {
+            console.log('🔥 중복 스케줄 삭제 시작...');
+            
+            for (const [date, schedules] of Object.entries(dateGroups)) {
+              if (schedules.length > 1) {
+                console.log(`\n🔥 ${date} 중복 스케줄 처리 (${schedules.length}개):`);
+                
+                // 생성일 기준으로 정렬 (오래된 것부터)
+                const sortedSchedules = schedules.sort((a, b) => 
+                  a.createdAt.getTime() - b.createdAt.getTime()
+                );
+                
+                // 가장 오래된 것만 남기고 나머지 삭제
+                const keepSchedule = sortedSchedules[0];
+                const deleteSchedules = sortedSchedules.slice(1);
+                
+                console.log(`  유지할 스케줄: ${keepSchedule.id} (${keepSchedule.createdAt.toISOString()})`);
+                
+                for (const schedule of deleteSchedules) {
+                  console.log(`  삭제할 스케줄: ${schedule.id} (${schedule.createdAt.toISOString()})`);
+                  await deleteDoc(doc(db, 'schedules', schedule.id));
+                  console.log(`  ✅ 삭제 완료: ${schedule.id}`);
+                }
+              }
+            }
+            
+            console.log('\n🔥 중복 스케줄 삭제 완료!');
+            alert('중복 스케줄 삭제가 완료되었습니다. 페이지를 새로고침해주세요.');
+            
+            // 스케줄 다시 로드
+            await loadSchedules();
+            
+          } catch (error) {
+            console.error('오류 발생:', error);
+            alert('중복 스케줄 삭제 중 오류가 발생했습니다.');
+          }
+        };
       }
       
       setSchedules(schedulesData);

@@ -214,25 +214,13 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       
       // 모든 스케줄 조회
       const schedulesSnapshot = await getDocs(collection(db, 'schedules'));
-      const allSchedules = schedulesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          employeeId: data.employeeId,
-          employeeName: data.employeeName,
-          branchId: data.branchId,
-          branchName: data.branchName,
-          date: data.date?.toDate ? data.date.toDate() : new Date(),
-          startTime: data.startTime,
-          endTime: data.endTime,
-          breakTime: data.breakTime,
-          totalHours: data.totalHours,
-          timeSlots: data.timeSlots,
-          originalInput: data.originalInput,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
-        };
-      });
+      const allSchedules = schedulesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+        date: doc.data().date?.toDate() || new Date()
+      })) as Schedule[];
       
       // 현재 주간의 다른 지점 스케줄 필터링 (날짜별로 그룹화)
       const otherBranchSchedulesMap: {[key: string]: {branchName: string, schedule: string}[]} = {};
@@ -250,6 +238,9 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
           const dateString = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
           const key = `${schedule.employeeId}-${dateString}`;
           
+          // 공유화면에서는 employees 데이터가 없으므로 이 체크를 제거
+          // 대신 현재 지점의 스케줄이 있는 직원만 타지점 스케줄에 표시
+          
           if (!otherBranchSchedulesMap[key]) {
             otherBranchSchedulesMap[key] = [];
           }
@@ -266,35 +257,45 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
             }
           };
           
-          // originalInput이 있으면 우선 사용, 없으면 timeSlots 또는 기본 형식 사용
-          let scheduleText = '';
+          // 입력화면과 동일한 스케줄 포맷팅 로직
+          const scheduleText = schedule.originalInput || 
+            `${formatTime(schedule.startTime)}-${formatTime(schedule.endTime)}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
           
-          if (schedule.originalInput) {
-            scheduleText = schedule.originalInput;
-          } else if (schedule.timeSlots && schedule.timeSlots.length > 0) {
-            const timeToDecimal = (timeStr: string) => {
-              const [hours, minutes] = timeStr.split(':').map(Number);
-              if (minutes === 0) return hours.toString();
-              const decimalMinutes = minutes / 60;
-              if (decimalMinutes === 0.5) return `${hours}.5`;
-              if (decimalMinutes === 0.25) return `${hours}.25`;
-              if (decimalMinutes === 0.75) return `${hours}.75`;
-              return (hours + decimalMinutes).toString();
-            };
-            
-            scheduleText = schedule.timeSlots.map((slot: {startTime: string; endTime: string; breakTime: number}) => {
-              const start = timeToDecimal(slot.startTime);
-              const end = timeToDecimal(slot.endTime);
-              return `${start}-${end}${slot.breakTime > 0 ? `(${slot.breakTime})` : ''}`;
-            }).join(', ');
-          } else {
-            scheduleText = `${formatTime(schedule.startTime)}-${formatTime(schedule.endTime)}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
+          // 🔥 박일심 10/31 디버깅
+          if (schedule.employeeName === '박일심' && scheduleDate === '2025-10-31') {
+            console.log('🔥 공유화면 박일심 10/31 타지점 스케줄:', {
+              key,
+              branchName: getBranchShortName(schedule.branchName),
+              scheduleText,
+              existingSchedules: otherBranchSchedulesMap[key] || []
+            });
           }
           
-          otherBranchSchedulesMap[key].push({
-            branchName: getBranchShortName(schedule.branchName),
-            schedule: scheduleText
-          });
+          // 🔥 같은 지점의 스케줄이 이미 있는지 확인
+          const existingBranchSchedule = otherBranchSchedulesMap[key].find(item => 
+            item.branchName === getBranchShortName(schedule.branchName)
+          );
+          
+          if (existingBranchSchedule) {
+            // 같은 지점에 이미 스케줄이 있으면 중복 체크 후 합치기
+            const existingSchedules = existingBranchSchedule.schedule.split(', ').map(s => s.trim());
+            if (!existingSchedules.includes(scheduleText.trim())) {
+              existingBranchSchedule.schedule = `${existingBranchSchedule.schedule}, ${scheduleText}`;
+              console.log('🔥 공유화면 스케줄 추가됨:', existingBranchSchedule.schedule);
+            } else {
+              console.log('🔥 공유화면 중복 스케줄 무시됨:', scheduleText);
+            }
+          } else {
+            // 새로운 지점 스케줄 추가
+            otherBranchSchedulesMap[key].push({
+              branchName: getBranchShortName(schedule.branchName),
+              schedule: scheduleText
+            });
+            console.log('🔥 공유화면 새 지점 스케줄 추가됨:', {
+              branchName: getBranchShortName(schedule.branchName),
+              schedule: scheduleText
+            });
+          }
         }
       });
       
@@ -528,16 +529,19 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                       return (
                         <td key={dayIndex} className="px-2 py-2 text-center align-top">
                           <div className="space-y-1">
-                            {daySchedules.length > 0 ? (
-                              (() => {
-                                // 🔥 같은 직원의 같은 날짜에 여러 스케줄이 있으면 하나로 합쳐서 표시
+                            {(() => {
+                              const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                              // daySchedules가 없을 때도 다른 지점 스케줄을 보여주기 위해 employeeId 확보
+                              const fallbackSchedule = schedules.find(s => s.employeeName === summary.employeeName);
+                              const employeeIdForKey = (daySchedules[0]?.employeeId) || fallbackSchedule?.employeeId;
+                              const otherBranchKey = employeeIdForKey ? `${employeeIdForKey}-${dateString}` : '';
+                              const otherBranchSchedule = otherBranchKey ? otherBranchSchedules[otherBranchKey] : undefined;
+
+                              if (daySchedules.length > 0) {
+                                // 같은 직원의 같은 날짜에 여러 스케줄이 있으면 하나로 합쳐서 표시
                                 const firstSchedule = daySchedules[0];
                                 const scheduleInfo = formatScheduleDisplay(firstSchedule);
-                                const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                                const otherBranchKey = `${firstSchedule.employeeId}-${dateString}`;
-                                const otherBranchSchedule = otherBranchSchedules[otherBranchKey];
-                                
-                                // 여러 스케줄이 있으면 시간을 합쳐서 표시
+
                                 let combinedTime = scheduleInfo.time;
                                 if (daySchedules.length > 1) {
                                   const allTimes = daySchedules.map(schedule => {
@@ -546,14 +550,12 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                                   });
                                   combinedTime = allTimes.join(', ');
                                 }
-                                
+
                                 return (
                                   <div className="flex flex-col items-center">
                                     <div className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 whitespace-nowrap w-full">
                                       <span className="font-medium">{scheduleInfo.name}</span> {combinedTime}
                                     </div>
-                                    
-                                    {/* 다른 지점 스케줄 정보 */}
                                     {otherBranchSchedule && otherBranchSchedule.length > 0 && (
                                       <div className="text-xs text-gray-600 space-y-0.5 mt-1 w-full">
                                         {otherBranchSchedule.map((item, idx) => (
@@ -565,10 +567,24 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                                     )}
                                   </div>
                                 );
-                              })()
-                            ) : (
-                              <div className="text-xs text-gray-400">-</div>
-                            )}
+                              }
+
+                              // 현재 지점 스케줄이 없어도 타지점 스케줄은 노출
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className="text-xs text-gray-400">-</div>
+                                  {otherBranchSchedule && otherBranchSchedule.length > 0 && (
+                                    <div className="text-xs text-gray-600 space-y-0.5 mt-1 w-full">
+                                      {otherBranchSchedule.map((item, idx) => (
+                                        <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
+                                          <span className="font-medium">{item.branchName}:</span> {item.schedule}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
                       );
