@@ -111,7 +111,9 @@ const CurrentExpectedPayroll: React.FC = () => {
   const selectedMonthKey = useMemo(() => getMonthKey(selectedDateObj), [selectedDateObj]);
 
   useEffect(() => {
+    console.log('🔥 CurrentExpectedPayroll 컴포넌트 마운트됨');
     const load = async () => {
+      console.log('🔥 데이터 로딩 시작');
       setLoading(true);
       try {
         const empSnap = await getDocs(collection(db, 'employees'));

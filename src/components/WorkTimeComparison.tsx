@@ -889,15 +889,38 @@ export default function WorkTimeComparison({
       
       const scheduleOnlyComparisons: WorkTimeComparison[] = [];
       
-      schedules
+      // 지점별로 그룹화하여 표시
+      const branchGroups = schedules
         .filter(schedule => schedule.employeeId === selectedEmployeeId)
-        .forEach(schedule => {
+        .reduce((acc, schedule) => {
+          const branchId = schedule.branchId || 'N/A';
+          const branchName = schedule.branchName || '합산';
+          if (!acc[branchId]) {
+            acc[branchId] = {
+              branchId,
+              branchName,
+              schedules: []
+            };
+          }
+          acc[branchId].schedules.push(schedule);
+          return acc;
+        }, {} as Record<string, { branchId: string; branchName: string; schedules: any[] }>);
+
+      console.log('🔥 지점별 그룹화 결과:', Object.keys(branchGroups).map(branchId => ({
+        branchId,
+        branchName: branchGroups[branchId].branchName,
+        scheduleCount: branchGroups[branchId].schedules.length
+      })));
+
+      // 각 지점별로 비교 결과 생성
+      Object.values(branchGroups).forEach(({ branchId, branchName, schedules: branchSchedules }) => {
+        branchSchedules.forEach(schedule => {
           const scheduleDate = toLocalDateString(schedule.date);
           const breakTime = parseFloat(schedule.breakTime) || 0;
           const actualBreakTime = breakTime; // 최초 스케줄 휴게시간으로 설정
           
           scheduleOnlyComparisons.push({
-            employeeName: schedule.employeeName,
+            employeeName: `${schedule.employeeName} (${branchName})`,
             date: scheduleDate,
             scheduledHours: schedule.totalHours,
             actualHours: 0, // 실제근무 데이터 없음
@@ -911,6 +934,7 @@ export default function WorkTimeComparison({
             actualWorkHours: 0
           });
         });
+      });
       
       // console.log('스케줄만으로 생성된 비교 결과:', scheduleOnlyComparisons);
       setComparisonResults(scheduleOnlyComparisons);
@@ -937,42 +961,64 @@ export default function WorkTimeComparison({
     const comparisons: WorkTimeComparison[] = [];
     const processedDates = new Set<string>();
 
-    // 1. 스케줄이 있는 경우: 스케줄과 실제근무 데이터 비교 (선택된 직원만)
-    schedules
+    // 1. 스케줄이 있는 경우: 스케줄과 실제근무 데이터 비교 (선택된 직원만, 지점별로 분리)
+    const branchGroups = schedules
       .filter(schedule => schedule.employeeId === selectedEmployeeId)
-      .forEach(schedule => {
+      .reduce((acc, schedule) => {
+        const branchId = schedule.branchId || 'N/A';
+        const branchName = schedule.branchName || '합산';
+        if (!acc[branchId]) {
+          acc[branchId] = {
+            branchId,
+            branchName,
+            schedules: []
+          };
+        }
+        acc[branchId].schedules.push(schedule);
+        return acc;
+      }, {} as Record<string, { branchId: string; branchName: string; schedules: any[] }>);
+
+    console.log('🔥 실제근무 데이터가 있는 경우 지점별 그룹화 결과:', Object.keys(branchGroups).map(branchId => ({
+      branchId,
+      branchName: branchGroups[branchId].branchName,
+      scheduleCount: branchGroups[branchId].schedules.length
+    })));
+
+    // 각 지점별로 비교 결과 생성
+    Object.values(branchGroups).forEach(({ branchId, branchName, schedules: branchSchedules }) => {
+      branchSchedules.forEach(schedule => {
         const scheduleDate = schedule.date.toISOString().split('T')[0];
         const actualRecord = actualRecords.find(record => record.date === scheduleDate);
 
-      console.log(`스케줄: ${schedule.employeeName} ${scheduleDate}`, schedule);
-      console.log(`실제근무 데이터 찾기:`, actualRecord);
+        console.log(`스케줄: ${schedule.employeeName} ${scheduleDate} (${branchName})`, schedule);
+        console.log(`실제근무 데이터 찾기:`, actualRecord);
 
-      if (actualRecord) {
-        // 휴게시간과 실근무시간 계산
-        const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
-        const actualBreakTime = breakTime; // 최초 스케줄 휴게시간 가져오기
-        console.log(`🔥 스케줄과 실제근무 매칭: ${scheduleDate}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}`);
-        
-        // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
-        const actualTimeRange = actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime);
-        const actualTimeRangeHours = parseTimeRangeToHours(actualTimeRange);
-        const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
-        
-        // 차이 계산: 실제순근무시간 - 스케줄시간 (많이 하면 +, 적게 하면 -)
-        const difference = actualWorkHours - schedule.totalHours;
-        let status: 'time_match' | 'review_required' | 'review_completed' = 'time_match';
-        
-        // 10분(0.17시간) 이상 차이나면 확인필요, 이내면 시간일치
-        if (Math.abs(difference) >= 0.17) {
-          status = 'review_required';
-        } else {
-          status = 'time_match';
-        }
-        
-        comparisons.push({
-          employeeName: schedule.employeeName,
-          date: scheduleDate,
-          scheduledHours: schedule.totalHours,
+        if (actualRecord) {
+          // 휴게시간과 실근무시간 계산
+          const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
+          const actualBreakTime = breakTime; // 최초 스케줄 휴게시간 가져오기
+          console.log(`🔥 스케줄과 실제근무 매칭: ${scheduleDate}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}`);
+          
+          // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
+          const actualTimeRange = actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime);
+          const actualTimeRangeHours = parseTimeRangeToHours(actualTimeRange);
+          const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
+          
+          // 차이 계산: 실제순근무시간 - 스케줄시간 (많이 하면 +, 적게 하면 -)
+          const difference = actualWorkHours - schedule.totalHours;
+          let status: 'time_match' | 'review_required' | 'review_completed' = 'time_match';
+          
+          // 10분(0.17시간) 이상 차이나면 확인필요, 이내면 시간일치
+          if (Math.abs(difference) >= 0.17) {
+            status = 'review_required';
+          } else {
+            status = 'time_match';
+          }
+          
+          comparisons.push({
+            employeeName: `${schedule.employeeName} (${branchName})`,
+            date: scheduleDate,
+            scheduledHours: schedule.totalHours,
           actualHours: actualRecord.totalHours,
           difference,
           status,
@@ -991,11 +1037,11 @@ export default function WorkTimeComparison({
         // 휴게시간과 실근무시간 계산 (실제근무 데이터가 없는 경우)
         const breakTime = parseFloat(schedule.breakTime) || 0;
         const actualBreakTime = breakTime; // 최초 스케줄 휴게시간 가져오기
-        console.log(`🔥 스케줄만 있음: ${scheduleDate}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}`);
+        console.log(`🔥 스케줄만 있음: ${scheduleDate} (${branchName}), breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}`);
         const actualWorkHours = 0; // 실제근무 데이터가 없으므로 0
         
         comparisons.push({
-          employeeName: schedule.employeeName,
+          employeeName: `${schedule.employeeName} (${branchName})`,
           date: scheduleDate,
           scheduledHours: schedule.totalHours,
           actualHours: 0,
@@ -1029,7 +1075,7 @@ export default function WorkTimeComparison({
         const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
         
         comparisons.push({
-          employeeName: employeeName,
+          employeeName: `${employeeName} (스케줄없음)`,
           date: actualRecord.date,
           scheduledHours: 0,
           actualHours: actualRecord.totalHours,
@@ -1049,7 +1095,7 @@ export default function WorkTimeComparison({
     // 날짜순으로 정렬
     comparisons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
-    console.log('비교 결과:', comparisons);
+    console.log('🔥 최종 비교 결과 (지점별 분리):', comparisons);
     setComparisonResults(comparisons);
     
     // 비교결과를 DB에 저장
@@ -1070,7 +1116,7 @@ export default function WorkTimeComparison({
           
           // 근로소득자인 경우에만 연장근무시간 계산
           if (employeeData.type === '근로소득자' || employeeData.employmentType === '근로소득') {
-            // 이번주 총 실제 근무시간 계산
+            // 이번주 총 실제 근무시간 계산 (지점별 분리된 결과에서)
             const totalActualHours = comparisons.reduce((sum, comp) => sum + comp.actualHours, 0);
             
             // 이번주 시작일 계산 (월요일)
