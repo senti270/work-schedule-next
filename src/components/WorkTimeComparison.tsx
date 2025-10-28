@@ -1154,7 +1154,7 @@ export default function WorkTimeComparison({
     }
     
     // 자동 검토완료 변경 로직 제거 - 수동 버튼으로 변경
-  };
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
