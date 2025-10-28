@@ -29,6 +29,9 @@ interface Employee {
   isOnProbation?: boolean; // 현재 수습 중인지 여부
   // 지점 정보 (표시용)
   branchNames?: string[]; // 소속 지점명들
+  branchIds?: string[]; // 소속 지점 ID들
+  primaryBranchId?: string; // 대표지점 ID
+  primaryBranchName?: string; // 대표지점명 (표시용)
   // 메모
   memo?: string; // 직원 메모
   // 스케줄 노출 여부
@@ -172,6 +175,21 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     hideFromSchedule: false
   });
   const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+  const [primaryBranchId, setPrimaryBranchId] = useState<string>('');
+
+  // 지점 선택이 변경될 때 대표지점 자동 설정
+  useEffect(() => {
+    if (selectedBranches.length === 1) {
+      // 지점이 1개만 선택된 경우 자동으로 대표지점으로 설정
+      setPrimaryBranchId(selectedBranches[0]);
+    } else if (selectedBranches.length > 1 && !selectedBranches.includes(primaryBranchId)) {
+      // 여러 지점이 선택되었는데 현재 대표지점이 선택된 지점에 없는 경우 초기화
+      setPrimaryBranchId('');
+    } else if (selectedBranches.length === 0) {
+      // 지점이 선택되지 않은 경우 대표지점도 초기화
+      setPrimaryBranchId('');
+    }
+  }, [selectedBranches, primaryBranchId]);
 
   useEffect(() => {
     console.log('EmployeeManagement 컴포넌트가 마운트되었습니다.');
@@ -824,6 +842,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       alert('최소 하나의 지점을 선택해주세요.');
       return;
     }
+    if (selectedBranches.length > 1 && !primaryBranchId) {
+      alert('여러 지점이 선택된 경우 대표지점을 선택해주세요.');
+      return;
+    }
 
     try {
       if (editingEmployee) {
@@ -837,12 +859,17 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         const employeeRef = doc(db, 'employees', editingEmployee.id);
         console.log('문서 참조:', employeeRef);
         
+        // 대표지점 정보 추가
+        const primaryBranch = branches.find(b => b.id === primaryBranchId);
+        
         const updateData: Record<string, unknown> = {
           ...formData,
           email: formData.email || '',
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
           resignationDate: formData.resignationDate ? new Date(formData.resignationDate) : null,
           memo: formData.memo || '', // 메모 필드 추가
+          primaryBranchId: primaryBranchId || null,
+          primaryBranchName: primaryBranch?.name || null,
           updatedAt: new Date()
         };
         
@@ -867,6 +894,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         console.log('새 직원 추가 시도');
         console.log('formData:', formData);
         
+        // 대표지점 정보 추가
+        const primaryBranch = branches.find(b => b.id === primaryBranchId);
+        
         const employeeData: Record<string, unknown> = {
           name: formData.name,
           phone: formData.phone || '',
@@ -886,6 +916,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           memo: formData.memo || '',
           // 스케줄 노출 여부
           hideFromSchedule: formData.hideFromSchedule || false,
+          // 대표지점 정보
+          primaryBranchId: primaryBranchId || null,
+          primaryBranchName: primaryBranch?.name || null,
           createdAt: new Date(),
           updatedAt: new Date()
         };
@@ -934,6 +967,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         hideFromSchedule: false
       });
       setSelectedBranches([]);
+      setPrimaryBranchId('');
       setShowForm(false);
       setEditingEmployee(null);
       
@@ -983,9 +1017,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       
       setSelectedBranches(employeeBranchIds);
       console.log('직원의 지점 ID들:', employeeBranchIds);
+      
+      // 대표지점 설정
+      if (employee.primaryBranchId && employeeBranchIds.includes(employee.primaryBranchId)) {
+        setPrimaryBranchId(employee.primaryBranchId);
+      } else if (employeeBranchIds.length === 1) {
+        setPrimaryBranchId(employeeBranchIds[0]);
+      } else {
+        setPrimaryBranchId('');
+      }
     } catch (error) {
       console.error('직원 지점 정보 로드 중 오류:', error);
       setSelectedBranches([]);
+      setPrimaryBranchId('');
     }
     
     // 상태를 한 번에 업데이트
@@ -1095,8 +1139,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     // 지점 매니저인 경우 자신의 지점을 기본으로 선택
     if (isManager && userBranch) {
       setSelectedBranches([userBranch.id]);
+      setPrimaryBranchId(userBranch.id);
     } else {
       setSelectedBranches([]);
+      setPrimaryBranchId('');
     }
     
     setEditingEmployee(null);
@@ -1910,7 +1956,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         {employee.branchNames && employee.branchNames.length > 0 ? (
                           <div className="space-y-1">
                             {[...new Set(employee.branchNames)].map((branchName, index) => (
-                              <div key={index}>{branchName}</div>
+                              <div key={index} className={branchName === employee.primaryBranchName ? 'font-bold text-blue-600' : ''}>
+                                {branchName}
+                                {branchName === employee.primaryBranchName && (
+                                  <span className="ml-1 text-xs bg-blue-100 text-blue-800 px-1 rounded">대표</span>
+                                )}
+                              </div>
                             ))}
                           </div>
                         ) : '-'}
@@ -2082,6 +2133,34 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                               </p>
                             )}
                           </div>
+                          
+                          {/* 대표지점 선택 */}
+                          {selectedBranches.length > 1 && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                대표지점 선택 *
+                              </label>
+                              <select
+                                value={primaryBranchId}
+                                onChange={(e) => setPrimaryBranchId(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                              >
+                                <option value="">대표지점을 선택하세요</option>
+                                {selectedBranches.map(branchId => {
+                                  const branch = branches.find(b => b.id === branchId);
+                                  return branch ? (
+                                    <option key={branchId} value={branchId}>
+                                      {branch.name}
+                                    </option>
+                                  ) : null;
+                                })}
+                              </select>
+                              <p className="text-sm text-gray-500 mt-1">
+                                급여명세서와 재직증명서에 표시될 대표지점입니다.
+                              </p>
+                            </div>
+                          )}
                           
                           {/* 나머지 필드들 */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2447,6 +2526,34 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         )}
                       </div>
                       
+                      {/* 대표지점 선택 */}
+                      {selectedBranches.length > 1 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            대표지점 선택 *
+                          </label>
+                          <select
+                            value={primaryBranchId}
+                            onChange={(e) => setPrimaryBranchId(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                          >
+                            <option value="">대표지점을 선택하세요</option>
+                            {selectedBranches.map(branchId => {
+                              const branch = branches.find(b => b.id === branchId);
+                              return branch ? (
+                                <option key={branchId} value={branchId}>
+                                  {branch.name}
+                                </option>
+                              ) : null;
+                            })}
+                          </select>
+                          <p className="text-sm text-gray-500 mt-1">
+                            급여명세서와 재직증명서에 표시될 대표지점입니다.
+                          </p>
+                        </div>
+                      )}
+                      
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           주민등록번호
@@ -2700,6 +2807,34 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       </p>
                     )}
                   </div>
+                  
+                  {/* 대표지점 선택 */}
+                  {selectedBranches.length > 1 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        대표지점 선택 *
+                      </label>
+                      <select
+                        value={primaryBranchId}
+                        onChange={(e) => setPrimaryBranchId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="">대표지점을 선택하세요</option>
+                        {selectedBranches.map(branchId => {
+                          const branch = branches.find(b => b.id === branchId);
+                          return branch ? (
+                            <option key={branchId} value={branchId}>
+                              {branch.name}
+                            </option>
+                          ) : null;
+                        })}
+                      </select>
+                      <p className="text-sm text-gray-500 mt-1">
+                        급여명세서와 재직증명서에 표시될 대표지점입니다.
+                      </p>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
