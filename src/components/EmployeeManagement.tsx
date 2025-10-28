@@ -861,6 +861,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         
         // 대표지점 정보 추가
         const primaryBranch = branches.find(b => b.id === primaryBranchId);
+        console.log('branches 배열:', branches);
+        console.log('primaryBranchId로 찾은 지점:', primaryBranch);
         
         const updateData: Record<string, unknown> = {
           ...formData,
@@ -882,6 +884,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         }
         
         console.log('업데이트할 데이터:', updateData);
+        console.log('대표지점 ID:', primaryBranchId);
+        console.log('대표지점 이름:', primaryBranch?.name);
         
         await updateDoc(employeeRef, updateData);
         
@@ -896,6 +900,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         
         // 대표지점 정보 추가
         const primaryBranch = branches.find(b => b.id === primaryBranchId);
+        console.log('branches 배열:', branches);
+        console.log('primaryBranchId로 찾은 지점:', primaryBranch);
         
         const employeeData: Record<string, unknown> = {
           name: formData.name,
@@ -932,6 +938,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         }
         
         console.log('저장할 데이터:', employeeData);
+        console.log('대표지점 ID:', primaryBranchId);
+        console.log('대표지점 이름:', primaryBranch?.name);
         
         const docRef = await addDoc(collection(db, 'employees'), employeeData);
         console.log('새 직원이 추가되었습니다. ID:', docRef.id);
