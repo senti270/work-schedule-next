@@ -299,6 +299,15 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
       console.log('재직중인 직원:', allEmployees.length, '명');
       console.log('재직중인 직원 목록:', allEmployees.map(e => e.name));
       
+      // 조선아 직원이 재직중인 직원 목록에 있는지 확인
+      const choSunAh = allEmployees.find(e => e.name === '조선아');
+      if (choSunAh) {
+        console.log('조선아 직원 재직중 목록에 있음:', choSunAh);
+        console.log('조선아 직원의 employeeId:', choSunAh.id);
+      } else {
+        console.log('조선아 직원이 재직중인 직원 목록에 없음');
+      }
+      
       // 2. 계약 데이터 변환 (해당월에 유효한 계약만)
       const validContracts = contractsSnapshot.docs
         .map(doc => {
@@ -335,6 +344,15 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
         });
       
       console.log('해당월 유효한 계약:', validContracts.length, '건');
+      
+      // 조선아와 관련된 계약서 확인
+      const choSunAhContracts = validContracts.filter(contract => 
+        contract.employeeName === '조선아'
+      );
+      console.log('조선아 관련 계약서:', choSunAhContracts.length, '건');
+      if (choSunAhContracts.length > 0) {
+        console.log('조선아 계약서 상세:', choSunAhContracts);
+      }
       
       // 3. 메모리 JOIN: 유효한 계약이 있는 직원만 필터링하고 계약서 정보 병합
       const employeesWithContracts = allEmployees
