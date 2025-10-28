@@ -942,13 +942,13 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                         {((calc as any).weeklyHolidayPay || 0) > 0 && (
                           <div>주휴수당: {(((calc as any).weeklyHolidayPay || 0) as number).toLocaleString()}원 (시간 {(((calc as any).weeklyHolidayHours || 0) || 0)}h)</div>
                         )}
-                        {calc.deductions?.insuranceDetails && (
+                        {(((calc as any).deductions && typeof (calc as any).deductions === 'object' && (calc as any).deductions.insuranceDetails)) && (
                           <div className="text-gray-600">
-                            4대보험: 국민 {(calc.deductions.insuranceDetails.nationalPension || 0).toLocaleString()} / 건강 {(calc.deductions.insuranceDetails.healthInsurance || 0).toLocaleString()} / 장기요양 {(calc.deductions.insuranceDetails.longTermCare || 0).toLocaleString()} / 고용 {(calc.deductions.insuranceDetails.employmentInsurance || 0).toLocaleString()}
+                            4대보험: 국민 {((((calc as any).deductions.insuranceDetails.nationalPension || 0) as number).toLocaleString())} / 건강 {((((calc as any).deductions.insuranceDetails.healthInsurance || 0) as number).toLocaleString())} / 장기요양 {((((calc as any).deductions.insuranceDetails.longTermCare || 0) as number).toLocaleString())} / 고용 {((((calc as any).deductions.insuranceDetails.employmentInsurance || 0) as number).toLocaleString())}
                           </div>
                         )}
-                        {calc.deductions?.taxDetails && (
-                          <div className="text-gray-600">소득세 {(calc.deductions.taxDetails.incomeTax || 0).toLocaleString()} / 지방소득세 {(calc.deductions.taxDetails.localIncomeTax || 0).toLocaleString()}</div>
+                        {(((calc as any).deductions && typeof (calc as any).deductions === 'object' && (calc as any).deductions.taxDetails)) && (
+                          <div className="text-gray-600">소득세 {((((calc as any).deductions.taxDetails.incomeTax || 0) as number).toLocaleString())} / 지방소득세 {((((calc as any).deductions.taxDetails.localIncomeTax || 0) as number).toLocaleString())}</div>
                         )}
                       </div>
                     ))}
