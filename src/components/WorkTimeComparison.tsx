@@ -832,7 +832,7 @@ export default function WorkTimeComparison({
     return records;
   };
 
-  const compareWorkTimes = async () => {
+  async function compareWorkTimes() {
     console.log('🔥🔥🔥 compareWorkTimes 함수 호출됨');
     console.log('🔥🔥🔥 선택된 지점:', selectedBranchId);
     console.log('🔥🔥🔥 선택된 월:', selectedMonth);
