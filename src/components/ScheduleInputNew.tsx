@@ -192,52 +192,16 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       // 모든 스케줄 조회
       const schedulesSnapshot = await getDocs(collection(db, 'schedules'));
-      const allSchedules = schedulesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          employeeId: data.employeeId,
-          employeeName: data.employeeName,
-          branchId: data.branchId,
-          branchName: data.branchName,
-          date: data.date?.toDate ? (() => {
-            const firebaseDate = data.date.toDate();
-            // 타임존 보정: UTC 시간을 로컬 시간으로 변환
-            const localDate = new Date(firebaseDate.getTime() + firebaseDate.getTimezoneOffset() * 60000);
-            return localDate;
-          })() : new Date(),
-          startTime: data.startTime,
-          endTime: data.endTime,
-          breakTime: data.breakTime,
-          totalHours: data.totalHours,
-          timeSlots: data.timeSlots,
-          originalInput: data.originalInput,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
-        };
-      });
+      const allSchedules = schedulesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+        date: doc.data().date?.toDate() || new Date()
+      })) as Schedule[];
       
       // 현재 주간의 다른 지점 스케줄 필터링 (날짜별로 그룹화)
       const otherBranchSchedulesMap: {[key: string]: {branchName: string, schedule: string}[]} = {};
-      
-      // 🔥 디버깅: 끄엉의 11/2 스케줄 확인 (loadOtherBranchSchedules)
-      const kkeueongSchedules = allSchedules.filter(schedule => 
-        schedule.employeeName === '끄엉' && 
-        schedule.date.getFullYear() === 2025 && 
-        schedule.date.getMonth() === 10 && 
-        schedule.date.getDate() === 2
-      );
-      
-      if (kkeueongSchedules.length > 0) {
-        console.log('🔥 loadOtherBranchSchedules - 끄엉 11/2 전체 스케줄:', kkeueongSchedules.map(s => ({
-          id: s.id,
-          branchName: s.branchName,
-          branchId: s.branchId,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          originalInput: s.originalInput
-        })));
-      }
       
       allSchedules.forEach(schedule => {
         // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
@@ -277,17 +241,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           const scheduleText = schedule.originalInput || 
             `${formatTime(schedule.startTime)}-${formatTime(schedule.endTime)}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
           
-          // 🔥 디버깅: 끄엉의 11/2 타지점 스케줄 확인
-          if (schedule.employeeName === '끄엉' && scheduleDate === '2025-11-02') {
-            console.log('🔥 타지점 스케줄 추가:', {
-              employeeName: schedule.employeeName,
-              branchName: schedule.branchName,
-              branchId: schedule.branchId,
-              scheduleText,
-              key,
-              selectedBranchId
-            });
-          }
           
           // 🔥 같은 지점의 스케줄이 이미 있는지 확인
           const existingBranchSchedule = otherBranchSchedulesMap[key].find(item => 
@@ -337,24 +290,42 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         date: doc.data().date?.toDate() || new Date()
       })) as Schedule[];
       
-      // 🔥 디버깅: 끄엉의 11/2 송파점 스케줄 확인
-      const kkeueongSchedules = schedulesData.filter(schedule => 
-        schedule.employeeName === '끄엉' && 
-        schedule.date.getFullYear() === 2025 && 
-        schedule.date.getMonth() === 10 && 
-        schedule.date.getDate() === 2
+      // 🔥 디버깅: 박일심의 중복 스케줄 확인
+      const parkSchedules = schedulesData.filter(schedule => 
+        schedule.employeeName === '박일심'
       );
       
-      if (kkeueongSchedules.length > 0) {
-        console.log('🔥 끄엉 11/2 전체 스케줄:', kkeueongSchedules.map(s => ({
+      if (parkSchedules.length > 0) {
+        console.log('🔥 박일심 전체 스케줄:', parkSchedules.map(s => ({
           id: s.id,
           branchName: s.branchName,
           branchId: s.branchId,
+          date: s.date.toISOString().split('T')[0],
           startTime: s.startTime,
           endTime: s.endTime,
           originalInput: s.originalInput,
-          timeSlots: s.timeSlots
+          createdAt: s.createdAt.toISOString()
         })));
+        
+        // 같은 날짜에 중복 스케줄 찾기
+        const dateGroups = parkSchedules.reduce((acc, schedule) => {
+          const dateKey = schedule.date.toISOString().split('T')[0];
+          if (!acc[dateKey]) acc[dateKey] = [];
+          acc[dateKey].push(schedule);
+          return acc;
+        }, {} as {[key: string]: typeof parkSchedules});
+        
+        Object.entries(dateGroups).forEach(([date, schedules]) => {
+          if (schedules.length > 1) {
+            console.log(`🔥 박일심 ${date} 중복 스케줄:`, schedules.map(s => ({
+              id: s.id,
+              branchName: s.branchName,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              createdAt: s.createdAt.toISOString()
+            })));
+          }
+        });
       }
       
       setSchedules(schedulesData);
@@ -1494,12 +1465,12 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         return isMatch;
       });
 
+      // 이전주에 데이터가 없어도 현재주 데이터는 삭제하고 빈 상태로 만들기
       if (previousWeekSchedules.length === 0) {
-        alert('이전 주에 복사할 데이터가 없습니다.');
-        return;
+        console.log('이전 주에 복사할 데이터가 없습니다. 현재 주 데이터만 삭제합니다.');
       }
 
-      // 현재 주의 기존 스케줄 삭제 (해당 지점만)
+      // 현재 주의 기존 스케줄 삭제 (해당 지점만) - 이전주 데이터 유무와 관계없이 모든 현재주 데이터 삭제
       const currentWeekSchedules = schedules.filter(schedule => {
         const scheduleDate = schedule.date;
         const weekStart = new Date(currentWeekStart);
@@ -1512,16 +1483,22 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                scheduleDate <= weekEnd;
       });
 
-      // 기존 스케줄 삭제
+      console.log('현재 주 삭제할 스케줄:', currentWeekSchedules.map(s => ({
+        date: s.date.toDateString(),
+        schedule: `${s.startTime}-${s.endTime}(${s.breakTime})`
+      })));
+
+      // 기존 스케줄 삭제 (이전주 데이터 유무와 관계없이 모든 현재주 데이터 삭제)
       for (const schedule of currentWeekSchedules) {
         await deleteDoc(doc(db, 'schedules', schedule.id));
       }
 
-      // 이전 주 데이터를 현재 주로 복사
-      const weekDates = getWeekDates();
-      const branch = branches.find(b => b.id === selectedBranchId);
-      
-      for (const prevSchedule of previousWeekSchedules) {
+      // 이전 주 데이터를 현재 주로 복사 (데이터가 있을 때만)
+      if (previousWeekSchedules.length > 0) {
+        const weekDates = getWeekDates();
+        const branch = branches.find(b => b.id === selectedBranchId);
+        
+        for (const prevSchedule of previousWeekSchedules) {
         const prevDate = new Date(prevSchedule.date);
         const dayOfWeek = prevDate.getDay(); // 0=일요일, 1=월요일, ..., 6=토요일
         
@@ -1565,6 +1542,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         }
 
         await addDoc(collection(db, 'schedules'), scheduleData);
+        }
       }
 
       // 스케줄 다시 로드
