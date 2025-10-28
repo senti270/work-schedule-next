@@ -1,6 +1,22 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
 
+interface Schedule {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  branchId: string;
+  branchName: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  breakTime: string;
+  totalHours: number;
+  originalInput?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 const firebaseConfig = {
   apiKey: "AIzaSyBvOzQqJgQZJgQZJgQZJgQZJgQZJgQZJgQ",
   authDomain: "work-schedule-next.firebaseapp.com",
@@ -24,7 +40,7 @@ async function findDuplicateSchedules() {
       createdAt: doc.data().createdAt?.toDate() || new Date(),
       updatedAt: doc.data().updatedAt?.toDate() || new Date(),
       date: doc.data().date?.toDate() || new Date()
-    }));
+    })) as Schedule[];
 
     // 박일심 스케줄 필터링
     const parkSchedules = allSchedules.filter(schedule => 
@@ -39,7 +55,7 @@ async function findDuplicateSchedules() {
       if (!acc[dateKey]) acc[dateKey] = [];
       acc[dateKey].push(schedule);
       return acc;
-    }, {} as {[key: string]: typeof parkSchedules});
+    }, {} as {[key: string]: Schedule[]});
 
     // 중복이 있는 날짜 찾기
     Object.entries(dateGroups).forEach(([date, schedules]) => {

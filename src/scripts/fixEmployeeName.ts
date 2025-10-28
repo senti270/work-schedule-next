@@ -1,6 +1,19 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
 
+interface Schedule {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  branchId: string;
+  branchName: string;
+  date: unknown;
+  startTime: string;
+  endTime: string;
+  breakTime: string;
+  totalHours: number;
+}
+
 const firebaseConfig = {
   apiKey: "AIzaSyBvOzQqJgQZJgQZJgQZJgQZJgQZJgQZJgQ",
   authDomain: "work-schedule-next.firebaseapp.com",
@@ -27,7 +40,7 @@ async function fixEmployeeName() {
     const schedules = schedulesSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    }));
+    })) as Schedule[];
     
     console.log(`🔥 "유진"으로 저장된 스케줄 개수: ${schedules.length}`);
     
@@ -37,7 +50,7 @@ async function fixEmployeeName() {
         console.log(`${index + 1}. ID: ${schedule.id}`);
         console.log(`   직원ID: ${schedule.employeeId}`);
         console.log(`   지점: ${schedule.branchName}`);
-        console.log(`   날짜: ${schedule.date?.toDate?.()?.toDateString() || schedule.date}`);
+        console.log(`   날짜: ${schedule.date}`);
         console.log(`   시간: ${schedule.startTime}-${schedule.endTime}`);
         console.log('   ---');
       });

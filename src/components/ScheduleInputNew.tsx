@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { isRedDay } from '@/lib/holidays';
-import { toLocalDate, toLocalDateString, isSameLocalDate } from '@/utils/dateUtils';
+import { toLocalDate, toLocalDateString } from '@/utils/dateUtils';
 // import { format } from 'date-fns';
 
 interface Schedule {

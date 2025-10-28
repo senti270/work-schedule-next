@@ -30,20 +30,20 @@ export function isSameLocalDate(date1: Date, date2: Date): boolean {
 
 /**
  * Firebase Timestamp를 로컬 Date로 안전하게 변환
- * @param timestamp Firebase Timestamp 또는 Date
+ * @param timestamp Firebase Timestamp 또는 Date 또는 문자열
  * @returns 로컬 Date 객체
  */
-export function toLocalDate(timestamp: any): Date {
+export function toLocalDate(timestamp: unknown): Date {
   if (!timestamp) return new Date();
   
-  if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+  if (typeof timestamp === 'object' && timestamp !== null && 'toDate' in timestamp && typeof (timestamp as { toDate: unknown }).toDate === 'function') {
     // Firebase Timestamp
-    return timestamp.toDate();
+    return (timestamp as { toDate: () => Date }).toDate();
   } else if (timestamp instanceof Date) {
     // 이미 Date 객체
     return timestamp;
   } else {
     // 문자열이나 다른 형태
-    return new Date(timestamp);
+    return new Date(timestamp as string | number);
   }
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { toLocalDate, toLocalDateString } from '@/utils/dateUtils';
+import { toLocalDate } from '@/utils/dateUtils';
 
 interface Schedule {
   id: string;

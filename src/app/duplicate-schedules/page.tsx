@@ -74,7 +74,7 @@ export default function DuplicateSchedulesPage() {
         }, {} as {[key: string]: Schedule[]});
 
         // 중복이 있는 직원 찾기
-        Object.entries(employeeGroups).forEach(([key, employeeSchedules]) => {
+        Object.entries(employeeGroups).forEach(([, employeeSchedules]) => {
           if (employeeSchedules.length > 1) {
             const firstSchedule = employeeSchedules[0];
             duplicateGroups.push({
