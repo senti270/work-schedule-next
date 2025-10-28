@@ -44,6 +44,7 @@ interface WorkTimeComparison {
   breakTime?: number; // 휴게시간 (시간) - 기존 필드
   actualBreakTime?: number; // 실휴게시간 (시간) - 신규 필드 (편집 가능)
   actualWorkHours?: number; // 실근무시간 (actualTimeRange시간 - actualBreakTime)
+  posTimeRange?: string; // POS 원본 시간 범위
 }
 
 interface WorkTimeComparisonProps {
@@ -1026,8 +1027,7 @@ export default function WorkTimeComparison({
             isModified: false,
             breakTime: breakTime,
             actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
-            actualWorkHours: actualWorkHours,
-            posTimeRange: actualRecord.posTimeRange || '' // POS 원본 시간 범위
+            actualWorkHours: actualWorkHours
           });
 
         processedDates.add(scheduleDate);
@@ -1055,6 +1055,7 @@ export default function WorkTimeComparison({
           posTimeRange: '' // 실제근무 데이터가 없으므로 빈 값
         });
       }
+    });
     });
 
     // 2. 실제근무 데이터는 있지만 스케줄이 없는 경우
