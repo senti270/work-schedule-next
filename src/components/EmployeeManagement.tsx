@@ -652,10 +652,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         
         // PDF 생성 옵션
         const opt = {
-          margin: [10, 10, 10, 10],
+          margin: [10, 10, 10, 10] as [number, number, number, number],
           filename: `${employee.name}_재직증명서_${new Date().toISOString().split('T')[0]}.pdf`,
           image: { 
-            type: 'jpeg', 
+            type: 'jpeg' as const, 
             quality: 0.98 
           },
           html2canvas: { 
