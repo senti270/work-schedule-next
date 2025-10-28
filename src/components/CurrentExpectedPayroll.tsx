@@ -221,7 +221,7 @@ const CurrentExpectedPayroll: React.FC = () => {
       }, {} as Record<string, { branchId: string; branchName: string; schedules: any[] }>);
 
       // 각 지점별로 계산
-      Object.values(branchGroups).forEach(({ branchId, branchName, schedules: branchSchedules }) => {
+      (Object.values(branchGroups) as Array<{ branchId: string; branchName: string; schedules: any[] }>).forEach(({ branchId, branchName, schedules: branchSchedules }) => {
         const summedHours = branchSchedules.reduce((sum, r) => sum + (Number(r.actualWorkHours) || 0), 0);
 
         // 계약 객체 구성
