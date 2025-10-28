@@ -254,9 +254,9 @@ const CurrentExpectedPayroll: React.FC = () => {
 
   const sumToDate = useMemo(() => rows.reduce((s, r) => s + r.netPay, 0), [rows]);
   
-  // 급여소득(월급)과 사업소득/외국인(시급) 분리 계산
+  // 근로소득(월급)과 사업소득/외국인(시급) 분리 계산
   const monthlySalarySum = useMemo(() => 
-    rows.filter(r => r.employmentType === '급여소득').reduce((s, r) => s + r.netPay, 0), 
+    rows.filter(r => r.employmentType === '근로소득').reduce((s, r) => s + r.netPay, 0), 
     [rows]
   );
   const hourlyWageSum = useMemo(() => 
@@ -337,7 +337,7 @@ const CurrentExpectedPayroll: React.FC = () => {
           <div className="mt-1 text-2xl font-bold text-blue-700">{sumToDate.toLocaleString()}원</div>
         </div>
         <div className="p-4 bg-green-50 border border-green-200 rounded">
-          <div className="text-sm text-gray-600">급여소득 합계 (D)</div>
+          <div className="text-sm text-gray-600">근로소득 합계 (D)</div>
           <div className="mt-1 text-xl font-bold text-green-700">{monthlySalarySum.toLocaleString()}원</div>
         </div>
         <div className="p-4 bg-orange-50 border border-orange-200 rounded">
