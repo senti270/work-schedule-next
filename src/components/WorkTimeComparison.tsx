@@ -1342,7 +1342,7 @@ export default function WorkTimeComparison({
       
       // 새 데이터 저장
       // 지점명 조회
-      let branchNameSnapshot: any = null;
+      let branchNameSnapshot: string | null = null;
       if (branchId) {
         try {
           const bSnap = await getDocs(query(collection(db, 'branches'), where('__name__', '==', branchId)));

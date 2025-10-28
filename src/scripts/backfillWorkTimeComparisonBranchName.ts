@@ -18,12 +18,15 @@ async function run() {
   console.log('workTimeComparisonResults branchName 백필 시작');
   const branchesSnap = await getDocs(collection(db, 'branches'));
   const branchesMap = new Map<string, string>();
-  branchesSnap.forEach((d) => branchesMap.set(d.id, (d.data() as any).name || ''));
+  branchesSnap.forEach((d) => {
+    const data = d.data() as { name?: string };
+    branchesMap.set(d.id, data?.name || '');
+  });
 
   const wtrSnap = await getDocs(collection(db, 'workTimeComparisonResults'));
   let updated = 0;
   for (const d of wtrSnap.docs) {
-    const data = d.data() as any;
+    const data = d.data() as { branchName?: string; branchId?: string };
     if (!data.branchName && data.branchId) {
       const name = branchesMap.get(data.branchId) || '';
       await updateDoc(doc(db, 'workTimeComparisonResults', d.id), { branchName: name });
