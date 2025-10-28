@@ -226,19 +226,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         const weekStartStr = `${weekDates[0].getFullYear()}-${String(weekDates[0].getMonth() + 1).padStart(2, '0')}-${String(weekDates[0].getDate()).padStart(2, '0')}`;
         const weekEndStr = `${weekDates[6].getFullYear()}-${String(weekDates[6].getMonth() + 1).padStart(2, '0')}-${String(weekDates[6].getDate()).padStart(2, '0')}`;
         
-        // 🔥 디버깅: 끄엉의 11/2 스케줄 확인
-        if (schedule.employeeName === '끄엉' && scheduleDate === '2025-11-02') {
-          console.log('🔥 끄엉 11/2 스케줄 발견:', {
-            employeeName: schedule.employeeName,
-            branchName: schedule.branchName,
-            branchId: schedule.branchId,
-            date: scheduleDate,
-            startTime: schedule.startTime,
-            endTime: schedule.endTime,
-            originalInput: schedule.originalInput
-          });
-        }
-        
         if (schedule.branchId !== selectedBranchId && 
             scheduleDate >= weekStartStr && 
             scheduleDate <= weekEndStr) {
@@ -271,10 +258,21 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           const scheduleText = schedule.originalInput || 
             `${formatTime(schedule.startTime)}-${formatTime(schedule.endTime)}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
           
-          otherBranchSchedulesMap[key].push({
-            branchName: getBranchShortName(schedule.branchName),
-            schedule: scheduleText
-          });
+          // 🔥 같은 지점의 스케줄이 이미 있는지 확인
+          const existingBranchSchedule = otherBranchSchedulesMap[key].find(item => 
+            item.branchName === getBranchShortName(schedule.branchName)
+          );
+          
+          if (existingBranchSchedule) {
+            // 같은 지점에 이미 스케줄이 있으면 시간을 합쳐서 표시
+            existingBranchSchedule.schedule = `${existingBranchSchedule.schedule}, ${scheduleText}`;
+          } else {
+            // 새로운 지점 스케줄 추가
+            otherBranchSchedulesMap[key].push({
+              branchName: getBranchShortName(schedule.branchName),
+              schedule: scheduleText
+            });
+          }
         }
       });
       
