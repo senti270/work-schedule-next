@@ -226,6 +226,19 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         const weekStartStr = `${weekDates[0].getFullYear()}-${String(weekDates[0].getMonth() + 1).padStart(2, '0')}-${String(weekDates[0].getDate()).padStart(2, '0')}`;
         const weekEndStr = `${weekDates[6].getFullYear()}-${String(weekDates[6].getMonth() + 1).padStart(2, '0')}-${String(weekDates[6].getDate()).padStart(2, '0')}`;
         
+        // 🔥 디버깅: 끄엉의 11/2 스케줄 확인
+        if (schedule.employeeName === '끄엉' && scheduleDate === '2025-11-02') {
+          console.log('🔥 끄엉 11/2 스케줄 발견:', {
+            employeeName: schedule.employeeName,
+            branchName: schedule.branchName,
+            branchId: schedule.branchId,
+            date: scheduleDate,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+            originalInput: schedule.originalInput
+          });
+        }
+        
         if (schedule.branchId !== selectedBranchId && 
             scheduleDate >= weekStartStr && 
             scheduleDate <= weekEndStr) {
