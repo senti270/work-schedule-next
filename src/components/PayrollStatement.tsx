@@ -493,10 +493,13 @@ const PayrollStatement: React.FC = () => {
       console.log('PDF 저장 중...');
       pdf.save(`급여명세서_${selectedEmployeeInfo.name}_${selectedMonth}.pdf`);
       console.log('PDF 생성 완료!');
-    } catch (error) {
-      console.error('PDF 생성 실패 상세:', error);
-      console.error('에러 스택:', error.stack);
-      alert(`PDF 생성에 실패했습니다: ${error.message}`);
+    } catch (err) {
+      console.error('PDF 생성 실패 상세:', err);
+      const e = err as unknown as { message?: string; stack?: string };
+      if (e?.stack) {
+        console.error('에러 스택:', e.stack);
+      }
+      alert(`PDF 생성에 실패했습니다: ${e?.message || String(err)}`);
     }
   };
 
