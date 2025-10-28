@@ -220,6 +220,17 @@ const CurrentExpectedPayroll: React.FC = () => {
         return acc;
       }, {} as Record<string, { branchId: string; branchName: string; schedules: any[] }>);
 
+      console.log('🔥 직원별 지점 그룹화 결과:', {
+        employeeId: emp.id,
+        employeeName: emp.name,
+        totalSchedules: empSchedules.length,
+        branchGroups: Object.keys(branchGroups).map(branchId => ({
+          branchId,
+          branchName: branchGroups[branchId].branchName,
+          scheduleCount: branchGroups[branchId].schedules.length
+        }))
+      });
+
       // 각 지점별로 계산
       (Object.values(branchGroups) as Array<{ branchId: string; branchName: string; schedules: any[] }>).forEach(({ branchId, branchName, schedules: branchSchedules }) => {
         const summedHours = branchSchedules.reduce((sum, r) => sum + (Number(r.actualWorkHours) || 0), 0);
