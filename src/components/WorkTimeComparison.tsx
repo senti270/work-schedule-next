@@ -158,11 +158,11 @@ export default function WorkTimeComparison({
       console.log('모든 직원 데이터 매핑 완료:', allEmployees.length);
       console.log('선택된 지점 ID:', selectedBranchId);
       
-      // 🔥 2025년 9월 기준: 전직원 표시를 위해 지점 필터링 제거
+      // 지점 선택 후 직원 필터링: branchIds 포함 또는 단일 branchId 일치
       const employeesData = allEmployees.filter(emp => {
-        // 모든 직원을 표시 (지점 필터링 제거)
-        console.log(`직원 ${emp.name} (${emp.id}) - 표시함`);
-        return true;
+        if (!selectedBranchId) return true;
+        const list = Array.isArray(emp.branchIds) ? emp.branchIds : [];
+        return emp.branchId === selectedBranchId || list.includes(selectedBranchId);
       });
       
       console.log('필터링된 직원 수:', employeesData.length);
@@ -566,6 +566,7 @@ export default function WorkTimeComparison({
       const querySnapshot = await getDocs(collection(db, 'schedules'));
       const schedulesData = querySnapshot.docs.map(doc => {
         const data = doc.data();
+        const totalHours = computeScheduleHours(data);
         return {
           id: doc.id,
           employeeId: data.employeeId,
@@ -576,16 +577,17 @@ export default function WorkTimeComparison({
           startTime: data.startTime,
           endTime: data.endTime,
           breakTime: data.breakTime,
-          totalHours: data.totalHours,
+          totalHours,
           createdAt: toLocalDate(data.createdAt),
           updatedAt: toLocalDate(data.updatedAt)
         };
       });
 
-      // 선택된 월의 스케줄만 필터링
+      // 선택된 월의 스케줄만 필터링 (날짜만 비교)
       let filteredSchedules = schedulesData.filter(schedule => {
-        const scheduleDate = new Date(schedule.date);
-        return scheduleDate >= startDate && scheduleDate <= endDate;
+        const d = new Date(schedule.date.getFullYear(), schedule.date.getMonth(), schedule.date.getDate());
+        return d >= new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()) &&
+               d <= new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
       });
 
       // 선택된 지점으로 필터링
@@ -604,8 +606,9 @@ export default function WorkTimeComparison({
       console.log('🔥 스케줄 로딩 완료:', {
         전체스케줄: schedulesData.length,
         월필터링후: schedulesData.filter(schedule => {
-          const scheduleDate = new Date(schedule.date);
-          return scheduleDate >= startDate && scheduleDate <= endDate;
+          const d = new Date(schedule.date.getFullYear(), schedule.date.getMonth(), schedule.date.getDate());
+          return d >= new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()) &&
+                 d <= new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
         }).length,
         지점필터링후: filteredSchedules.length,
         선택된직원: selectedEmployeeId,
@@ -1630,6 +1633,71 @@ export default function WorkTimeComparison({
       console.error('데이터 저장 실패:', error);
       alert('데이터 저장에 실패했습니다.');
     }
+  };
+
+  // 시간 문자열을 Date로 변환 (HH:MM 또는 HH 형태 지원)
+  const toTime = (hhmm: string): { hours: number; minutes: number } => {
+    const t = hhmm.trim();
+    const m = t.match(/^(\d{1,2})(?::(\d{2}))?$/);
+    if (!m) return { hours: 0, minutes: 0 };
+    const h = Math.min(24, Math.max(0, parseInt(m[1], 10)));
+    const min = m[2] ? Math.min(59, Math.max(0, parseInt(m[2], 10))) : 0;
+    return { hours: h, minutes: min };
+  };
+
+  // 한 구간(HH[:MM]-HH[:MM](breakHours?))의 시간 계산. 익일 근무 처리
+  const calcSegmentHours = (segment: string): number => {
+    const seg = segment.trim();
+    // breakHours e.g. (0.5)
+    const breakMatch = seg.match(/\(([-\d\.]+)\)\s*$/);
+    const breakHours = breakMatch ? Math.max(0, parseFloat(breakMatch[1])) : 0;
+    const core = seg.replace(/\(([-\d\.]+)\)\s*$/, '');
+    const parts = core.split('-');
+    if (parts.length !== 2) return 0;
+    const start = toTime(parts[0]);
+    const end = toTime(parts[1]);
+    const startTotal = start.hours + start.minutes / 60;
+    let endTotal = end.hours + end.minutes / 60;
+    // 익일 처리
+    if (endTotal < startTotal) endTotal += 24;
+    let hours = endTotal - startTotal - breakHours;
+    if (!isFinite(hours) || hours < 0) hours = 0;
+    return hours;
+  };
+
+  // 스케줄 객체에서 totalHours 산출 (다중 구간 지원: "10-12,15-22(0.5)")
+  const computeScheduleHours = (data: any): number => {
+    // 1) 명시적 totalHours 존재시 우선 사용
+    if (data && (data.totalHours || data.totalHours === 0)) return Number(data.totalHours) || 0;
+
+    // 2) timeRanges 형태가 있는 경우
+    const ranges: string | undefined = data?.timeRanges || data?.ranges || undefined;
+    if (typeof ranges === 'string' && ranges.trim().length > 0) {
+      return ranges.split(',').map(s => calcSegmentHours(s)).reduce((a, b) => a + b, 0);
+    }
+
+    // 3) startTime/endTime 에 다중 구간 문자열이 들어있는 경우 처리
+    const startStr: string | undefined = typeof data?.startTime === 'string' ? data.startTime : undefined;
+    const endStr: string | undefined = typeof data?.endTime === 'string' ? data.endTime : undefined;
+
+    // 케이스 A: startTime 또는 endTime 중 하나에 콤마로 구간들이 들어있는 경우
+    if (startStr && startStr.includes(',')) {
+      return startStr.split(',').map(s => calcSegmentHours(s)).reduce((a, b) => a + b, 0);
+    }
+    if (endStr && endStr.includes(',')) {
+      return endStr.split(',').map(s => calcSegmentHours(s)).reduce((a, b) => a + b, 0);
+    }
+
+    // 케이스 B: 단일 구간(startTime-endTime), breakTime(분) 고려
+    if (startStr && endStr) {
+      const baseHours = calcSegmentHours(`${startStr}-${endStr}`);
+      const breakMin = Number(data?.breakTime || 0);
+      const breakH = isFinite(breakMin) ? breakMin / 60 : 0;
+      const v = baseHours - breakH;
+      return v > 0 ? v : 0;
+    }
+
+    return 0;
   };
 
   return (
