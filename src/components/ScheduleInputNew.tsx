@@ -233,6 +233,12 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           const dateString = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
           const key = `${schedule.employeeId}-${dateString}`;
           
+          // 🔥 현재 지점에 해당 직원이 있는지 확인
+          const currentBranchEmployee = employees.find(emp => emp.id === schedule.employeeId);
+          if (!currentBranchEmployee) {
+            return; // 현재 지점에 없는 직원은 타지점 스케줄에 표시하지 않음
+          }
+          
           if (!otherBranchSchedulesMap[key]) {
             otherBranchSchedulesMap[key] = [];
           }
