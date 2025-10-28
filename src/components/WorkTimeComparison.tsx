@@ -1018,17 +1018,17 @@ export default function WorkTimeComparison({
             employeeName: `${schedule.employeeName} (${branchName})`,
             date: scheduleDate,
             scheduledHours: schedule.totalHours,
-          actualHours: actualRecord.totalHours,
-          difference,
-          status,
-          scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
-          actualTimeRange: actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime),
-          isModified: false,
-          breakTime: breakTime,
-          actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
-          actualWorkHours: actualWorkHours,
-          posTimeRange: actualRecord.posTimeRange || '' // POS 원본 시간 범위
-        });
+            actualHours: actualRecord.totalHours,
+            difference,
+            status,
+            scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
+            actualTimeRange: actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime),
+            isModified: false,
+            breakTime: breakTime,
+            actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
+            actualWorkHours: actualWorkHours,
+            posTimeRange: actualRecord.posTimeRange || '' // POS 원본 시간 범위
+          });
 
         processedDates.add(scheduleDate);
       } else {

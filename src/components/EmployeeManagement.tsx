@@ -1956,11 +1956,8 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         {employee.branchNames && employee.branchNames.length > 0 ? (
                           <div className="space-y-1">
                             {[...new Set(employee.branchNames)].map((branchName, index) => (
-                              <div key={index} className={branchName === employee.primaryBranchName ? 'font-bold text-blue-600' : ''}>
+                              <div key={index} className={branchName === employee.primaryBranchName ? 'font-bold text-blue-600' : 'font-normal text-gray-600'}>
                                 {branchName}
-                                {branchName === employee.primaryBranchName && (
-                                  <span className="ml-1 text-xs bg-blue-100 text-blue-800 px-1 rounded">대표</span>
-                                )}
                               </div>
                             ))}
                           </div>
