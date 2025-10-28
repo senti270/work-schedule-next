@@ -98,6 +98,33 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
   const [bankCodes, setBankCodes] = useState<BankCode[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
+  // workTimeComparisonResults.branchName 백필
+  const backfillWorkTimeComparisonBranchName = async () => {
+    if (!confirm('workTimeComparisonResults 문서에 branchName을 채우시겠습니까? (되돌릴 수 없습니다)')) return;
+    try {
+      // branches 맵 구성
+      const branchesSnap = await getDocs(collection(db, 'branches'));
+      const branchesMap = new Map<string, string>();
+      branchesSnap.forEach(d => branchesMap.set(d.id, (d.data() as any).name || ''));
+
+      // 대상 문서 로드
+      const wtrSnap = await getDocs(collection(db, 'workTimeComparisonResults'));
+      let updated = 0;
+      for (const d of wtrSnap.docs) {
+        const data: any = d.data();
+        if (!data.branchName && data.branchId) {
+          const name = branchesMap.get(data.branchId) || '';
+          await updateDoc(doc(db, 'workTimeComparisonResults', d.id), { branchName: name });
+          updated++;
+        }
+      }
+      alert(`branchName 업데이트 완료: ${updated}건`);
+    } catch (e) {
+      console.error('branchName 백필 실패:', e);
+      alert('백필 도중 오류가 발생했습니다. 콘솔을 확인하세요.');
+    }
+  };
+
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [contracts, setContracts] = useState<EmploymentContract[]>([]);
@@ -258,6 +285,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           id: doc.id,
           name: data.name || '',
           userId: data.userId || data.email || '', // 하위 호환성을 위해 email도 확인
+          email: data.email || '',
           phone: data.phone || '',
           residentNumber: data.residentNumber || '',
           hireDate: data.hireDate?.toDate ? data.hireDate.toDate() : new Date(),
@@ -811,6 +839,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         
         const updateData: Record<string, unknown> = {
           ...formData,
+          email: formData.email || '',
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
           resignationDate: formData.resignationDate ? new Date(formData.resignationDate) : null,
           memo: formData.memo || '', // 메모 필드 추가
@@ -841,6 +870,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         const employeeData: Record<string, unknown> = {
           name: formData.name,
           phone: formData.phone || '',
+          email: formData.email || '',
           residentNumber: formData.residentNumber || '',
           hireDate: formData.hireDate ? new Date(formData.hireDate) : new Date(),
           resignationDate: formData.resignationDate ? new Date(formData.resignationDate) : null,
@@ -1832,7 +1862,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </button>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  전화번호
+                  전화번호/이메일
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   지점
@@ -1869,7 +1899,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {employee.phone || '-'}
+                    <div>
+                      <div>{employee.phone || '-'}</div>
+                      <div className="text-xs text-gray-400">{employee.email || '-'}</div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     <div className="space-y-1">
@@ -1986,6 +2019,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="전화번호"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                이메일
+                              </label>
+                              <input
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="이메일"
                               />
                             </div>
                             
@@ -2315,6 +2361,12 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                   </button>
                 </div>
               </div>
+              {employee.phone && (
+                <div className="mt-1 text-sm text-gray-700">{employee.phone}</div>
+              )}
+              {employee.email && (
+                <div className="mt-0.5 text-xs text-gray-400">{employee.email}</div>
+              )}
               
               {/* 수정 폼 - 모바일에서 해당 직원 카드 바로 아래에 표시 */}
               {editingEmployee && editingEmployee.id === employee.id && (
@@ -2348,6 +2400,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="전화번호"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          이메일
+                        </label>
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="이메일"
                         />
                       </div>
                       
@@ -2589,6 +2654,19 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="전화번호"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      이메일
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="이메일"
                     />
                   </div>
                   

@@ -1341,12 +1341,21 @@ export default function WorkTimeComparison({
       }
       
       // 새 데이터 저장
+      // 지점명 조회
+      let branchNameSnapshot: any = null;
+      if (branchId) {
+        try {
+          const bSnap = await getDocs(query(collection(db, 'branches'), where('__name__', '==', branchId)));
+          branchNameSnapshot = bSnap.docs[0]?.data()?.name || '';
+        } catch {}
+      }
       for (const result of results) {
         await addDoc(collection(db, 'workTimeComparisonResults'), {
           employeeId: selectedEmployeeId,
           employeeName: result.employeeName,
           month: selectedMonth,
           branchId: branchId,
+          branchName: branchNameSnapshot || result.branchName || '',
           date: result.date,
           scheduledHours: result.scheduledHours,
           actualHours: result.actualHours,

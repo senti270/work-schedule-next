@@ -13,6 +13,7 @@ interface Employee {
   email?: string;
   bankName?: string;
   accountNumber?: string;
+  employmentType?: string;
 }
 
 interface ConfirmedPayroll {
@@ -22,6 +23,7 @@ interface ConfirmedPayroll {
   month: string;
   confirmedAt: Date;
   confirmedBy: string;
+  employmentType?: string;
   calculations: Array<{
     branchId: string;
     branchName: string;
@@ -96,6 +98,18 @@ const PayrollStatement: React.FC = () => {
   const [filterWithWorkHistory, setFilterWithWorkHistory] = useState(false);
   const [filterWithConfirmedPayroll, setFilterWithConfirmedPayroll] = useState(false);
   const [employeeMemos, setEmployeeMemos] = useState<Array<{id: string, employeeId: string, memo: string, createdAt: Date}>>([]);
+
+  // 월 문자열 표준화: 'YYYY-M' -> 'YYYY-MM'
+  const normalizeMonth = (value: string) => {
+    if (!value) return value;
+    const match = String(value).match(/^(\d{4})-(\d{1,2})$/);
+    if (match) {
+      const year = match[1];
+      const month = match[2].padStart(2, '0');
+      return `${year}-${month}`;
+    }
+    return value;
+  };
 
   // 현재 월 설정
   useEffect(() => {
@@ -215,8 +229,8 @@ const PayrollStatement: React.FC = () => {
         };
       }) as WorkTimeComparisonResult[];
       
-      // 클라이언트에서 월별 필터링
-      const filteredData = allComparisonsData.filter(item => item.month === selectedMonth);
+      // 클라이언트에서 월별 필터링 (형식 표준화)
+      const filteredData = allComparisonsData.filter(item => normalizeMonth(item.month) === selectedMonth);
       
       console.log('🔥 필터링된 근무시간 비교 데이터:', {
         month: selectedMonth,
@@ -247,8 +261,51 @@ const PayrollStatement: React.FC = () => {
 
   // 선택된 직원의 급여 데이터 찾기
   const selectedPayroll = confirmedPayrolls.find(p => p.employeeId === selectedEmployee);
-  const selectedWorkTimeComparison = workTimeComparisons.find(w => w.employeeId === selectedEmployee);
   const selectedEmployeeInfo = employees.find(e => e.id === selectedEmployee);
+  const employmentType = (selectedPayroll as any)?.employmentType || (selectedEmployeeInfo as any)?.employmentType || '';
+  
+  // 근무내역 찾기 (employeeId 우선, 없으면 employeeName으로)
+  const selectedWorkTimeComparison = workTimeComparisons.find(w => 
+    w.employeeId === selectedEmployee || 
+    (selectedEmployeeInfo && w.employeeName === selectedEmployeeInfo.name)
+  );
+
+  // 근무내역 매칭 디버깅
+  if (selectedEmployee && selectedEmployeeInfo) {
+    console.log('🔍 근무내역 매칭 디버깅:', {
+      selectedEmployee,
+      selectedEmployeeName: selectedEmployeeInfo.name,
+      workTimeComparisonsCount: workTimeComparisons.length,
+      allWorkTimeComparisons: workTimeComparisons.map(w => ({
+        id: w.id,
+        employeeId: w.employeeId,
+        employeeName: w.employeeName,
+        month: w.month,
+        normalizedMonth: normalizeMonth(w.month)
+      })),
+      selectedWorkTimeComparison: selectedWorkTimeComparison ? 'FOUND' : 'NOT_FOUND',
+      selectedMonth,
+      normalizedSelectedMonth: normalizeMonth(selectedMonth)
+    });
+    
+    // 선택된 근무내역 데이터 구조 상세 분석
+    if (selectedWorkTimeComparison) {
+      console.log('🔍 selectedWorkTimeComparison 상세 구조:', {
+        id: selectedWorkTimeComparison.id,
+        employeeId: selectedWorkTimeComparison.employeeId,
+        employeeName: selectedWorkTimeComparison.employeeName,
+        month: selectedWorkTimeComparison.month,
+        branchName: selectedWorkTimeComparison.branchName,
+        totalScheduleHours: selectedWorkTimeComparison.totalScheduleHours,
+        totalActualHours: selectedWorkTimeComparison.totalActualHours,
+        totalDifference: selectedWorkTimeComparison.totalDifference,
+        hasComparisonResults: !!selectedWorkTimeComparison.comparisonResults,
+        comparisonResultsLength: selectedWorkTimeComparison.comparisonResults?.length || 0,
+        allKeys: Object.keys(selectedWorkTimeComparison),
+        sampleData: selectedWorkTimeComparison
+      });
+    }
+  }
 
   // 데이터 찾기 디버깅
   if (selectedEmployee) {
@@ -349,21 +406,77 @@ const PayrollStatement: React.FC = () => {
     }
 
     try {
+      console.log('PDF 생성 시작...');
       const element = document.getElementById('payroll-statement-content');
-      if (!element) return;
+      if (!element) {
+        console.error('payroll-statement-content 요소를 찾을 수 없습니다.');
+        alert('PDF 생성 대상 요소를 찾을 수 없습니다.');
+        return;
+      }
 
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true
-      });
+      console.log('jsPDF + html2canvas 실행 중...');
+      
+         // HTML을 캔버스로 변환
+         const canvas = await html2canvas(element, {
+           scale: 1,
+           useCORS: true,
+           allowTaint: true,
+           backgroundColor: '#ffffff',
+           logging: false,
+           ignoreElements: (element) => {
+             // 문제가 되는 요소들을 무시
+             return element.classList.contains('problematic-element');
+           },
+           onclone: (clonedDoc) => {
+             // 모든 스타일을 강제로 오버라이드
+             const style = clonedDoc.createElement('style');
+             style.textContent = `
+               *, *::before, *::after {
+                 color: #000000 !important;
+                 background-color: #ffffff !important;
+                 border-color: #d1d5db !important;
+                 background-image: none !important;
+                 box-shadow: none !important;
+               }
+               .bg-gray-50, [class*="bg-gray-50"] { background-color: #f9fafb !important; }
+               .bg-gray-100, [class*="bg-gray-100"] { background-color: #f3f4f6 !important; }
+               .bg-gray-200, [class*="bg-gray-200"] { background-color: #e5e7eb !important; }
+               .text-gray-600, [class*="text-gray-600"] { color: #4b5563 !important; }
+               .text-gray-700, [class*="text-gray-700"] { color: #374151 !important; }
+               .text-gray-800, [class*="text-gray-800"] { color: #1f2937 !important; }
+               .text-gray-900, [class*="text-gray-900"] { color: #111827 !important; }
+               .border-gray-200, [class*="border-gray-200"] { border-color: #e5e7eb !important; }
+               .border-gray-300, [class*="border-gray-300"] { border-color: #d1d5db !important; }
+               table { border-collapse: collapse !important; }
+               td, th { border: 1px solid #d1d5db !important; }
+             `;
+             clonedDoc.head.insertBefore(style, clonedDoc.head.firstChild);
+             
+             // 모든 요소의 인라인 스타일도 제거
+             const allElements = clonedDoc.querySelectorAll('*');
+             allElements.forEach(el => {
+               if (el.style) {
+                 el.style.color = '#000000';
+                 el.style.backgroundColor = '#ffffff';
+                 el.style.borderColor = '#d1d5db';
+               }
+             });
+           }
+         });
 
+      console.log('Canvas 생성 완료:', canvas.width, 'x', canvas.height);
       const imgData = canvas.toDataURL('image/png');
+      console.log('이미지 데이터 생성 완료, 길이:', imgData.length);
+
+      // PDF 생성
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgWidth = 210;
       const pageHeight = 295;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
+
+      console.log('이미지 크기:', imgWidth, 'x', imgHeight);
+      console.log('페이지 높이:', pageHeight);
 
       let position = 0;
 
@@ -377,10 +490,13 @@ const PayrollStatement: React.FC = () => {
         heightLeft -= pageHeight;
       }
 
+      console.log('PDF 저장 중...');
       pdf.save(`급여명세서_${selectedEmployeeInfo.name}_${selectedMonth}.pdf`);
+      console.log('PDF 생성 완료!');
     } catch (error) {
-      console.error('PDF 생성 실패:', error);
-      alert('PDF 생성에 실패했습니다.');
+      console.error('PDF 생성 실패 상세:', error);
+      console.error('에러 스택:', error.stack);
+      alert(`PDF 생성에 실패했습니다: ${error.message}`);
     }
   };
 
@@ -415,8 +531,8 @@ const PayrollStatement: React.FC = () => {
     }
   };
 
-  // 이메일 공유
-  const handleEmailShare = () => {
+  // 이메일 공유 (서버 발송)
+  const handleEmailShare = async () => {
     if (!selectedPayroll || !selectedEmployeeInfo) {
       alert('직원과 급여 데이터를 선택해주세요.');
       return;
@@ -444,8 +560,53 @@ ${selectedMonth} 급여명세서를 전달드립니다.
 감사합니다.
     `;
 
-    const mailtoUrl = `mailto:${selectedEmployeeInfo.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoUrl);
+    try {
+      const element = document.getElementById('payroll-statement-content');
+      if (!element) {
+        alert('PDF 생성 대상 요소를 찾을 수 없습니다.');
+        return;
+      }
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= 295;
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= 295;
+      }
+
+      const pdfBlob = pdf.output('blob');
+      const form = new FormData();
+      form.append('to', selectedEmployeeInfo.email);
+      form.append('subject', subject);
+      form.append('text', body.trim());
+      form.append('html', body.trim().replace(/\n/g, '<br/>'));
+      form.append('file', pdfBlob, `급여명세서_${selectedEmployeeInfo.name}_${selectedMonth}.pdf`);
+
+      const res = await fetch('/api/send-email', { method: 'POST', body: form });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || '메일 전송 실패');
+      }
+      alert('이메일을 전송했습니다.');
+    } catch (err) {
+      console.error('이메일 전송 실패:', err);
+      alert('이메일 전송에 실패했습니다. 콘솔을 확인해주세요.');
+    }
   };
 
   // 근무내역 출력
@@ -544,6 +705,51 @@ ${selectedMonth} 급여명세서를 전달드립니다.
     printWindow.print();
   };
 
+  // 근무내역 PDF 다운로드
+  const handleDownloadWorkHistoryPDF = async () => {
+    if (!selectedWorkTimeComparison || !selectedEmployeeInfo) {
+      alert('직원과 근무 데이터를 선택해주세요.');
+      return;
+    }
+
+    try {
+      const element = document.getElementById('work-history-content');
+      if (!element) {
+        alert('PDF 생성 대상 요소를 찾을 수 없습니다.');
+        return;
+      }
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= 295;
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= 295;
+      }
+
+      pdf.save(`근무내역_${selectedEmployeeInfo.name}_${selectedMonth}.pdf`);
+    } catch (error: any) {
+      console.error('근무내역 PDF 생성 실패:', error);
+      alert(`PDF 생성에 실패했습니다: ${error?.message || '알 수 없는 오류'}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
@@ -563,15 +769,6 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <button
-              onClick={() => {
-                loadConfirmedPayrolls();
-                loadWorkTimeComparisons();
-              }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              🔄 새로고침
-            </button>
           </div>
         </div>
       </div>
@@ -619,121 +816,41 @@ ${selectedMonth} 급여명세서를 전달드립니다.
             </div>
           </div>
 
-          <div className="flex items-end space-x-4">
-            <button
-              onClick={handleDownloadPDF}
-              disabled={!selectedPayroll}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-              📄 PDF 다운로드
-            </button>
-            <button
-              onClick={handlePrintWorkHistory}
-              disabled={!selectedWorkTimeComparison}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-              📋 근무내역 출력
-            </button>
-          </div>
         </div>
 
-        {/* 선택된 직원 정보 */}
-        {selectedEmployee && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-md font-medium text-gray-900 mb-2">선택된 직원 정보</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-600">이름:</span>
-                <span className="ml-2 font-medium">{selectedEmployeeInfo?.name || '-'}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">주민번호:</span>
-                <span className="ml-2 font-medium">{selectedEmployeeInfo?.residentNumber || '-'}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">은행:</span>
-                <span className="ml-2 font-medium">{selectedEmployeeInfo?.bankName || '-'}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">계좌번호:</span>
-                <span className="ml-2 font-medium">{selectedEmployeeInfo?.accountNumber || '-'}</span>
-              </div>
-            </div>
-            
-            {selectedPayroll && (
-              <div className="mt-4 p-3 bg-green-50 rounded border border-green-200">
-                <h4 className="text-sm font-medium text-green-800 mb-2">급여 정보</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600">기본급:</span>
-                    <span className="ml-2 font-medium text-green-600">{(selectedPayroll?.totalGrossPay || 0).toLocaleString()}원</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">공제액:</span>
-                    <span className="ml-2 font-medium text-red-600">-{(selectedPayroll?.totalDeductions || 0).toLocaleString()}원</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">실지급액:</span>
-                    <span className="ml-2 font-medium text-blue-600">{(selectedPayroll?.totalNetPay || 0).toLocaleString()}원</span>
-                  </div>
-                </div>
-                
-                {/* 공유 기능 */}
-                <div className="mt-4 flex space-x-2">
-                  <button
-                    onClick={handleShareLink}
-                    className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-                  >
-                    🔗 링크 공유
-                  </button>
-                  <div className="relative">
-                    <button
-                      onClick={handleEmailShare}
-                      disabled={!selectedEmployeeInfo?.email}
-                      className={`px-3 py-1 rounded text-sm ${
-                        selectedEmployeeInfo?.email
-                          ? 'bg-green-500 text-white hover:bg-green-600'
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      }`}
-                    >
-                      📧 이메일 공유
-                    </button>
-                    {!selectedEmployeeInfo?.email && (
-                      <div className="absolute top-full left-0 mt-1 text-xs text-gray-500 whitespace-nowrap">
-                        이메일주소가 없습니다
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {selectedWorkTimeComparison && (
-              <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
-                <h4 className="text-sm font-medium text-blue-800 mb-2">근무 정보</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600">총 스케줄 시간:</span>
-                    <span className="ml-2 font-medium text-blue-600">{(selectedWorkTimeComparison?.totalScheduleHours || 0).toFixed(2)}시간</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">총 실제 근무시간:</span>
-                    <span className="ml-2 font-medium text-blue-600">{(selectedWorkTimeComparison?.totalActualHours || 0).toFixed(2)}시간</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">시간 차이:</span>
-                    <span className="ml-2 font-medium text-purple-600">{(selectedWorkTimeComparison?.totalDifference || 0).toFixed(2)}시간</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* 급여명세서 미리보기 */}
         {selectedPayroll && selectedEmployeeInfo && (
           <div className="mt-6 bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">급여명세서 미리보기</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">급여명세서 미리보기</h3>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleDownloadPDF}
+                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  📄 PDF 다운로드
+                </button>
+                <div className="relative">
+                  <button
+                    onClick={handleEmailShare}
+                    disabled={!selectedEmployeeInfo?.email}
+                    className={`px-4 py-2 rounded-md text-sm ${
+                      selectedEmployeeInfo?.email
+                        ? 'bg-blue-500 text-white hover:bg-blue-600'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    📧 이메일 공유
+                  </button>
+                  {!selectedEmployeeInfo?.email && (
+                    <div className="absolute top-full left-0 mt-1 text-xs text-gray-500 whitespace-nowrap">
+                      이메일주소가 없습니다
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
             <div id="payroll-statement-content" className="border border-gray-300 p-6 bg-white">
               <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">급여명세서</h1>
@@ -748,8 +865,93 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4">주민번호</td>
                     <td className="border border-gray-400 p-2 w-1/4">{selectedEmployeeInfo.residentNumber || '-'}</td>
                   </tr>
+                  <tr>
+                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">총 근무시간</td>
+                    <td className="border border-gray-400 p-2">{(selectedPayroll?.totalWorkHours || 0).toFixed?.(2) ?? selectedPayroll?.totalWorkHours ?? 0}시간</td>
+                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">실수령액</td>
+                    <td className="border border-gray-400 p-2 font-bold text-blue-600">{(selectedPayroll?.totalNetPay || 0).toLocaleString()}원</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">총 지급액</td>
+                    <td className="border border-gray-400 p-2">{(selectedPayroll?.totalGrossPay || 0).toLocaleString()}원</td>
+                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">총 공제액</td>
+                    <td className="border border-gray-400 p-2 text-red-600">-{(selectedPayroll?.totalDeductions || 0).toLocaleString()}원</td>
+                  </tr>
                 </tbody>
               </table>
+
+              {/* 지점별 확정 계산 내역 (confirmedPayrolls.calculations 그대로 뷰) */}
+              {Array.isArray(selectedPayroll?.calculations) && selectedPayroll!.calculations.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-md font-semibold text-gray-900 mb-2">지점별 상세</h4>
+                  <table className="w-full border-collapse border border-gray-400">
+                    <thead>
+                      <tr>
+                        <th className="border border-gray-300 p-2 bg-gray-100">지점</th>
+                        <th className="border border-gray-300 p-2 bg-gray-100">근무시간</th>
+                        <th className="border border-gray-300 p-2 bg-gray-100">수습급여</th>
+                        <th className="border border-gray-300 p-2 bg-gray-100">정규급여</th>
+                        <th className="border border-gray-300 p-2 bg-gray-100">주휴수당</th>
+                        <th className="border border-gray-300 p-2 bg-gray-100">지급액</th>
+                        <th className="border border-gray-300 p-2 bg-gray-100">공제액</th>
+                        <th className="border border-gray-300 p-2 bg-gray-100">실지급액</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedPayroll!.calculations.map((calc, idx) => {
+                        const branchName = (calc.branches && calc.branches[0]?.branchName) || '-';
+                        const workHours = calc.actualWorkHours ?? calc.totalWorkHours ?? 0;
+                        const gross = calc.grossPay ?? 0;
+                        const ded = (calc.deductions && (calc.deductions.total ?? 0)) || 0;
+                        const net = calc.netPay ?? (gross - ded);
+                        return (
+                          <tr key={idx}>
+                            <td className="border border-gray-300 p-2 text-center">{branchName}</td>
+                            <td className="border border-gray-300 p-2 text-right">{workHours.toFixed ? workHours.toFixed(2) : workHours}h</td>
+                            <td className="border border-gray-300 p-2 text-right">{(calc.probationPay || 0).toLocaleString()}원</td>
+                            <td className="border border-gray-300 p-2 text-right">{(calc.regularPay || 0).toLocaleString()}원</td>
+                            <td className="border border-gray-300 p-2 text-right">{(calc.weeklyHolidayPay || 0).toLocaleString()}원</td>
+                            <td className="border border-gray-300 p-2 text-right">{(gross).toLocaleString()}원</td>
+                            <td className="border border-gray-300 p-2 text-right text-red-600">-{ded.toLocaleString()}원</td>
+                            <td className="border border-gray-300 p-2 text-right font-semibold text-blue-600">{net.toLocaleString()}원</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 기타사항: 수습/주휴 상세 */}
+              {Array.isArray(selectedPayroll?.calculations) && (
+                <div className="mt-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-2">기타사항</h4>
+                  <div className="text-sm text-gray-700 space-y-1">
+                    {selectedPayroll.calculations.map((calc, idx) => (
+                      <div key={idx} className="border border-gray-200 p-2">
+                        <div className="font-medium">{(calc.branches && calc.branches[0]?.branchName) || '-'} 기준</div>
+                        {(calc.probationHours || 0) + (calc.regularHours || 0) > 0 && (
+                          <div>
+                            수습/정규 시간: {(calc.probationHours || 0).toFixed ? calc.probationHours!.toFixed(2) : (calc.probationHours || 0)}h / {(calc.regularHours || 0).toFixed ? calc.regularHours!.toFixed(2) : (calc.regularHours || 0)}h
+                            {' '}→ 수습급여 {(calc.probationPay || 0).toLocaleString()}원, 정규급여 {(calc.regularPay || 0).toLocaleString()}원
+                          </div>
+                        )}
+                        {(calc.weeklyHolidayPay || 0) > 0 && (
+                          <div>주휴수당: {(calc.weeklyHolidayPay || 0).toLocaleString()}원 (시간 {(calc.weeklyHolidayHours || 0) || 0}h)</div>
+                        )}
+                        {calc.deductions?.insuranceDetails && (
+                          <div className="text-gray-600">
+                            4대보험: 국민 {(calc.deductions.insuranceDetails.nationalPension || 0).toLocaleString()} / 건강 {(calc.deductions.insuranceDetails.healthInsurance || 0).toLocaleString()} / 장기요양 {(calc.deductions.insuranceDetails.longTermCare || 0).toLocaleString()} / 고용 {(calc.deductions.insuranceDetails.employmentInsurance || 0).toLocaleString()}
+                          </div>
+                        )}
+                        {calc.deductions?.taxDetails && (
+                          <div className="text-gray-600">소득세 {(calc.deductions.taxDetails.incomeTax || 0).toLocaleString()} / 지방소득세 {(calc.deductions.taxDetails.localIncomeTax || 0).toLocaleString()}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <table className="w-full border-collapse border border-gray-400 mb-6">
                 <thead>
@@ -765,36 +967,47 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                     <td className="border border-gray-400 p-2 text-right">{(selectedPayroll?.totalGrossPay || 0).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 text-right">-</td>
                   </tr>
-                  <tr>
-                    <td className="border border-gray-400 p-2">국민연금</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.045).toLocaleString()}원</td>
-                    <td className="border border-gray-400 p-2 text-right">-</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-gray-400 p-2">건강보험</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.03495).toLocaleString()}원</td>
-                    <td className="border border-gray-400 p-2 text-right">-</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-gray-400 p-2">장기요양보험</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.0088).toLocaleString()}원</td>
-                    <td className="border border-gray-400 p-2 text-right">-</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-gray-400 p-2">고용보험</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.008).toLocaleString()}원</td>
-                    <td className="border border-gray-400 p-2 text-right">-</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-gray-400 p-2">소득세</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.03).toLocaleString()}원</td>
-                    <td className="border border-gray-400 p-2 text-right">-</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-gray-400 p-2">지방소득세</td>
-                    <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.003).toLocaleString()}원</td>
-                    <td className="border border-gray-400 p-2 text-right">-</td>
-                  </tr>
+                  {employmentType === '근로소득' && (
+                    <>
+                      <tr>
+                        <td className="border border-gray-400 p-2">국민연금</td>
+                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.045).toLocaleString()}원</td>
+                        <td className="border border-gray-400 p-2 text-right">-</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-400 p-2">건강보험</td>
+                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.03545).toLocaleString()}원</td>
+                        <td className="border border-gray-400 p-2 text-right">-</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-400 p-2">장기요양보험</td>
+                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round(Math.round((selectedPayroll?.totalGrossPay || 0) * 0.03545) * 0.1295).toLocaleString()}원</td>
+                        <td className="border border-gray-400 p-2 text-right">-</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-400 p-2">고용보험</td>
+                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.009).toLocaleString()}원</td>
+                        <td className="border border-gray-400 p-2 text-right">-</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-400 p-2">소득세</td>
+                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.03).toLocaleString()}원</td>
+                        <td className="border border-gray-400 p-2 text-right">-</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-gray-400 p-2">지방소득세</td>
+                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.003).toLocaleString()}원</td>
+                        <td className="border border-gray-400 p-2 text-right">-</td>
+                      </tr>
+                    </>
+                  )}
+                  {(employmentType === '사업소득' || employmentType === '외국인') && (
+                    <tr>
+                      <td className="border border-gray-400 p-2">원천징수(사업소득 3.3%)</td>
+                      <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.033).toLocaleString()}원</td>
+                      <td className="border border-gray-400 p-2 text-right">-</td>
+                    </tr>
+                  )}
                   <tr className="bg-gray-50 font-bold">
                     <td className="border border-gray-400 p-2">실지급액</td>
                     <td className="border border-gray-400 p-2 text-right text-blue-600">{(selectedPayroll?.totalNetPay || 0).toLocaleString()}원</td>
@@ -811,12 +1024,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                       대표자: 이진영
                       <span className="relative inline-block ml-2">
                         (인)
-                        <img 
-                          src="/images/signature.png" 
-                          alt="서명" 
-                          className="absolute top-0 left-0 w-16 h-8 object-contain opacity-80"
-                          style={{ transform: 'translateY(-2px)' }}
-                        />
+                        {/* 서명 이미지는 필요시 추가 */}
                       </span>
                     </div>
                   </div>
@@ -852,6 +1060,32 @@ ${selectedMonth} 급여명세서를 전달드립니다.
 
           // 선택된 직원의 데이터만 필터링
           const selectedEmployeeComparisons = workTimeComparisons.filter(comparison => comparison.employeeId === selectedEmployee);
+
+          // 전체 실근무 합계 계산을 위해 모든 행으로 변환해 합산
+          const toRows = (items: any[]) => items.map((item) => {
+            const parseRange = (range: string) => {
+              if (!range || typeof range !== 'string' || !range.includes('-')) return { start: '-', end: '-' };
+              const [s, e] = range.split('-');
+              return { start: s || '-', end: e || '-' };
+            };
+            const sched = parseRange(item.scheduledTimeRange as any);
+            const actual = parseRange(item.actualTimeRange as any);
+            const actualHours = (item as any).actualWorkHours ?? (item as any).actualHours ?? 0;
+            const scheduleHours = (item as any).scheduledHours ?? 0;
+            const breakTime = (item as any).breakTime ?? 0;
+            return {
+              date: (item as any).date,
+              scheduleStartTime: sched.start,
+              scheduleEndTime: sched.end,
+              scheduleWorkHours: scheduleHours,
+              actualStartTime: actual.start,
+              actualEndTime: actual.end,
+              actualBreakTime: breakTime,
+              actualWorkHours: actualHours
+            };
+          });
+          const allRowsForSelected = toRows(selectedEmployeeComparisons as any[]);
+          const overallTotalActual = allRowsForSelected.reduce((sum, r) => sum + (Number(r.actualWorkHours) || 0), 0);
           
           // 지점별로 그룹화 (WorkTimeComparisonResult 레벨에서)
           const branchGroups = selectedEmployeeComparisons.reduce((groups: {[key: string]: WorkTimeComparisonResult[]}, comparison) => {
@@ -883,8 +1117,16 @@ ${selectedMonth} 급여명세서를 전달드립니다.
 
           return (
             <div className="mt-6 bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">근무내역 미리보기</h3>
-              <div className="border border-gray-300 p-6 bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">근무내역 미리보기</h3>
+                <button
+                  onClick={handleDownloadWorkHistoryPDF}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  📋 근무내역 PDF 다운로드
+                </button>
+              </div>
+              <div id="work-history-content" className="border border-gray-300 p-6 bg-white">
                 <div className="text-center mb-6">
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">근무내역</h1>
                   <p className="text-gray-600">{selectedEmployeeInfo.name} - {selectedMonth}</p>
@@ -912,9 +1154,32 @@ ${selectedMonth} 급여명세서를 전달드립니다.
 
                 {/* 지점별 근무내역 */}
                 {Object.entries(branchGroups).map(([branchName, comparisons]) => {
-                  // 해당 지점의 모든 근무내역을 하나의 배열로 합치기
-                  const allResults = comparisons.flatMap(comparison => comparison.comparisonResults || []);
-                  const branchTotalHours = allResults.reduce((sum, result) => sum + (result.actualWorkHours || 0), 0);
+                  // 데이터 구조 표준화: 일자 단위 레코드를 표 렌더링용으로 변환
+                  const rows = (comparisons || []).map((item) => {
+                    const parseRange = (range) => {
+                      if (!range || typeof range !== 'string' || !range.includes('-')) return { start: '-', end: '-' };
+                      const [s, e] = range.split('-');
+                      return { start: s || '-', end: e || '-' };
+                    };
+                    const pos = parseRange((item as any).posTimeRange);
+                    const actual = parseRange((item as any).actualTimeRange);
+                    const actualHours = (item as any).actualWorkHours ?? 0;
+                    const breakTime = (item as any).breakTime ?? 0;
+                    return {
+                      date: (item as any).date,
+                      posStartTime: pos.start,
+                      posEndTime: pos.end,
+                      actualStartTime: actual.start,
+                      actualEndTime: actual.end,
+                      actualBreakTime: breakTime,
+                      actualWorkHours: actualHours
+                    };
+                  });
+                  
+                  // 날짜순 정렬
+                  rows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                  
+                  const branchTotalHours = rows.reduce((sum, r) => sum + (Number(r.actualWorkHours) || 0), 0);
                   
                   return (
                     <div key={branchName} className="mb-8">
@@ -925,24 +1190,32 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                       <table className="w-full border-collapse border border-gray-400 mb-4">
                         <thead>
                           <tr>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">날짜</th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">POS</th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">실근무</th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">휴게시간</th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">근무시간</th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/6">합계</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">날짜</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" colSpan={2}>POS</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" colSpan={2}>실근무</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">휴게시간</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">근무시간</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">합계</th>
+                          </tr>
+                          <tr>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold"></th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">출근</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">퇴근</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">출근</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">퇴근</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold"></th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold"></th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold"></th>
                           </tr>
                         </thead>
                         <tbody>
-                          {allResults.map((result, index) => (
+                          {rows.map((result, index) => (
                             <tr key={index}>
                               <td className="border border-gray-400 p-2 text-center">{formatDate(result.date)}</td>
-                              <td className="border border-gray-400 p-2 text-center" colSpan={2}>
-                                <div className="text-sm">
-                                  <div>출근 {result.actualStartTime || '-'}</div>
-                                  <div>퇴근 {result.actualEndTime || '-'}</div>
-                                </div>
-                              </td>
+                              <td className="border border-gray-400 p-2 text-center">{result.posStartTime || '-'}</td>
+                              <td className="border border-gray-400 p-2 text-center">{result.posEndTime || '-'}</td>
+                              <td className="border border-gray-400 p-2 text-center">{result.actualStartTime || '-'}</td>
+                              <td className="border border-gray-400 p-2 text-center">{result.actualEndTime || '-'}</td>
                               <td className="border border-gray-400 p-2 text-center">
                                 {formatTime(result.actualBreakTime || 0)}
                               </td>
@@ -956,7 +1229,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                           ))}
                           {/* 지점별 합계 */}
                           <tr className="bg-gray-50 font-bold">
-                            <td className="border border-gray-400 p-2 text-center" colSpan={5}>합계</td>
+                            <td className="border border-gray-400 p-2 text-center" colSpan={7}>합계</td>
                             <td className="border border-gray-400 p-2 text-center text-blue-600">
                               {formatTime(branchTotalHours)}
                             </td>
@@ -972,7 +1245,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   <div className="text-center">
                     <div className="text-lg font-semibold text-gray-900 mb-2">총합계</div>
                     <div className="text-2xl font-bold text-blue-600">
-                      {formatTime(selectedWorkTimeComparison?.totalActualHours || 0)}
+                      {formatTime(overallTotalActual || 0)}
                     </div>
                   </div>
                 </div>
