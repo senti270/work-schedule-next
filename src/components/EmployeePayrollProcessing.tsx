@@ -297,6 +297,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
         });
       
       console.log('재직중인 직원:', allEmployees.length, '명');
+      console.log('재직중인 직원 목록:', allEmployees.map(e => e.name));
       
       // 2. 계약 데이터 변환 (해당월에 유효한 계약만)
       const validContracts = contractsSnapshot.docs
@@ -401,6 +402,8 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
       }
       
       // 4. 한 번에 상태 업데이트 (무한루프 방지!)
+      console.log('최종 직원 목록:', employeesWithContracts.map(e => e.name));
+      console.log('조선아 직원 확인:', employeesWithContracts.find(e => e.name === '조선아'));
       setEmployees(employeesWithContracts);
       setContracts(validContracts);
       
@@ -513,6 +516,20 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
           return employmentTypeFilter === employmentType;
       }
     })();
+    
+    // 조선아 직원 디버깅
+    if (employee.name === '조선아') {
+      console.log('조선아 직원 필터링 결과:', {
+        matchesSearch,
+        matchesStatus,
+        matchesBranch,
+        matchesEmploymentType,
+        selectedBranchId,
+        employeeBranches: employee.branches,
+        employmentTypeFilter,
+        contract: contracts.find(contract => contract.employeeId === employee.id)
+      });
+    }
     
     return matchesSearch && matchesStatus && matchesBranch && matchesEmploymentType;
   });

@@ -24,9 +24,10 @@ interface Schedule {
 interface DuplicateSchedule {
   employeeId: string;
   employeeName: string;
-  branchName: string;
+  branchName: string; // 교차지점 중복의 경우 '여러 지점'
   date: string;
   schedules: Schedule[];
+  type?: 'same-branch-duplicate' | 'cross-branch-overlap';
 }
 
 export default function DuplicateSchedulesPage() {
@@ -61,7 +62,38 @@ export default function DuplicateSchedulesPage() {
         return acc;
       }, {} as {[key: string]: Schedule[]});
 
-      // 중복 스케줄 찾기
+      // 시간 문자열을 소수 시간으로 변환
+      const hhmmToDecimal = (time: string): number => {
+        const [hh, mm] = time.split(':');
+        return parseFloat(hh) + (parseFloat(mm || '0') / 60);
+      };
+
+      // 스케줄에서 시간 구간 배열 추출 (start-end)
+      const getIntervals = (schedule: Schedule): Array<{ start: number; end: number }> => {
+        const intervals: Array<{ start: number; end: number }> = [];
+        if (schedule.originalInput && typeof schedule.originalInput === 'string') {
+          const parts = schedule.originalInput.split(',').map(p => p.trim());
+          for (const part of parts) {
+            const m = part.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(?:\([\d.]+\))?$/);
+            if (m) {
+              intervals.push({ start: parseFloat(m[1]), end: parseFloat(m[2]) });
+            }
+          }
+          if (intervals.length > 0) return intervals;
+        }
+        if (schedule.timeSlots && schedule.timeSlots.length > 0) {
+          for (const slot of schedule.timeSlots) {
+            intervals.push({ start: hhmmToDecimal(slot.startTime), end: hhmmToDecimal(slot.endTime) });
+          }
+          return intervals;
+        }
+        intervals.push({ start: hhmmToDecimal(schedule.startTime), end: hhmmToDecimal(schedule.endTime) });
+        return intervals;
+      };
+
+      const isOverlap = (a: { start: number; end: number }, b: { start: number; end: number }) => a.start < b.end && b.start < a.end;
+
+      // 중복 스케줄 찾기 (같은 지점 내 다중 입력) + 타지점 시간 중복
       const duplicateGroups: DuplicateSchedule[] = [];
       
       Object.entries(dateGroups).forEach(([date, schedules]) => {
@@ -73,7 +105,7 @@ export default function DuplicateSchedulesPage() {
           return acc;
         }, {} as {[key: string]: Schedule[]});
 
-        // 중복이 있는 직원 찾기
+        // 중복이 있는 직원 찾기 (같은 지점 내)
         Object.entries(employeeGroups).forEach(([, employeeSchedules]) => {
           if (employeeSchedules.length > 1) {
             const firstSchedule = employeeSchedules[0];
@@ -82,8 +114,51 @@ export default function DuplicateSchedulesPage() {
               employeeName: firstSchedule.employeeName,
               branchName: firstSchedule.branchName,
               date: date,
-              schedules: employeeSchedules.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+              schedules: employeeSchedules.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+              type: 'same-branch-duplicate'
             });
+          }
+        });
+
+        // 타지점 간 시간 중복 탐지: 같은 직원 + 같은 날짜 기준으로 지점 무시하고 다시 그룹화
+        const byEmployeeOnly: {[employeeId: string]: Schedule[]} = {};
+        for (const s of schedules) {
+          if (!byEmployeeOnly[s.employeeId]) byEmployeeOnly[s.employeeId] = [];
+          byEmployeeOnly[s.employeeId].push(s);
+        }
+
+        Object.entries(byEmployeeOnly).forEach(([employeeId, empSchedules]) => {
+          if (empSchedules.length < 2) return;
+          // 서로 다른 지점 쌍 중 시간 겹침이 있는지 검사
+          const overlaps: Set<string> = new Set();
+          for (let i = 0; i < empSchedules.length; i++) {
+            for (let j = i + 1; j < empSchedules.length; j++) {
+              const a = empSchedules[i];
+              const b = empSchedules[j];
+              if (a.branchId === b.branchId) continue; // 타지점만
+              const ia = getIntervals(a);
+              const ib = getIntervals(b);
+              const hasOverlap = ia.some(x => ib.some(y => isOverlap(x, y)));
+              if (hasOverlap) {
+                overlaps.add(a.id);
+                overlaps.add(b.id);
+              }
+            }
+          }
+          if (overlaps.size > 0) {
+            const conflictSchedules = empSchedules.filter(s => overlaps.has(s.id));
+            // 이미 같은 지점 중복 그룹으로 추가된 케이스와 중복되지 않도록 같은 구성인지 확인
+            const existing = duplicateGroups.find(g => g.date === date && g.employeeId === employeeId && g.type === 'cross-branch-overlap');
+            if (!existing) {
+              duplicateGroups.push({
+                employeeId,
+                employeeName: conflictSchedules[0].employeeName,
+                branchName: '여러 지점',
+                date,
+                schedules: conflictSchedules.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+                type: 'cross-branch-overlap'
+              });
+            }
           }
         });
       });
@@ -179,7 +254,7 @@ export default function DuplicateSchedulesPage() {
                           {duplicate.employeeName} ({duplicate.branchName})
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {duplicate.date} - {duplicate.schedules.length}개의 중복 스케줄
+                          {duplicate.date} - {duplicate.schedules.length}개의 {duplicate.type === 'cross-branch-overlap' ? '타지점 시간중복' : '중복 스케줄'}
                         </p>
                       </div>
                       <button
@@ -187,7 +262,7 @@ export default function DuplicateSchedulesPage() {
                         disabled={deleting === duplicate.employeeId + duplicate.date}
                         className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {deleting === duplicate.employeeId + duplicate.date ? '삭제중...' : '중복 삭제'}
+                        {deleting === duplicate.employeeId + duplicate.date ? '삭제중...' : '정리(선택 외 삭제)'}
                       </button>
                     </div>
                     
