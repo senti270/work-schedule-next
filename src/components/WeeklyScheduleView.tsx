@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { toLocalDate, toLocalDateString } from '@/utils/dateUtils';
 
 interface Schedule {
   id: string;
@@ -86,14 +87,9 @@ export default function WeeklyScheduleView({ selectedBranchId }: WeeklyScheduleV
       const schedulesData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        date: doc.data().date?.toDate ? (() => {
-          const firebaseDate = doc.data().date.toDate();
-          // 타임존 보정: UTC 시간을 로컬 시간으로 변환
-          const localDate = new Date(firebaseDate.getTime() + firebaseDate.getTimezoneOffset() * 60000);
-          return localDate;
-        })() : new Date()
+        createdAt: toLocalDate(doc.data().createdAt),
+        updatedAt: toLocalDate(doc.data().updatedAt),
+        date: toLocalDate(doc.data().date)
       })) as Schedule[];
       
       setSchedules(schedulesData);

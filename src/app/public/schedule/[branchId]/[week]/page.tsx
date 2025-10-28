@@ -3,6 +3,7 @@
 import { useState, useEffect, use, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { toLocalDate, toLocalDateString } from '@/utils/dateUtils';
 import { isRedDay } from '@/lib/holidays';
 
 interface Schedule {
@@ -112,8 +113,8 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       const querySnapshot = await getDocs(collection(db, 'weeklyNotes'));
       const existingNote = querySnapshot.docs.find(doc => {
         const data = doc.data();
-        const noteWeekStart = data.weekStart?.toDate();
-        const noteWeekEnd = data.weekEnd?.toDate();
+        const noteWeekStart = toLocalDate(data.weekStart);
+        const noteWeekEnd = toLocalDate(data.weekEnd);
         
         return data.branchId === resolvedParams.branchId &&
                noteWeekStart?.toDateString() === weekStart.toDateString() &&
@@ -124,10 +125,10 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
         const noteData = {
           id: existingNote.id,
           ...existingNote.data(),
-          weekStart: existingNote.data().weekStart?.toDate() || new Date(),
-          weekEnd: existingNote.data().weekEnd?.toDate() || new Date(),
-          createdAt: existingNote.data().createdAt?.toDate() || new Date(),
-          updatedAt: existingNote.data().updatedAt?.toDate() || new Date()
+          weekStart: toLocalDate(existingNote.data().weekStart),
+          weekEnd: toLocalDate(existingNote.data().weekEnd),
+          createdAt: toLocalDate(existingNote.data().createdAt),
+          updatedAt: toLocalDate(existingNote.data().updatedAt)
         } as WeeklyNote;
         
         setWeeklyNote(noteData);
@@ -160,15 +161,15 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
           employeeName: data.employeeName,
           branchId: data.branchId,
           branchName: data.branchName,
-          date: data.date?.toDate ? data.date.toDate() : new Date(),
+          date: toLocalDate(data.date),
           startTime: data.startTime,
           endTime: data.endTime,
           breakTime: data.breakTime,
           totalHours: data.totalHours,
           timeSlots: data.timeSlots,
           originalInput: data.originalInput,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
+          createdAt: toLocalDate(data.createdAt),
+          updatedAt: toLocalDate(data.updatedAt)
         };
       });
 
@@ -217,9 +218,9 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       const allSchedules = schedulesSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        date: doc.data().date?.toDate() || new Date()
+        createdAt: toLocalDate(doc.data().createdAt),
+        updatedAt: toLocalDate(doc.data().updatedAt),
+        date: toLocalDate(doc.data().date)
       })) as Schedule[];
       
       // 현재 주간의 다른 지점 스케줄 필터링 (날짜별로 그룹화)
@@ -227,15 +228,15 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
       
       allSchedules.forEach(schedule => {
         // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
-        const scheduleDate = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
-        const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
-        const weekEndStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
+        const scheduleDate = toLocalDateString(schedule.date);
+        const weekStartStr = toLocalDateString(weekStart);
+        const weekEndStr = toLocalDateString(weekEnd);
         
         if (schedule.branchId !== resolvedParams.branchId && 
             scheduleDate >= weekStartStr && 
             scheduleDate <= weekEndStr) {
           
-          const dateString = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
+          const dateString = toLocalDateString(schedule.date);
           const key = `${schedule.employeeId}-${dateString}`;
           
           // 공유화면에서는 employees 데이터가 없으므로 이 체크를 제거
@@ -353,9 +354,9 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
 
   const getSchedulesForDate = (date: Date) => {
     // 로컬 시간 기준으로 날짜만 비교 (타임존 문제 해결)
-    const targetDateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const targetDateString = toLocalDateString(date);
     return schedules.filter(schedule => {
-      const scheduleDateString = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
+      const scheduleDateString = toLocalDateString(schedule.date);
       return scheduleDateString === targetDateString;
     });
   };
@@ -363,14 +364,14 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
   const goToPreviousWeek = () => {
     const prevWeek = new Date(currentWeekStart);
     prevWeek.setDate(prevWeek.getDate() - 7);
-    const weekString = prevWeek.toISOString().split('T')[0];
+    const weekString = toLocalDateString(prevWeek);
     window.location.href = `/public/schedule/${resolvedParams.branchId}/${weekString}`;
   };
 
   const goToNextWeek = () => {
     const nextWeek = new Date(currentWeekStart);
     nextWeek.setDate(nextWeek.getDate() + 7);
-    const weekString = nextWeek.toISOString().split('T')[0];
+    const weekString = toLocalDateString(nextWeek);
     window.location.href = `/public/schedule/${resolvedParams.branchId}/${weekString}`;
   };
 
@@ -530,7 +531,7 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                         <td key={dayIndex} className="px-2 py-2 text-center align-top">
                           <div className="space-y-1">
                             {(() => {
-                              const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                              const dateString = toLocalDateString(date);
                               // daySchedules가 없을 때도 다른 지점 스케줄을 보여주기 위해 employeeId 확보
                               const fallbackSchedule = schedules.find(s => s.employeeName === summary.employeeName);
                               const employeeIdForKey = (daySchedules[0]?.employeeId) || fallbackSchedule?.employeeId;

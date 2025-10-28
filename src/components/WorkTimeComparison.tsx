@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc, orderBy, limit, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { toLocalDate, toLocalDateString } from '@/utils/dateUtils';
 
 interface Schedule {
   id: string;
@@ -571,18 +572,13 @@ export default function WorkTimeComparison({
           employeeName: data.employeeName,
           branchId: data.branchId,
           branchName: data.branchName,
-          date: data.date?.toDate ? (() => {
-            const firebaseDate = data.date.toDate();
-            // 타임존 보정: UTC 시간을 로컬 시간으로 변환
-            const localDate = new Date(firebaseDate.getTime() + firebaseDate.getTimezoneOffset() * 60000);
-            return localDate;
-          })() : new Date(),
+          date: toLocalDate(data.date),
           startTime: data.startTime,
           endTime: data.endTime,
           breakTime: data.breakTime,
           totalHours: data.totalHours,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
+          createdAt: toLocalDate(data.createdAt),
+          updatedAt: toLocalDate(data.updatedAt)
         };
       });
 
@@ -893,7 +889,7 @@ export default function WorkTimeComparison({
       schedules
         .filter(schedule => schedule.employeeId === selectedEmployeeId)
         .forEach(schedule => {
-          const scheduleDate = schedule.date.toISOString().split('T')[0];
+          const scheduleDate = toLocalDateString(schedule.date);
           const breakTime = parseFloat(schedule.breakTime) || 0;
           const actualBreakTime = breakTime; // 최초 스케줄 휴게시간으로 설정
           

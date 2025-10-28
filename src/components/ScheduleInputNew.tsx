@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { isRedDay } from '@/lib/holidays';
+import { toLocalDate, toLocalDateString, isSameLocalDate } from '@/utils/dateUtils';
 // import { format } from 'date-fns';
 
 interface Schedule {
@@ -195,9 +196,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const allSchedules = schedulesSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        date: doc.data().date?.toDate() || new Date()
+        createdAt: toLocalDate(doc.data().createdAt),
+        updatedAt: toLocalDate(doc.data().updatedAt),
+        date: toLocalDate(doc.data().date)
       })) as Schedule[];
       
       // 현재 주간의 다른 지점 스케줄 필터링 (날짜별로 그룹화)
@@ -205,9 +206,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       allSchedules.forEach(schedule => {
         // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
-        const scheduleDate = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
-        const weekStartStr = `${weekDates[0].getFullYear()}-${String(weekDates[0].getMonth() + 1).padStart(2, '0')}-${String(weekDates[0].getDate()).padStart(2, '0')}`;
-        const weekEndStr = `${weekDates[6].getFullYear()}-${String(weekDates[6].getMonth() + 1).padStart(2, '0')}-${String(weekDates[6].getDate()).padStart(2, '0')}`;
+        const scheduleDate = toLocalDateString(schedule.date);
+        const weekStartStr = toLocalDateString(weekDates[0]);
+        const weekEndStr = toLocalDateString(weekDates[6]);
         
         // 🔥 끄엉 월요일 디버깅
         if (schedule.employeeName === '끄엉' && scheduleDate === weekStartStr) {
@@ -228,7 +229,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             scheduleDate >= weekStartStr && 
             scheduleDate <= weekEndStr) {
           
-          const dateString = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
+          const dateString = toLocalDateString(schedule.date);
           const key = `${schedule.employeeId}-${dateString}`;
           
           // 🔥 현재 지점에 해당 직원이 있는지 확인
@@ -320,9 +321,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const schedulesData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        date: doc.data().date?.toDate() || new Date()
+        createdAt: toLocalDate(doc.data().createdAt),
+        updatedAt: toLocalDate(doc.data().updatedAt),
+        date: toLocalDate(doc.data().date)
       })) as Schedule[];
       
       // 🔥 디버깅: 박일심의 중복 스케줄 확인
@@ -335,7 +336,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           id: s.id,
           branchName: s.branchName,
           branchId: s.branchId,
-          date: s.date.toISOString().split('T')[0],
+          date: toLocalDateString(s.date),
           startTime: s.startTime,
           endTime: s.endTime,
           originalInput: s.originalInput,
@@ -344,7 +345,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         
         // 같은 날짜에 중복 스케줄 찾기
         const dateGroups = parkSchedules.reduce((acc, schedule) => {
-          const dateKey = schedule.date.toISOString().split('T')[0];
+          const dateKey = toLocalDateString(schedule.date);
           if (!acc[dateKey]) acc[dateKey] = [];
           acc[dateKey].push(schedule);
           return acc;
@@ -364,7 +365,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
         // 10/31 특별 확인
         const oct31Schedules = parkSchedules.filter(schedule => {
-          const dateStr = schedule.date.toISOString().split('T')[0];
+          const dateStr = toLocalDateString(schedule.date);
           return dateStr === '2025-10-31';
         });
 
@@ -379,45 +380,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           createdAt: s.createdAt.toISOString()
         })));
 
-        // 중복 스케줄 삭제 함수
-        window.deleteDuplicateSchedules = async () => {
-          try {
-            console.log('🔥 중복 스케줄 삭제 시작...');
-            
-            for (const [date, schedules] of Object.entries(dateGroups)) {
-              if (schedules.length > 1) {
-                console.log(`\n🔥 ${date} 중복 스케줄 처리 (${schedules.length}개):`);
-                
-                // 생성일 기준으로 정렬 (오래된 것부터)
-                const sortedSchedules = schedules.sort((a, b) => 
-                  a.createdAt.getTime() - b.createdAt.getTime()
-                );
-                
-                // 가장 오래된 것만 남기고 나머지 삭제
-                const keepSchedule = sortedSchedules[0];
-                const deleteSchedules = sortedSchedules.slice(1);
-                
-                console.log(`  유지할 스케줄: ${keepSchedule.id} (${keepSchedule.createdAt.toISOString()})`);
-                
-                for (const schedule of deleteSchedules) {
-                  console.log(`  삭제할 스케줄: ${schedule.id} (${schedule.createdAt.toISOString()})`);
-                  await deleteDoc(doc(db, 'schedules', schedule.id));
-                  console.log(`  ✅ 삭제 완료: ${schedule.id}`);
-                }
-              }
-            }
-            
-            console.log('\n🔥 중복 스케줄 삭제 완료!');
-            alert('중복 스케줄 삭제가 완료되었습니다. 페이지를 새로고침해주세요.');
-            
-            // 스케줄 다시 로드
-            await loadSchedules();
-            
-          } catch (error) {
-            console.error('오류 발생:', error);
-            alert('중복 스케줄 삭제 중 오류가 발생했습니다.');
-          }
-        };
       }
       
       setSchedules(schedulesData);
@@ -432,7 +394,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        lockedAt: doc.data().lockedAt?.toDate() || new Date()
+        lockedAt: toLocalDate(doc.data().lockedAt)
       })) as PayrollLock[];
       // setPayrollLocks(locksData); // 사용하지 않음
     } catch (error) {
@@ -486,8 +448,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const querySnapshot = await getDocs(collection(db, 'weeklyNotes'));
       const existingNote = querySnapshot.docs.find(docSnapshot => {
         const data = docSnapshot.data();
-        const noteWeekStart = data.weekStart?.toDate ? data.weekStart.toDate() : new Date(data.weekStart);
-        const noteWeekEnd = data.weekEnd?.toDate ? data.weekEnd.toDate() : new Date(data.weekEnd);
+        const noteWeekStart = toLocalDate(data.weekStart);
+        const noteWeekEnd = toLocalDate(data.weekEnd);
         
         return data.branchId === selectedBranchId &&
                noteWeekStart.toDateString() === weekDates[0].toDateString() &&
@@ -501,11 +463,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           id: existingNote.id,
           branchId: selectedBranchId,
           branchName: noteData.branchName || '',
-          weekStart: noteData.weekStart?.toDate ? noteData.weekStart.toDate() : new Date(noteData.weekStart),
-          weekEnd: noteData.weekEnd?.toDate ? noteData.weekEnd.toDate() : new Date(noteData.weekEnd),
+          weekStart: toLocalDate(noteData.weekStart),
+          weekEnd: toLocalDate(noteData.weekEnd),
           note: noteData.note || '',
-          createdAt: noteData.createdAt?.toDate ? noteData.createdAt.toDate() : new Date(),
-          updatedAt: noteData.updatedAt?.toDate ? noteData.updatedAt.toDate() : new Date()
+          createdAt: toLocalDate(noteData.createdAt),
+          updatedAt: toLocalDate(noteData.updatedAt)
         });
       } else {
         setWeeklyNote('');
@@ -664,7 +626,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const dateRange = `${formatDate(weekStart)}-${formatDate(weekEnd)}`;
 
       // 공유 URL 생성
-      const weekString = `${currentWeekStart.getFullYear()}-${String(currentWeekStart.getMonth() + 1).padStart(2, '0')}-${String(currentWeekStart.getDate()).padStart(2, '0')}`;
+      const weekString = toLocalDateString(currentWeekStart);
       const shareUrl = `${window.location.origin}/public/schedule/${selectedBranchId || 'all'}/${weekString}`;
 
       // 포맷된 텍스트 생성
@@ -714,7 +676,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const dateRange = `${formatDate(weekStart)}-${formatDate(weekEnd)}`;
 
       // 공유 URL 생성
-      const weekString = `${currentWeekStart.getFullYear()}-${String(currentWeekStart.getMonth() + 1).padStart(2, '0')}-${String(currentWeekStart.getDate()).padStart(2, '0')}`;
+      const weekString = toLocalDateString(currentWeekStart);
       const shareUrl = `${window.location.origin}/public/schedule/${selectedBranchId || 'all'}/${weekString}`;
 
       // 포맷된 텍스트 생성
@@ -796,8 +758,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       const employeesData = employeesSnapshot.docs.map(doc => {
         const data = doc.data();
-        const hireDate = data.hireDate?.toDate ? data.hireDate.toDate() : undefined;
-        const resignationDate = data.resignationDate?.toDate ? data.resignationDate.toDate() : undefined;
+        const hireDate = data.hireDate ? toLocalDate(data.hireDate) : undefined;
+        const resignationDate = data.resignationDate ? toLocalDate(data.resignationDate) : undefined;
         
         // 직원의 지점명들 가져오기
         const employeeBranchList = employeeBranchesMap.get(doc.id) || [];
@@ -897,8 +859,8 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       const querySnapshot = await getDocs(collection(db, 'weeklyNotes'));
       const existingNote = querySnapshot.docs.find(docSnapshot => {
         const data = docSnapshot.data();
-        const noteWeekStart = data.weekStart?.toDate ? data.weekStart.toDate() : new Date(data.weekStart);
-        const noteWeekEnd = data.weekEnd?.toDate ? data.weekEnd.toDate() : new Date(data.weekEnd);
+        const noteWeekStart = toLocalDate(data.weekStart);
+        const noteWeekEnd = toLocalDate(data.weekEnd);
         
         return data.branchId === selectedBranchId &&
                noteWeekStart.toDateString() === weekDates[0].toDateString() &&
@@ -919,7 +881,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           weekStart: weekStart,
           weekEnd: weekEnd,
           note: weeklyNote,
-          createdAt: existingNote.data().createdAt?.toDate() || new Date(),
+          createdAt: toLocalDate(existingNote.data().createdAt),
           updatedAt: new Date()
         });
       } else {
@@ -972,11 +934,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 해당 날짜의 스케줄 가져오기 (지점별 필터링 포함)
   const getScheduleForDate = (employeeId: string, date: Date) => {
-    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateString = toLocalDateString(date);
     
     return schedules.find(schedule => 
       schedule.employeeId === employeeId &&
-      `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}` === dateString &&
+      toLocalDateString(schedule.date) === dateString &&
       schedule.branchId === selectedBranchId // 지점별 필터링 추가
     );
   };
@@ -1020,12 +982,12 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 시간 겹침 검증 함수
   const checkTimeOverlap = (employeeId: string, date: Date, startTime: string, endTime: string, excludeScheduleId?: string) => {
-    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateString = toLocalDateString(date);
     
     // 해당 직원의 같은 날짜 모든 스케줄 확인 (모든 지점 포함)
     const employeeSchedules = schedules.filter(schedule => 
       schedule.employeeId === employeeId &&
-      `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}` === dateString &&
+      toLocalDateString(schedule.date) === dateString &&
       (excludeScheduleId ? schedule.id !== excludeScheduleId : true)
     );
 
@@ -1239,7 +1201,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       return;
     }
     
-    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateString = toLocalDateString(date);
     setEditingCell({ employeeId, date: dateString });
     
     // 기존 스케줄이 있으면 입력 필드에 표시
@@ -1283,7 +1245,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 셀 편집 완료
   const handleCellSave = async (employeeId: string, date: Date) => {
-    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateString = toLocalDateString(date);
     const inputKey = `${employeeId}-${dateString}`;
     const inputValue = scheduleInputs[inputKey] || '';
     
@@ -1375,7 +1337,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
   // 셀 편집 취소
   const handleCellCancel = (employeeId: string, date: Date) => {
-    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateString = toLocalDateString(date);
     const inputKey = `${employeeId}-${dateString}`;
     
     setEditingCell(null);
@@ -1834,6 +1796,15 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             <span>시간 보정</span>
           </button>
           <button
+            onClick={() => window.open('/duplicate-schedules', '_blank')}
+            className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <span>중복스케줄 오류</span>
+          </button>
+          <button
             onClick={handleShare}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
           >
@@ -2017,7 +1988,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                     </div>
                   </td>
                   {weekDates.map((date, index) => {
-                    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    const dateString = toLocalDateString(date);
                     const inputKey = `${employee.id}-${dateString}`;
                     const isEditing = editingCell?.employeeId === employee.id && editingCell?.date === dateString;
                     const existingSchedule = getScheduleForDate(employee.id, date);
