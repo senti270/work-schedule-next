@@ -902,21 +902,21 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                     </thead>
                     <tbody>
                       {selectedPayroll!.calculations.map((calc, idx) => {
-                        const branchName = (calc.branches && calc.branches[0]?.branchName) || '-';
-                        const workHours = calc.actualWorkHours ?? calc.totalWorkHours ?? 0;
-                        const gross = calc.grossPay ?? 0;
-                        const ded = (calc.deductions && (calc.deductions.total ?? 0)) || 0;
-                        const net = calc.netPay ?? (gross - ded);
+                        const branchName = (calc as any).branchName || ((calc as any).branches && (calc as any).branches[0]?.branchName) || '-';
+                        const workHours = (calc as any).actualWorkHours ?? (calc as any).totalWorkHours ?? 0;
+                        const gross = (calc as any).grossPay ?? 0;
+                        const ded = ((calc as any).deductions && (((calc as any).deductions as any).total ?? 0)) || 0;
+                        const net = (calc as any).netPay ?? (gross - ded);
                         return (
                           <tr key={idx}>
                             <td className="border border-gray-300 p-2 text-center">{branchName}</td>
-                            <td className="border border-gray-300 p-2 text-right">{workHours.toFixed ? workHours.toFixed(2) : workHours}h</td>
-                            <td className="border border-gray-300 p-2 text-right">{(calc.probationPay || 0).toLocaleString()}원</td>
-                            <td className="border border-gray-300 p-2 text-right">{(calc.regularPay || 0).toLocaleString()}원</td>
-                            <td className="border border-gray-300 p-2 text-right">{(calc.weeklyHolidayPay || 0).toLocaleString()}원</td>
-                            <td className="border border-gray-300 p-2 text-right">{(gross).toLocaleString()}원</td>
-                            <td className="border border-gray-300 p-2 text-right text-red-600">-{ded.toLocaleString()}원</td>
-                            <td className="border border-gray-300 p-2 text-right font-semibold text-blue-600">{net.toLocaleString()}원</td>
+                            <td className="border border-gray-300 p-2 text-right">{(workHours as number).toFixed ? (workHours as number).toFixed(2) : workHours}h</td>
+                            <td className="border border-gray-300 p-2 text-right">{(calc as any).probationPay ?? 0}원</td>
+                            <td className="border border-gray-300 p-2 text-right">{(calc as any).regularPay ?? 0}원</td>
+                            <td className="border border-gray-300 p-2 text-right">{(calc as any).weeklyHolidayPay ?? 0}원</td>
+                            <td className="border border-gray-300 p-2 text-right">{(gross as number).toLocaleString()}원</td>
+                            <td className="border border-gray-300 p-2 text-right text-red-600">-{(ded as number).toLocaleString()}원</td>
+                            <td className="border border-gray-300 p-2 text-right font-semibold text-blue-600">{(net as number).toLocaleString()}원</td>
                           </tr>
                         );
                       })}
