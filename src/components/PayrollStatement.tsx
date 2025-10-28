@@ -933,14 +933,14 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                     {selectedPayroll.calculations.map((calc, idx) => (
                       <div key={idx} className="border border-gray-200 p-2">
                         <div className="font-medium">{(((calc as any).branchName) || (((calc as any).branches && (calc as any).branches[0]?.branchName)) || '-')} 기준</div>
-                        {(calc.probationHours || 0) + (calc.regularHours || 0) > 0 && (
+                        {(((calc as any).probationHours || 0) + ((calc as any).regularHours || 0) > 0) && (
                           <div>
-                            수습/정규 시간: {(calc.probationHours || 0).toFixed ? calc.probationHours!.toFixed(2) : (calc.probationHours || 0)}h / {(calc.regularHours || 0).toFixed ? calc.regularHours!.toFixed(2) : (calc.regularHours || 0)}h
-                            {' '}→ 수습급여 {(calc.probationPay || 0).toLocaleString()}원, 정규급여 {(calc.regularPay || 0).toLocaleString()}원
+                            수습/정규 시간: {(((calc as any).probationHours || 0) as number).toFixed ? ((calc as any).probationHours as number).toFixed(2) : ((calc as any).probationHours || 0)}h / {(((calc as any).regularHours || 0) as number).toFixed ? ((calc as any).regularHours as number).toFixed(2) : ((calc as any).regularHours || 0)}h
+                            {' '}→ 수습급여 {(((calc as any).probationPay || 0) as number).toLocaleString()}원, 정규급여 {(((calc as any).regularPay || 0) as number).toLocaleString()}원
                           </div>
                         )}
-                        {(calc.weeklyHolidayPay || 0) > 0 && (
-                          <div>주휴수당: {(calc.weeklyHolidayPay || 0).toLocaleString()}원 (시간 {(calc.weeklyHolidayHours || 0) || 0}h)</div>
+                        {((calc as any).weeklyHolidayPay || 0) > 0 && (
+                          <div>주휴수당: {(((calc as any).weeklyHolidayPay || 0) as number).toLocaleString()}원 (시간 {(((calc as any).weeklyHolidayHours || 0) || 0)}h)</div>
                         )}
                         {calc.deductions?.insuranceDetails && (
                           <div className="text-gray-600">
