@@ -253,12 +253,26 @@ const CurrentExpectedPayroll: React.FC = () => {
   }, [employees, schedules, selectedDateObj]);
 
   const sumToDate = useMemo(() => rows.reduce((s, r) => s + r.netPay, 0), [rows]);
+  
+  // 급여소득(월급)과 사업소득/외국인(시급) 분리 계산
+  const monthlySalarySum = useMemo(() => 
+    rows.filter(r => r.employmentType === '급여소득').reduce((s, r) => s + r.netPay, 0), 
+    [rows]
+  );
+  const hourlyWageSum = useMemo(() => 
+    rows.filter(r => r.employmentType === '사업소득' || r.employmentType === '외국인').reduce((s, r) => s + r.netPay, 0), 
+    [rows]
+  );
+  
   const forecast = useMemo(() => {
     const d = selectedDateObj.getDate();
     const dim = daysInMonth(selectedDateObj);
     if (d <= 0) return 0;
-    return Math.round((sumToDate / d) * dim);
-  }, [sumToDate, selectedDateObj]);
+    
+    // 시급 합계는 비례 계산, 월급 합계는 그대로
+    const hourlyForecast = Math.round((hourlyWageSum / d) * dim);
+    return hourlyForecast + monthlySalarySum;
+  }, [hourlyWageSum, monthlySalarySum, selectedDateObj]);
 
   return (
     <div className="bg-white shadow rounded-lg p-6">
@@ -317,14 +331,23 @@ const CurrentExpectedPayroll: React.FC = () => {
         </table>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 bg-blue-50 border border-blue-200 rounded">
-          <div className="text-sm text-gray-600">현재까지 총지급액 합계 (A)</div>
+          <div className="text-sm text-gray-600">현재까지 총지급액 합계 (F)</div>
           <div className="mt-1 text-2xl font-bold text-blue-700">{sumToDate.toLocaleString()}원</div>
         </div>
+        <div className="p-4 bg-green-50 border border-green-200 rounded">
+          <div className="text-sm text-gray-600">급여소득 합계 (D)</div>
+          <div className="mt-1 text-xl font-bold text-green-700">{monthlySalarySum.toLocaleString()}원</div>
+        </div>
+        <div className="p-4 bg-orange-50 border border-orange-200 rounded">
+          <div className="text-sm text-gray-600">사업소득+외국인 합계 (E)</div>
+          <div className="mt-1 text-xl font-bold text-orange-700">{hourlyWageSum.toLocaleString()}원</div>
+        </div>
         <div className="p-4 bg-purple-50 border border-purple-200 rounded">
-          <div className="text-sm text-gray-600">월말 예상 총지급액 (A / 오늘까지의일수 × 이번달의 날수)</div>
+          <div className="text-sm text-gray-600">월말까지 총지급액 예상합계</div>
           <div className="mt-1 text-2xl font-bold text-purple-700">{forecast.toLocaleString()}원</div>
+          <div className="mt-1 text-xs text-gray-500">E ÷ 오늘까지의일수 × 이번달의날수 + D</div>
         </div>
       </div>
     </div>
