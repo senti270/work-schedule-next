@@ -191,6 +191,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
   }, [selectedBranches, primaryBranchId]);
 
+
   useEffect(() => {
     console.log('EmployeeManagement 컴포넌트가 마운트되었습니다.');
     loadEmployees();
@@ -324,6 +325,9 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
           isOnProbation: data.isOnProbation || false,
           // 지점 정보 (표시용)
           branchNames: branchNames,
+          // 대표지점 정보
+          primaryBranchId: data.primaryBranchId || null,
+          primaryBranchName: data.primaryBranchName || null,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
         };
@@ -893,6 +897,14 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         await updateEmployeeBranches(editingEmployee.id, selectedBranches);
         
         console.log('직원 정보가 수정되었습니다.');
+        
+        // 직원 목록 새로고침
+        await loadEmployees();
+        
+        // 폼 닫기 및 성공 메시지
+        setShowForm(false);
+        setEditingEmployee(null);
+        alert('직원 정보가 성공적으로 수정되었습니다.');
       } else {
         // 추가
         console.log('새 직원 추가 시도');
@@ -978,6 +990,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       setPrimaryBranchId('');
       setShowForm(false);
       setEditingEmployee(null);
+      
       
       // 목록 새로고침
       await loadEmployees();
@@ -1155,6 +1168,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     
     setEditingEmployee(null);
     setShowForm(false);
+    
   };
 
   // 이름 정렬 함수
