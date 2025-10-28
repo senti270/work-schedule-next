@@ -859,24 +859,6 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
   const getScheduleForDate = (employeeId: string, date: Date) => {
     const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     
-    // 🔥 디버깅: 끄엉의 11/2 스케줄 찾기
-    if (employeeId && dateString === '2025-11-02') {
-      const employee = employees.find(emp => emp.id === employeeId);
-      if (employee && employee.name === '끄엉') {
-        console.log('🔍 getScheduleForDate 디버깅:', {
-          employeeName: employee.name,
-          employeeId,
-          dateString,
-          selectedBranchId,
-          totalSchedules: schedules.length,
-          matchingSchedules: schedules.filter(schedule => 
-            schedule.employeeId === employeeId &&
-            `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}` === dateString
-          )
-        });
-      }
-    }
-    
     return schedules.find(schedule => 
       schedule.employeeId === employeeId &&
       `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}` === dateString &&
