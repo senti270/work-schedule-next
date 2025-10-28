@@ -239,6 +239,17 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
             return; // 현재 지점에 없는 직원은 타지점 스케줄에 표시하지 않음
           }
           
+          // 🔥 현재 지점에서 해당 직원이 해당 날짜에 스케줄이 있는지 확인
+          const currentBranchSchedule = allSchedules.find(s => 
+            s.employeeId === schedule.employeeId && 
+            s.branchId === selectedBranchId &&
+            `${s.date.getFullYear()}-${String(s.date.getMonth() + 1).padStart(2, '0')}-${String(s.date.getDate()).padStart(2, '0')}` === dateString
+          );
+          
+          if (currentBranchSchedule) {
+            return; // 현재 지점에 해당 날짜 스케줄이 있으면 타지점 스케줄 표시하지 않음
+          }
+          
           if (!otherBranchSchedulesMap[key]) {
             otherBranchSchedulesMap[key] = [];
           }
