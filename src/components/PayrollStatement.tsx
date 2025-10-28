@@ -1159,7 +1159,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 {Object.entries(branchGroups).map(([branchName, comparisons]) => {
                   // 데이터 구조 표준화: 일자 단위 레코드를 표 렌더링용으로 변환
                   const rows = (comparisons || []).map((item) => {
-                    const parseRange = (range) => {
+                    const parseRange = (range: any) => {
                       if (!range || typeof range !== 'string' || !range.includes('-')) return { start: '-', end: '-' };
                       const [s, e] = range.split('-');
                       return { start: s || '-', end: e || '-' };
