@@ -220,6 +220,25 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       // 현재 주간의 다른 지점 스케줄 필터링 (날짜별로 그룹화)
       const otherBranchSchedulesMap: {[key: string]: {branchName: string, schedule: string}[]} = {};
       
+      // 🔥 디버깅: 끄엉의 11/2 스케줄 확인 (loadOtherBranchSchedules)
+      const kkeueongSchedules = allSchedules.filter(schedule => 
+        schedule.employeeName === '끄엉' && 
+        schedule.date.getFullYear() === 2025 && 
+        schedule.date.getMonth() === 10 && 
+        schedule.date.getDate() === 2
+      );
+      
+      if (kkeueongSchedules.length > 0) {
+        console.log('🔥 loadOtherBranchSchedules - 끄엉 11/2 전체 스케줄:', kkeueongSchedules.map(s => ({
+          id: s.id,
+          branchName: s.branchName,
+          branchId: s.branchId,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          originalInput: s.originalInput
+        })));
+      }
+      
       allSchedules.forEach(schedule => {
         // 현재 지점이 아니고, 현재 주간에 해당하는 스케줄
         const scheduleDate = `${schedule.date.getFullYear()}-${String(schedule.date.getMonth() + 1).padStart(2, '0')}-${String(schedule.date.getDate()).padStart(2, '0')}`;
