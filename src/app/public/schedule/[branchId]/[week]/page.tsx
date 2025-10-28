@@ -528,32 +528,45 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                       return (
                         <td key={dayIndex} className="px-2 py-2 text-center align-top">
                           <div className="space-y-1">
-                            {daySchedules.map((schedule) => {
-                              const scheduleInfo = formatScheduleDisplay(schedule);
-                              const dateString = date.toISOString().split('T')[0];
-                              const otherBranchKey = `${schedule.employeeId}-${dateString}`;
-                              const otherBranchSchedule = otherBranchSchedules[otherBranchKey];
-                              
-                              return (
-                                <div key={schedule.id} className="flex flex-col items-center">
-                                  <div className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 whitespace-nowrap w-full">
-                                    <span className="font-medium">{scheduleInfo.name}</span> {scheduleInfo.time}
-                                  </div>
-                                  
-                                  {/* 다른 지점 스케줄 정보 */}
-                                  {otherBranchSchedule && otherBranchSchedule.length > 0 && (
-                                    <div className="text-xs text-gray-600 space-y-0.5 mt-1 w-full">
-                                      {otherBranchSchedule.map((item, idx) => (
-                                        <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
-                                          <span className="font-medium">{item.branchName}:</span> {item.schedule}
-                                        </div>
-                                      ))}
+                            {daySchedules.length > 0 ? (
+                              (() => {
+                                // 🔥 같은 직원의 같은 날짜에 여러 스케줄이 있으면 하나로 합쳐서 표시
+                                const firstSchedule = daySchedules[0];
+                                const scheduleInfo = formatScheduleDisplay(firstSchedule);
+                                const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                                const otherBranchKey = `${firstSchedule.employeeId}-${dateString}`;
+                                const otherBranchSchedule = otherBranchSchedules[otherBranchKey];
+                                
+                                // 여러 스케줄이 있으면 시간을 합쳐서 표시
+                                let combinedTime = scheduleInfo.time;
+                                if (daySchedules.length > 1) {
+                                  const allTimes = daySchedules.map(schedule => {
+                                    const info = formatScheduleDisplay(schedule);
+                                    return info.time;
+                                  });
+                                  combinedTime = allTimes.join(', ');
+                                }
+                                
+                                return (
+                                  <div className="flex flex-col items-center">
+                                    <div className="text-xs p-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200 whitespace-nowrap w-full">
+                                      <span className="font-medium">{scheduleInfo.name}</span> {combinedTime}
                                     </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                            {daySchedules.length === 0 && (
+                                    
+                                    {/* 다른 지점 스케줄 정보 */}
+                                    {otherBranchSchedule && otherBranchSchedule.length > 0 && (
+                                      <div className="text-xs text-gray-600 space-y-0.5 mt-1 w-full">
+                                        {otherBranchSchedule.map((item, idx) => (
+                                          <div key={idx} className="truncate" title={`${item.branchName}: ${item.schedule}`}>
+                                            <span className="font-medium">{item.branchName}:</span> {item.schedule}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()
+                            ) : (
                               <div className="text-xs text-gray-400">-</div>
                             )}
                           </div>
