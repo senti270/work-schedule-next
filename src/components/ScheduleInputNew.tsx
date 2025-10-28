@@ -305,6 +305,27 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         updatedAt: doc.data().updatedAt?.toDate() || new Date(),
         date: doc.data().date?.toDate() || new Date()
       })) as Schedule[];
+      
+      // 🔥 디버깅: 끄엉의 11/2 송파점 스케줄 확인
+      const kkeueongSchedules = schedulesData.filter(schedule => 
+        schedule.employeeName === '끄엉' && 
+        schedule.date.getFullYear() === 2025 && 
+        schedule.date.getMonth() === 10 && 
+        schedule.date.getDate() === 2
+      );
+      
+      if (kkeueongSchedules.length > 0) {
+        console.log('🔥 끄엉 11/2 전체 스케줄:', kkeueongSchedules.map(s => ({
+          id: s.id,
+          branchName: s.branchName,
+          branchId: s.branchId,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          originalInput: s.originalInput,
+          timeSlots: s.timeSlots
+        })));
+      }
+      
       setSchedules(schedulesData);
     } catch (error) {
       console.error('스케줄 목록을 불러올 수 없습니다:', error);
