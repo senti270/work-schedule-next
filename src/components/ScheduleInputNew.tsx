@@ -258,6 +258,18 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           const scheduleText = schedule.originalInput || 
             `${formatTime(schedule.startTime)}-${formatTime(schedule.endTime)}${schedule.breakTime !== '0' ? `(${schedule.breakTime})` : ''}`;
           
+          // 🔥 디버깅: 끄엉의 11/2 타지점 스케줄 확인
+          if (schedule.employeeName === '끄엉' && scheduleDate === '2025-11-02') {
+            console.log('🔥 타지점 스케줄 추가:', {
+              employeeName: schedule.employeeName,
+              branchName: schedule.branchName,
+              branchId: schedule.branchId,
+              scheduleText,
+              key,
+              selectedBranchId
+            });
+          }
+          
           // 🔥 같은 지점의 스케줄이 이미 있는지 확인
           const existingBranchSchedule = otherBranchSchedulesMap[key].find(item => 
             item.branchName === getBranchShortName(schedule.branchName)
