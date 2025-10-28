@@ -297,6 +297,40 @@ const CurrentExpectedPayroll: React.FC = () => {
   }, [employees, schedules, selectedDateObj]);
 
   const sumToDate = useMemo(() => rows.reduce((s, r) => s + r.netPay, 0), [rows]);
+  // 직원 단위로 집계 (지점 정보 제거)
+  const employeeRows = useMemo(() => {
+    const map = new Map<string, {
+      employeeId: string;
+      employeeName: string;
+      employmentType: EmploymentType;
+      salaryLabel: string;
+      totalHours: number;
+      grossPay: number;
+      totalDeductions: number;
+      netPay: number;
+    }>();
+    rows.forEach(r => {
+      const ex = map.get(r.employeeId);
+      if (!ex) {
+        map.set(r.employeeId, {
+          employeeId: r.employeeId,
+          employeeName: r.employeeName,
+          employmentType: r.employmentType,
+          salaryLabel: r.salaryLabel,
+          totalHours: r.totalHours,
+          grossPay: r.grossPay,
+          totalDeductions: r.totalDeductions,
+          netPay: r.netPay,
+        });
+      } else {
+        ex.totalHours += r.totalHours;
+        ex.grossPay += r.grossPay;
+        ex.totalDeductions += r.totalDeductions;
+        ex.netPay += r.netPay;
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'ko'));
+  }, [rows]);
   
   // 고용형태별 합계
   const laborIncomeSum = useMemo(() => 
@@ -391,7 +425,6 @@ const CurrentExpectedPayroll: React.FC = () => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-3 py-2 text-left text-sm font-semibold text-gray-700 border-b">직원이름</th>
-              <th className="px-3 py-2 text-left text-sm font-semibold text-gray-700 border-b">지점</th>
               <th className="px-3 py-2 text-left text-sm font-semibold text-gray-700 border-b">고용형태</th>
               <th className="px-3 py-2 text-right text-sm font-semibold text-gray-700 border-b">총 근무시간</th>
               <th className="px-3 py-2 text-right text-sm font-semibold text-gray-700 border-b">시급/월급</th>
@@ -403,18 +436,17 @@ const CurrentExpectedPayroll: React.FC = () => {
           <tbody>
             {loading && (
               <tr>
-                <td className="px-3 py-3 text-center text-sm text-gray-500" colSpan={8}>불러오는 중...</td>
+                <td className="px-3 py-3 text-center text-sm text-gray-500" colSpan={7}>불러오는 중...</td>
               </tr>
             )}
-            {!loading && rows.length === 0 && (
+            {!loading && employeeRows.length === 0 && (
               <tr>
-                <td className="px-3 py-3 text-center text-sm text-gray-500" colSpan={8}>데이터가 없습니다.</td>
+                <td className="px-3 py-3 text-center text-sm text-gray-500" colSpan={7}>데이터가 없습니다.</td>
               </tr>
             )}
-            {!loading && rows.map((r, index) => (
-              <tr key={`${r.employeeId}-${r.branchId}-${index}`} className="odd:bg-white even:bg-gray-50">
+            {!loading && employeeRows.map((r) => (
+              <tr key={r.employeeId} className="odd:bg-white even:bg-gray-50">
                 <td className="px-3 py-2 text-sm text-gray-900 border-b">{r.employeeName}</td>
-                <td className="px-3 py-2 text-sm text-gray-700 border-b">{r.branchName}</td>
                 <td className="px-3 py-2 text-sm text-gray-700 border-b">{r.employmentType}</td>
                 <td className="px-3 py-2 text-sm text-right text-gray-700 border-b">{r.totalHours.toFixed(2)}</td>
                 <td className="px-3 py-2 text-sm text-right text-gray-700 border-b">{r.salaryLabel}</td>

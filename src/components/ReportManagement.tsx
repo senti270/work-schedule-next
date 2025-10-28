@@ -424,25 +424,40 @@ export default function ReportManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {reportData.map((data, index) => (
-                <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {data.employeeName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {data.branchName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {data.totalWorkDays}일
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {data.totalWorkHours.toFixed(1)}시간
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {data.averageWorkHours.toFixed(1)}시간
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                const groups: Record<string, ReportData[]> = {};
+                reportData.forEach((d) => {
+                  if (!groups[d.employeeName]) groups[d.employeeName] = [];
+                  groups[d.employeeName].push(d);
+                });
+
+                return Object.entries(groups).flatMap(([employeeName, items]) =>
+                  items.map((data, idx) => (
+                    <tr key={`${employeeName}-${data.branchName}-${idx}`}>
+                      {idx === 0 && (
+                        <td
+                          className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 align-top"
+                          rowSpan={items.length}
+                        >
+                          {employeeName}
+                        </td>
+                      )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {data.branchName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {data.totalWorkDays}일
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {data.totalWorkHours.toFixed(1)}시간
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {data.averageWorkHours.toFixed(1)}시간
+                      </td>
+                    </tr>
+                  ))
+                );
+              })()}
               {reportData.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
