@@ -953,16 +953,14 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                     <td className="border border-gray-400 p-2 w-1/4">{selectedEmployeeInfo.residentNumber || '-'}</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">총 근무시간</td>
-                    <td className="border border-gray-400 p-2">{(selectedPayroll?.totalWorkHours || 0).toFixed?.(2) ?? selectedPayroll?.totalWorkHours ?? 0}시간</td>
-                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">실수령액</td>
-                    <td className="border border-gray-400 p-2 font-bold text-blue-600">{(selectedPayroll?.totalNetPay || 0).toLocaleString()}원</td>
-                  </tr>
-                  <tr>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">총 지급액</td>
                     <td className="border border-gray-400 p-2">{(selectedPayroll?.totalGrossPay || 0).toLocaleString()}원</td>
                     <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">총 공제액</td>
                     <td className="border border-gray-400 p-2 text-red-600">-{(selectedPayroll?.totalDeductions || 0).toLocaleString()}원</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">실수령액</td>
+                    <td className="border border-gray-400 p-2 font-bold text-blue-600" colSpan={3}>{(selectedPayroll?.totalNetPay || 0).toLocaleString()}원</td>
                   </tr>
                 </tbody>
               </table>
@@ -1009,33 +1007,63 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 </div>
               )}
 
-              {/* 기타사항: 수습/주휴 상세 */}
+              {/* 기타사항: 주휴수당 계산식, 수습 계산식 */}
               {Array.isArray(selectedPayroll?.calculations) && (
                 <div className="mt-4">
                   <h4 className="text-md font-semibold text-gray-900 mb-2">기타사항</h4>
-                  <div className="text-sm text-gray-700 space-y-1">
-                    {selectedPayroll.calculations.map((calc, idx) => (
-                      <div key={idx} className="border border-gray-200 p-2">
-                        <div className="font-medium">{(((calc as any).branchName) || (((calc as any).branches && (calc as any).branches[0]?.branchName)) || '-')} 기준</div>
-                        {(((calc as any).probationHours || 0) + ((calc as any).regularHours || 0) > 0) && (
-                          <div>
-                            수습/정규 시간: {(((calc as any).probationHours || 0) as number).toFixed ? ((calc as any).probationHours as number).toFixed(2) : ((calc as any).probationHours || 0)}h / {(((calc as any).regularHours || 0) as number).toFixed ? ((calc as any).regularHours as number).toFixed(2) : ((calc as any).regularHours || 0)}h
-                            {' '}→ 수습급여 {(((calc as any).probationPay || 0) as number).toLocaleString()}원, 정규급여 {(((calc as any).regularPay || 0) as number).toLocaleString()}원
-                          </div>
-                        )}
-                        {((calc as any).weeklyHolidayPay || 0) > 0 && (
-                          <div>주휴수당: {(((calc as any).weeklyHolidayPay || 0) as number).toLocaleString()}원 (시간 {(((calc as any).weeklyHolidayHours || 0) || 0)}h)</div>
-                        )}
-                        {(((calc as any).deductions && typeof (calc as any).deductions === 'object' && (calc as any).deductions.insuranceDetails)) && (
-                          <div className="text-gray-600">
-                            4대보험: 국민 {((((calc as any).deductions.insuranceDetails.nationalPension || 0) as number).toLocaleString())} / 건강 {((((calc as any).deductions.insuranceDetails.healthInsurance || 0) as number).toLocaleString())} / 장기요양 {((((calc as any).deductions.insuranceDetails.longTermCare || 0) as number).toLocaleString())} / 고용 {((((calc as any).deductions.insuranceDetails.employmentInsurance || 0) as number).toLocaleString())}
-                          </div>
-                        )}
-                        {(((calc as any).deductions && typeof (calc as any).deductions === 'object' && (calc as any).deductions.taxDetails)) && (
-                          <div className="text-gray-600">소득세 {((((calc as any).deductions.taxDetails.incomeTax || 0) as number).toLocaleString())} / 지방소득세 {((((calc as any).deductions.taxDetails.localIncomeTax || 0) as number).toLocaleString())}</div>
-                        )}
-                      </div>
-                    ))}
+                  <div className="text-sm text-gray-700 space-y-2">
+                    {selectedPayroll.calculations.map((calc, idx) => {
+                      const branchName = (((calc as any).branchName) || (((calc as any).branches && (calc as any).branches[0]?.branchName)) || '-');
+                      const probationHours = (calc as any).probationHours || 0;
+                      const regularHours = (calc as any).regularHours || 0;
+                      const probationPay = (calc as any).probationPay || 0;
+                      const regularPay = (calc as any).regularPay || 0;
+                      const weeklyHolidayPay = (calc as any).weeklyHolidayPay || 0;
+                      const weeklyHolidayHours = (calc as any).weeklyHolidayHours || 0;
+                      const hourlyWage = (calc as any).hourlyWage || 0;
+                      
+                      return (
+                        <div key={idx} className="border border-gray-200 p-3 bg-gray-50">
+                          <div className="font-medium text-gray-900 mb-2">{branchName} 기준</div>
+                          
+                          {/* 주휴수당 계산식 (주휴수당이 있는 경우만) */}
+                          {weeklyHolidayPay > 0 && weeklyHolidayHours > 0 && (
+                            <div className="mb-2">
+                              <div className="font-medium text-gray-800">주휴수당 계산식:</div>
+                              <div className="text-gray-600 ml-2">
+                                주휴수당 = 시급 × 주휴시간 × 1.5<br/>
+                                = {hourlyWage.toLocaleString()}원 × {weeklyHolidayHours}h × 1.5<br/>
+                                = {weeklyHolidayPay.toLocaleString()}원
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* 수습 계산식 (수습이 있는 경우만) */}
+                          {probationHours > 0 && (
+                            <div className="mb-2">
+                              <div className="font-medium text-gray-800">수습 계산식:</div>
+                              <div className="text-gray-600 ml-2">
+                                수습급여 = 시급 × 수습시간<br/>
+                                = {hourlyWage.toLocaleString()}원 × {probationHours.toFixed(2)}h<br/>
+                                = {probationPay.toLocaleString()}원
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* 정규 급여 계산식 */}
+                          {regularHours > 0 && (
+                            <div className="mb-2">
+                              <div className="font-medium text-gray-800">정규급여 계산식:</div>
+                              <div className="text-gray-600 ml-2">
+                                정규급여 = 시급 × 정규시간<br/>
+                                = {hourlyWage.toLocaleString()}원 × {regularHours.toFixed(2)}h<br/>
+                                = {regularPay.toLocaleString()}원
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
