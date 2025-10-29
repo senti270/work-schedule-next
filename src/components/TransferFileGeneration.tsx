@@ -26,6 +26,7 @@ interface Employee {
   bankCode?: string;
   accountNumber?: string;
   hireDate?: Date;
+  resignationDate?: any;
   primaryBranchId?: string;
   primaryBranchName?: string;
 }
