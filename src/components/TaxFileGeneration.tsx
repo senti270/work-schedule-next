@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface ConfirmedPayroll {
@@ -81,17 +81,48 @@ const TaxFileGeneration: React.FC = () => {
 
   // 직원 로드
   const loadEmployees = useCallback(async () => {
+    if (!selectedMonth) return;
+    
     try {
-      const employeesSnapshot = await getDocs(collection(db, 'employees'));
-      const employeesData = employeesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Employee[];
+      // 해당월에 근무한 기록이 있는 직원들만 가져오기
+      const schedulesQuery = query(
+        collection(db, 'schedules'),
+        where('month', '==', selectedMonth)
+      );
+      const schedulesSnapshot = await getDocs(schedulesQuery);
+      
+      // 근무한 직원 ID들 추출
+      const workedEmployeeIds = new Set<string>();
+      schedulesSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.employeeId) {
+          workedEmployeeIds.add(data.employeeId);
+        }
+      });
+      
+      // 근무한 직원들의 상세 정보 가져오기
+      const employeesData: Employee[] = [];
+      for (const employeeId of workedEmployeeIds) {
+        try {
+          const employeeDoc = await getDoc(doc(db, 'employees', employeeId));
+          if (employeeDoc.exists()) {
+            employeesData.push({
+              id: employeeDoc.id,
+              ...employeeDoc.data()
+            } as Employee);
+          }
+        } catch (error) {
+          console.error(`직원 ${employeeId} 정보 로드 실패:`, error);
+        }
+      }
+      
+      // 이름순으로 정렬
+      employeesData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       setEmployees(employeesData);
     } catch (error) {
       console.error('직원 로드 실패:', error);
     }
-  }, []);
+  }, [selectedMonth]);
 
   // 확정된 급여 데이터 로드
   const loadConfirmedPayrolls = useCallback(async () => {
