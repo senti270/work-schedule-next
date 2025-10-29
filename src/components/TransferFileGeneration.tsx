@@ -291,9 +291,9 @@ const TransferFileGeneration: React.FC = () => {
       '은행': data.bankName,
       '계좌번호': data.accountNumber,
       '직원명': data.employeeName,
-      '입금액': data.netPay,
-      '기입금액': data.totalDeposits,
-      '차액': data.difference
+      '입금액': data.netPay || 0,
+      '기입금액': data.totalDeposits || 0,
+      '차액': data.difference || 0
     }));
 
     const ws = XLSX.utils.json_to_sheet(excelData);
@@ -433,15 +433,15 @@ const TransferFileGeneration: React.FC = () => {
                           {data.employeeName}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                          {data.netPay.toLocaleString()}원
+                          {(data.netPay || 0).toLocaleString()}원
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                          {data.totalDeposits.toLocaleString()}원
+                          {(data.totalDeposits || 0).toLocaleString()}원
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
-                          data.difference > 0 ? 'text-red-600' : data.difference < 0 ? 'text-blue-600' : 'text-gray-900'
+                          (data.difference || 0) > 0 ? 'text-red-600' : (data.difference || 0) < 0 ? 'text-blue-600' : 'text-gray-900'
                         }`}>
-                          {data.difference.toLocaleString()}원
+                          {(data.difference || 0).toLocaleString()}원
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <button
