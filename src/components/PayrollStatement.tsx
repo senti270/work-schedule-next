@@ -122,7 +122,11 @@ const PayrollStatement: React.FC = () => {
 
   // 직원 목록 로드
   const loadEmployees = async () => {
-    if (!selectedMonth) return;
+    console.log('🔥 loadEmployees 호출됨, selectedMonth:', selectedMonth);
+    if (!selectedMonth) {
+      console.log('🔥 selectedMonth가 없어서 리턴');
+      return;
+    }
     
     try {
       // 선택된 월의 시작일과 끝일 계산
@@ -130,11 +134,15 @@ const PayrollStatement: React.FC = () => {
       const monthStart = new Date(year, month - 1, 1);
       const monthEnd = new Date(year, month, 0, 23, 59, 59);
       
+      console.log('🔥 월 범위:', { monthStart, monthEnd });
+      
       const employeesQuery = query(
         collection(db, 'employees'),
         orderBy('name', 'asc')
       );
+      console.log('🔥 Firestore 쿼리 실행 중...');
       const employeesSnapshot = await getDocs(employeesQuery);
+      console.log('🔥 Firestore 쿼리 완료, 문서 수:', employeesSnapshot.docs.length);
       
       const employeesData = employeesSnapshot.docs
         .map(doc => ({
@@ -185,9 +193,11 @@ const PayrollStatement: React.FC = () => {
           return true;
         }) as Employee[];
       
+      console.log('🔥 필터링된 직원 수:', employeesData.length);
+      console.log('🔥 필터링된 직원 목록:', employeesData.map(emp => emp.name));
       setEmployees(employeesData);
     } catch (error) {
-      console.error('직원 목록 로드 실패:', error);
+      console.error('🔥 직원 목록 로드 실패:', error);
     }
   };
 
@@ -303,12 +313,12 @@ const PayrollStatement: React.FC = () => {
   };
 
   useEffect(() => {
-    loadEmployees();
     loadEmployeeMemos();
   }, []);
 
   useEffect(() => {
     if (selectedMonth) {
+      loadEmployees();
       loadConfirmedPayrolls();
       loadWorkTimeComparisons();
     }
