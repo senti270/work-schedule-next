@@ -94,7 +94,7 @@ const TaxFileGeneration: React.FC = () => {
         .map(doc => ({
           id: doc.id,
           ...doc.data()
-        }))
+        } as Employee))
         .filter(employee => {
           // 입사일과 퇴사일 확인
           const hireDate = employee.hireDate?.toDate ? employee.hireDate.toDate() : 
