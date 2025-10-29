@@ -191,6 +191,65 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     }
   }, [selectedBranches, primaryBranchId]);
 
+  // 기존 직원들의 대표지점 자동 설정 (지점이 1개인 경우)
+  useEffect(() => {
+    const updateSingleBranchEmployees = async () => {
+      try {
+        // 모든 직원의 지점 관계 조회
+        const employeeBranchesSnapshot = await getDocs(collection(db, 'employeeBranches'));
+        const employeeBranchMap = new Map<string, string[]>();
+        
+        employeeBranchesSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const employeeId = data.employeeId;
+          const branchId = data.branchId;
+          
+          if (!employeeBranchMap.has(employeeId)) {
+            employeeBranchMap.set(employeeId, []);
+          }
+          employeeBranchMap.get(employeeId)!.push(branchId);
+        });
+
+        // 지점이 1개인 직원들 찾기
+        const singleBranchEmployees = [];
+        for (const [employeeId, branchIds] of employeeBranchMap.entries()) {
+          if (branchIds.length === 1) {
+            singleBranchEmployees.push({ employeeId, branchId: branchIds[0] });
+          }
+        }
+
+        // 각 직원의 현재 대표지점 확인 및 업데이트
+        for (const { employeeId, branchId } of singleBranchEmployees) {
+          const employeeDoc = doc(db, 'employees', employeeId);
+          const employeeSnap = await getDocs(employeeDoc);
+          
+          if (!employeeSnap.empty) {
+            const employeeData = employeeSnap.docs[0].data();
+            
+            // 대표지점이 설정되지 않았거나 다른 지점인 경우 업데이트
+            if (!employeeData.primaryBranchId || employeeData.primaryBranchId !== branchId) {
+              const branch = branches.find(b => b.id === branchId);
+              if (branch) {
+                await updateDoc(employeeDoc, {
+                  primaryBranchId: branchId,
+                  primaryBranchName: branch.name
+                });
+                console.log(`직원 ${employeeData.name}의 대표지점을 ${branch.name}으로 설정했습니다.`);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('단일 지점 직원 대표지점 설정 중 오류:', error);
+      }
+    };
+
+    // 지점 데이터가 로드된 후 실행
+    if (branches.length > 0) {
+      updateSingleBranchEmployees();
+    }
+  }, [branches]);
+
 
   useEffect(() => {
     console.log('EmployeeManagement 컴포넌트가 마운트되었습니다.');
@@ -1978,7 +2037,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
                         {employee.branchNames && employee.branchNames.length > 0 ? (
                           <div className="space-y-1">
                             {[...new Set(employee.branchNames)].map((branchName, index) => (
-                              <div key={index} className={branchName === employee.primaryBranchName ? 'font-bold text-blue-600' : 'font-normal text-gray-600'}>
+                              <div key={index} className={branchName === employee.primaryBranchName ? 'font-bold text-gray-900' : 'font-normal text-gray-600'}>
                                 {branchName}
                               </div>
                             ))}
