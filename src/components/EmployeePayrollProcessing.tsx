@@ -292,8 +292,26 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
           };
         })
         .filter(employee => {
-          // 재직중인 직원만
-          return !employee.resignationDate || employee.resignationDate > now;
+          // 해당월에 근무가 걸쳐있는 직원만 (입사일/퇴사일 기준)
+          const hireDate = employee.hireDate?.toDate ? employee.hireDate.toDate() : 
+                          employee.hireDate ? new Date(employee.hireDate) : null;
+          const resignationDate = employee.resignationDate;
+          
+          // 입사일이 없으면 제외
+          if (!hireDate) return false;
+          
+          // 선택된 월의 시작일과 끝일 계산
+          const [year, month] = selectedMonth.split('-').map(Number);
+          const monthStart = new Date(year, month - 1, 1);
+          const monthEnd = new Date(year, month, 0, 23, 59, 59);
+          
+          // 입사일이 해당월 이후면 제외
+          if (hireDate > monthEnd) return false;
+          
+          // 퇴사일이 있고, 퇴사일이 해당월 이전이면 제외
+          if (resignationDate && resignationDate < monthStart) return false;
+          
+          return true;
         });
       
       console.log('재직중인 직원:', allEmployees.length, '명');
