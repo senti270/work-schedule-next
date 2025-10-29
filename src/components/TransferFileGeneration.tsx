@@ -119,42 +119,40 @@ const TransferFileGeneration: React.FC = () => {
     if (!selectedMonth) return;
     
     try {
-      // 해당월에 근무한 기록이 있는 직원들만 가져오기
-      const schedulesQuery = query(
-        collection(db, 'schedules'),
-        where('month', '==', selectedMonth)
-      );
-      const schedulesSnapshot = await getDocs(schedulesQuery);
+      // 선택된 월의 시작일과 끝일 계산
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd = new Date(year, month, 0, 23, 59, 59);
       
-      // 근무한 직원 ID들 추출
-      const workedEmployeeIds = new Set<string>();
-      schedulesSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.employeeId) {
-          workedEmployeeIds.add(data.employeeId);
-        }
-      });
+      const employeesSnapshot = await getDocs(collection(db, 'employees'));
+      const employeesData = employeesSnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            hireDate: data.hireDate?.toDate ? data.hireDate.toDate() : data.hireDate
+          };
+        })
+        .filter(employee => {
+          // 입사일과 퇴사일 확인
+          const hireDate = employee.hireDate;
+          const resignationDate = employee.resignationDate?.toDate ? employee.resignationDate.toDate() : 
+                                 employee.resignationDate ? new Date(employee.resignationDate) : null;
+          
+          // 입사일이 없으면 제외
+          if (!hireDate) return false;
+          
+          // 입사일이 해당월 이후면 제외
+          if (hireDate > monthEnd) return false;
+          
+          // 퇴사일이 있고, 퇴사일이 해당월 이전이면 제외
+          if (resignationDate && resignationDate < monthStart) return false;
+          
+          return true;
+        })
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '')) as Employee[];
       
-      // 근무한 직원들의 상세 정보 가져오기
-      const employeesData: Employee[] = [];
-      for (const employeeId of workedEmployeeIds) {
-        try {
-          const employeeDoc = await getDoc(doc(db, 'employees', employeeId));
-          if (employeeDoc.exists()) {
-            const data = employeeDoc.data();
-            employeesData.push({
-              id: employeeDoc.id,
-              ...data,
-              hireDate: data.hireDate?.toDate ? data.hireDate.toDate() : data.hireDate
-            } as Employee);
-          }
-        } catch (error) {
-          console.error(`직원 ${employeeId} 정보 로드 실패:`, error);
-        }
-      }
-      
-      // 이름순으로 정렬
-      employeesData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       setEmployees(employeesData);
     } catch (error) {
       console.error('직원 로드 실패:', error);
