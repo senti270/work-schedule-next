@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { isRedDay } from '@/lib/holidays';
 import { toLocalDate, toLocalDateString } from '@/utils/dateUtils';
@@ -1539,9 +1539,12 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         schedule: `${s.startTime}-${s.endTime}(${s.breakTime})`
       })));
 
+      // 기존 스케줄 삭제와 새 스케줄 추가를 동시에 처리
+      const batch = writeBatch(db);
+      
       // 기존 스케줄 삭제 (이전주 데이터 유무와 관계없이 모든 현재주 데이터 삭제)
       for (const schedule of currentWeekSchedules) {
-        await deleteDoc(doc(db, 'schedules', schedule.id));
+        batch.delete(doc(db, 'schedules', schedule.id));
       }
 
       // 이전 주 데이터를 현재 주로 복사 (데이터가 있을 때만)
@@ -1592,9 +1595,13 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           scheduleData.originalInput = prevSchedule.originalInput;
         }
 
-        await addDoc(collection(db, 'schedules'), scheduleData);
+        const newScheduleRef = doc(collection(db, 'schedules'));
+        batch.set(newScheduleRef, scheduleData);
         }
       }
+
+      // 배치 실행 (삭제와 추가를 동시에 처리)
+      await batch.commit();
 
       // 스케줄 다시 로드
       await loadSchedules();
@@ -1703,6 +1710,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
           }
         }
         
+        // 배치 작업으로 삭제와 추가를 동시에 처리
+        const batch = writeBatch(db);
+        
         // 대상 셀의 모든 기존 스케줄 삭제 (중복 방지)
         const existingTargetSchedules = schedules.filter(schedule => 
           schedule.employeeId === targetCell.employeeId &&
@@ -1711,7 +1721,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         );
         
         for (const existingSchedule of existingTargetSchedules) {
-          await deleteDoc(doc(db, 'schedules', existingSchedule.id));
+          batch.delete(doc(db, 'schedules', existingSchedule.id));
         }
         
         // Firebase에 저장할 데이터 준비 (undefined 값 완전 제거)
@@ -1741,12 +1751,16 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
         }
 
         // 새 스케줄 추가
-        await addDoc(collection(db, 'schedules'), scheduleData);
+        const newScheduleRef = doc(collection(db, 'schedules'));
+        batch.set(newScheduleRef, scheduleData);
 
         // 복사 모드가 아니면 원본 삭제
         if (!isCopyMode) {
-          await deleteDoc(doc(db, 'schedules', sourceSchedule.id));
+          batch.delete(doc(db, 'schedules', sourceSchedule.id));
         }
+        
+        // 배치 실행 (삭제와 추가를 동시에 처리)
+        await batch.commit();
 
         await loadSchedules();
       } catch (error) {

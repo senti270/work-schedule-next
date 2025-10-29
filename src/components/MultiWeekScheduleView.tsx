@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toLocalDate } from '@/utils/dateUtils';
 // import DateInput from './DateInput'; // 사용하지 않음
@@ -754,9 +754,12 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     }
     
     try {
+      // 배치 작업으로 삭제와 추가를 동시에 처리
+      const batch = writeBatch(db);
+      
       // 복사 모드가 아닌 경우에만 기존 스케줄 삭제
       if (!isCopyMode) {
-        await deleteDoc(doc(db, 'schedules', draggedSchedule.id));
+        batch.delete(doc(db, 'schedules', draggedSchedule.id));
       }
       
       // 새 날짜로 스케줄 생성
@@ -774,7 +777,11 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
         updatedAt: new Date()
       };
       
-      await addDoc(collection(db, 'schedules'), newScheduleData);
+      const newScheduleRef = doc(collection(db, 'schedules'));
+      batch.set(newScheduleRef, newScheduleData);
+      
+      // 배치 실행 (삭제와 추가를 동시에 처리)
+      await batch.commit();
       
       // 스케줄 목록 새로고침
       loadSchedules();
