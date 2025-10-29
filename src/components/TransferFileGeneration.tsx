@@ -455,37 +455,7 @@ const TransferFileGeneration: React.FC = () => {
                           {data.employeeName}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                          <div className="flex items-center justify-end space-x-4">
-                            <span>{(data.netPay || 0).toLocaleString()}원</span>
-                            <div className="flex items-center space-x-2">
-                              <label className="flex items-center space-x-1 text-xs">
-                                <input
-                                  type="radio"
-                                  name={`payment-${data.employeeId}`}
-                                  value="transfer"
-                                  checked={data.paymentMethod === 'transfer'}
-                                  onChange={(e) => {
-                                    // 지급방식 변경 로직 (필요시 구현)
-                                  }}
-                                  className="text-blue-600"
-                                />
-                                <span>계좌이체</span>
-                              </label>
-                              <label className="flex items-center space-x-1 text-xs">
-                                <input
-                                  type="radio"
-                                  name={`payment-${data.employeeId}`}
-                                  value="cash"
-                                  checked={data.paymentMethod === 'cash'}
-                                  onChange={(e) => {
-                                    // 지급방식 변경 로직 (필요시 구현)
-                                  }}
-                                  className="text-blue-600"
-                                />
-                                <span>현금지급</span>
-                              </label>
-                            </div>
-                          </div>
+                          {(data.netPay || 0).toLocaleString()}원
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
                           <div className="flex items-center justify-end space-x-2">
@@ -531,6 +501,26 @@ const TransferFileGeneration: React.FC = () => {
                                           className="px-2 py-1 border border-gray-300 rounded text-sm w-24"
                                           placeholder="입금액"
                                         />
+                                        <div className="flex items-center space-x-2">
+                                          <label className="flex items-center space-x-1 text-xs">
+                                            <input
+                                              type="radio"
+                                              name={`edit-payment-${deposit.id}`}
+                                              value="transfer"
+                                              className="text-blue-600"
+                                            />
+                                            <span>계좌이체</span>
+                                          </label>
+                                          <label className="flex items-center space-x-1 text-xs">
+                                            <input
+                                              type="radio"
+                                              name={`edit-payment-${deposit.id}`}
+                                              value="cash"
+                                              className="text-blue-600"
+                                            />
+                                            <span>현금지급</span>
+                                          </label>
+                                        </div>
                                         <input
                                           type="text"
                                           value={editingDeposit.memo}
@@ -599,6 +589,28 @@ const TransferFileGeneration: React.FC = () => {
                                   className="px-2 py-1 border border-gray-300 rounded text-sm w-24"
                                   placeholder="입금액"
                                 />
+                                <div className="flex items-center space-x-2">
+                                  <label className="flex items-center space-x-1 text-xs">
+                                    <input
+                                      type="radio"
+                                      name={`new-payment-${data.employeeId}`}
+                                      value="transfer"
+                                      defaultChecked={data.accountNumber !== '-'}
+                                      className="text-blue-600"
+                                    />
+                                    <span>계좌이체</span>
+                                  </label>
+                                  <label className="flex items-center space-x-1 text-xs">
+                                    <input
+                                      type="radio"
+                                      name={`new-payment-${data.employeeId}`}
+                                      value="cash"
+                                      defaultChecked={data.accountNumber === '-'}
+                                      className="text-blue-600"
+                                    />
+                                    <span>현금지급</span>
+                                  </label>
+                                </div>
                                 <input
                                   type="text"
                                   value={newDeposit.employeeId === data.employeeId ? newDeposit.memo : ''}
