@@ -148,15 +148,38 @@ const PayrollStatement: React.FC = () => {
           const resignationDate = employee.resignationDate?.toDate ? employee.resignationDate.toDate() : 
                                  employee.resignationDate ? new Date(employee.resignationDate) : null;
           
+          // 나인 직원 디버깅
+          if (employee.name === '나인') {
+            console.log('나인 직원 데이터:', {
+              name: employee.name,
+              hireDate,
+              resignationDate,
+              monthStart,
+              monthEnd,
+              hireDateAfterMonthEnd: hireDate && hireDate > monthEnd,
+              resignationDateBeforeMonthStart: resignationDate && resignationDate < monthStart
+            });
+          }
+          
           // 입사일이 없으면 제외
-          if (!hireDate) return false;
+          if (!hireDate) {
+            if (employee.name === '나인') console.log('나인: 입사일 없음');
+            return false;
+          }
           
           // 입사일이 해당월 이후면 제외
-          if (hireDate > monthEnd) return false;
+          if (hireDate > monthEnd) {
+            if (employee.name === '나인') console.log('나인: 입사일이 해당월 이후');
+            return false;
+          }
           
           // 퇴사일이 있고, 퇴사일이 해당월 이전이면 제외
-          if (resignationDate && resignationDate < monthStart) return false;
+          if (resignationDate && resignationDate < monthStart) {
+            if (employee.name === '나인') console.log('나인: 퇴사일이 해당월 이전');
+            return false;
+          }
           
+          if (employee.name === '나인') console.log('나인: 필터 통과');
           return true;
         }) as Employee[];
       
