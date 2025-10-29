@@ -1024,6 +1024,8 @@ export default function WorkTimeComparison({
             status,
             scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
             actualTimeRange: actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime),
+            // POS 근무시각 컬럼 표시용 (파싱된 원본 시간 유지)
+            posTimeRange: actualRecord.posTimeRange || '',
             isModified: false,
             breakTime: breakTime,
             actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
