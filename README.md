@@ -2,6 +2,32 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### 환경변수 설정
+
+프로젝트 루트에 `.env.local` 파일을 생성하고 다음 내용을 추가하세요:
+
+```env
+# 이메일 전송 설정 (Gmail 사용)
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+
+# Firebase 설정
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyCahLcE9AibVxzwYX8xqDr_SzTP3-vhtjo
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=workschedule-8fc6f.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=workschedule-8fc6f
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=workschedule-8fc6f.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=860832451
+NEXT_PUBLIC_FIREBASE_APP_ID=1:860832451:web:21754e4c80bcc6f752d6fe
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-FE573RCHWZ
+```
+
+**이메일 설정 방법:**
+1. Gmail 계정에서 2단계 인증 활성화
+2. Google 계정 설정 > 보안 > 2단계 인증 > 앱 비밀번호 생성
+3. 생성된 앱 비밀번호를 `EMAIL_PASS`에 입력
+
+### 개발 서버 실행
+
 First, run the development server:
 
 ```bash
