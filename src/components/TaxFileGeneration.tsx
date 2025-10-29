@@ -192,7 +192,7 @@ const TaxFileGeneration: React.FC = () => {
     
     return {
       id: payroll.id,
-      residentNumber: employee?.residentNumber || '정보없음',
+      residentNumber: employee?.residentNumber || '-',
       employeeName: payroll.employeeName,
       hireDate: hireDateStr,
       bankName: employee?.bankName || '-',
