@@ -2694,7 +2694,6 @@ export default function WorkTimeComparison({
                                       actualTimeRange: result.scheduledTimeRange, // actualTimeRange = scheduledTimeRange
                                       actualWorkHours: Math.max(0, parseTimeRangeToHours(result.scheduledTimeRange || '') - (result.actualBreakTime || 0)), // actualTimeRange에서 계산
                                       difference: 0, // 스케줄과 동일하므로 차이 0
-                                      // posTimeRange는 변경하지 않음 (POS 원본 데이터 유지)
                                       status: 'review_completed',
                                       isModified: true
                                     };
