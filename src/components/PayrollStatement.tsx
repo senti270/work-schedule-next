@@ -428,7 +428,7 @@ const PayrollStatement: React.FC = () => {
              return element.classList.contains('problematic-element');
            },
            onclone: (clonedDoc) => {
-             // 모든 스타일을 강제로 오버라이드
+             // 모든 스타일을 강제로 RGB로 변환 (lab() 색상 함수 제거)
              const style = clonedDoc.createElement('style');
              style.textContent = `
                *, *::before, *::after {
@@ -445,14 +445,17 @@ const PayrollStatement: React.FC = () => {
                .text-gray-700, [class*="text-gray-700"] { color: #374151 !important; }
                .text-gray-800, [class*="text-gray-800"] { color: #1f2937 !important; }
                .text-gray-900, [class*="text-gray-900"] { color: #111827 !important; }
+               .text-blue-600, [class*="text-blue-600"] { color: #2563eb !important; }
+               .text-red-600, [class*="text-red-600"] { color: #dc2626 !important; }
                .border-gray-200, [class*="border-gray-200"] { border-color: #e5e7eb !important; }
                .border-gray-300, [class*="border-gray-300"] { border-color: #d1d5db !important; }
+               .border-gray-400, [class*="border-gray-400"] { border-color: #9ca3af !important; }
                table { border-collapse: collapse !important; }
                td, th { border: 1px solid #d1d5db !important; }
              `;
              clonedDoc.head.insertBefore(style, clonedDoc.head.firstChild);
              
-             // 모든 요소의 인라인 스타일도 제거
+             // 모든 요소의 인라인 스타일도 강제로 RGB로 변환
              const allElements = clonedDoc.querySelectorAll('*');
              (allElements as NodeListOf<HTMLElement>).forEach(el => {
                if (el.style) {
@@ -575,7 +578,45 @@ ${selectedMonth} 급여명세서를 전달드립니다.
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        logging: false
+        logging: false,
+        onclone: (clonedDoc) => {
+          // 모든 스타일을 강제로 RGB로 변환 (lab() 색상 함수 제거)
+          const style = clonedDoc.createElement('style');
+          style.textContent = `
+            *, *::before, *::after {
+              color: #000000 !important;
+              background-color: #ffffff !important;
+              border-color: #d1d5db !important;
+              background-image: none !important;
+              box-shadow: none !important;
+            }
+            .bg-gray-50, [class*="bg-gray-50"] { background-color: #f9fafb !important; }
+            .bg-gray-100, [class*="bg-gray-100"] { background-color: #f3f4f6 !important; }
+            .bg-gray-200, [class*="bg-gray-200"] { background-color: #e5e7eb !important; }
+            .text-gray-600, [class*="text-gray-600"] { color: #4b5563 !important; }
+            .text-gray-700, [class*="text-gray-700"] { color: #374151 !important; }
+            .text-gray-800, [class*="text-gray-800"] { color: #1f2937 !important; }
+            .text-gray-900, [class*="text-gray-900"] { color: #111827 !important; }
+            .text-blue-600, [class*="text-blue-600"] { color: #2563eb !important; }
+            .text-red-600, [class*="text-red-600"] { color: #dc2626 !important; }
+            .border-gray-200, [class*="border-gray-200"] { border-color: #e5e7eb !important; }
+            .border-gray-300, [class*="border-gray-300"] { border-color: #d1d5db !important; }
+            .border-gray-400, [class*="border-gray-400"] { border-color: #9ca3af !important; }
+            table { border-collapse: collapse !important; }
+            td, th { border: 1px solid #d1d5db !important; }
+          `;
+          clonedDoc.head.insertBefore(style, clonedDoc.head.firstChild);
+          
+          // 모든 요소의 인라인 스타일도 강제로 RGB로 변환
+          const allElements = clonedDoc.querySelectorAll('*');
+          (allElements as NodeListOf<HTMLElement>).forEach(el => {
+            if (el.style) {
+              el.style.color = '#000000';
+              el.style.backgroundColor = '#ffffff';
+              el.style.borderColor = '#d1d5db';
+            }
+          });
+        }
       });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -727,7 +768,50 @@ ${selectedMonth} 급여명세서를 전달드립니다.
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        logging: false
+        logging: false,
+        onclone: (clonedDoc) => {
+          // 모든 스타일을 강제로 RGB로 변환
+          const style = clonedDoc.createElement('style');
+          style.textContent = `
+            *, *::before, *::after {
+              color: #000000 !important;
+              background-color: #ffffff !important;
+              border-color: #d1d5db !important;
+              background-image: none !important;
+              box-shadow: none !important;
+            }
+            .bg-gray-50, [class*="bg-gray-50"] { background-color: #f9fafb !important; }
+            .bg-gray-100, [class*="bg-gray-100"] { background-color: #f3f4f6 !important; }
+            .bg-gray-200, [class*="bg-gray-200"] { background-color: #e5e7eb !important; }
+            .bg-blue-50, [class*="bg-blue-50"] { background-color: #eff6ff !important; }
+            .bg-blue-300, [class*="bg-blue-300"] { background-color: #93c5fd !important; }
+            .bg-yellow-50, [class*="bg-yellow-50"] { background-color: #fefce8 !important; }
+            .bg-yellow-300, [class*="bg-yellow-300"] { background-color: #fde047 !important; }
+            .text-gray-600, [class*="text-gray-600"] { color: #4b5563 !important; }
+            .text-gray-700, [class*="text-gray-700"] { color: #374151 !important; }
+            .text-gray-800, [class*="text-gray-800"] { color: #1f2937 !important; }
+            .text-gray-900, [class*="text-gray-900"] { color: #111827 !important; }
+            .text-blue-600, [class*="text-blue-600"] { color: #2563eb !important; }
+            .border-gray-200, [class*="border-gray-200"] { border-color: #e5e7eb !important; }
+            .border-gray-300, [class*="border-gray-300"] { border-color: #d1d5db !important; }
+            .border-gray-400, [class*="border-gray-400"] { border-color: #9ca3af !important; }
+            .border-blue-300, [class*="border-blue-300"] { border-color: #93c5fd !important; }
+            .border-yellow-300, [class*="border-yellow-300"] { border-color: #fde047 !important; }
+            table { border-collapse: collapse !important; }
+            td, th { border: 1px solid #d1d5db !important; }
+          `;
+          clonedDoc.head.insertBefore(style, clonedDoc.head.firstChild);
+          
+          // 모든 요소의 인라인 스타일도 강제로 RGB로 변환
+          const allElements = clonedDoc.querySelectorAll('*');
+          (allElements as NodeListOf<HTMLElement>).forEach(el => {
+            if (el.style) {
+              el.style.color = '#000000';
+              el.style.backgroundColor = '#ffffff';
+              el.style.borderColor = '#d1d5db';
+            }
+          });
+        }
       });
 
       const imgData = canvas.toDataURL('image/png');
