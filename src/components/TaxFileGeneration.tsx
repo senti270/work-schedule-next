@@ -174,11 +174,27 @@ const TaxFileGeneration: React.FC = () => {
   // 테이블 데이터 생성
   const tableData = filteredPayrolls.map(payroll => {
     const employee = employees.find(emp => emp.id === payroll.employeeId);
+    
+    // 입사일 처리
+    let hireDateStr = '정보없음';
+    if (employee?.hireDate) {
+      try {
+        // Firebase Timestamp인 경우 toDate() 사용, 아니면 직접 Date 생성
+        const hireDate = employee.hireDate.toDate ? employee.hireDate.toDate() : new Date(employee.hireDate);
+        if (!isNaN(hireDate.getTime())) {
+          hireDateStr = hireDate.toLocaleDateString('ko-KR');
+        }
+      } catch (error) {
+        console.error('입사일 변환 오류:', error, employee.hireDate);
+        hireDateStr = '정보없음';
+      }
+    }
+    
     return {
       id: payroll.id,
       residentNumber: employee?.residentNumber || '정보없음',
       employeeName: payroll.employeeName,
-      hireDate: employee?.hireDate ? new Date(employee.hireDate).toLocaleDateString('ko-KR') : '정보없음',
+      hireDate: hireDateStr,
       bankName: employee?.bankName || '정보없음',
       bankCode: employee?.bankCode || '정보없음',
       netPay: payroll.netPay,
