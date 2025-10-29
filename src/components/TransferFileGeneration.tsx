@@ -257,6 +257,10 @@ const TransferFileGeneration: React.FC = () => {
       return;
     }
 
+    // 라디오 버튼에서 지급방식 가져오기
+    const paymentMethodElement = document.querySelector(`input[name="new-payment-${employeeId}"]:checked`) as HTMLInputElement;
+    const paymentMethod = paymentMethodElement?.value === 'transfer' ? 'transfer' : 'cash';
+
     try {
       const depositData = {
         employeeId,
@@ -264,6 +268,7 @@ const TransferFileGeneration: React.FC = () => {
         depositDate: new Date(),
         amount: newDeposit.amount,
         memo: newDeposit.memo || '',
+        paymentMethod,
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -281,10 +286,15 @@ const TransferFileGeneration: React.FC = () => {
 
   // 입금내역 수정
   const updateDeposit = async (depositId: string, amount: number, memo: string) => {
+    // 라디오 버튼에서 지급방식 가져오기
+    const paymentMethodElement = document.querySelector(`input[name="edit-payment-${depositId}"]:checked`) as HTMLInputElement;
+    const paymentMethod = paymentMethodElement?.value === 'transfer' ? 'transfer' : 'cash';
+
     try {
       await updateDoc(doc(db, 'deposits', depositId), {
         amount,
         memo,
+        paymentMethod,
         updatedAt: new Date()
       });
       await loadDeposits();
@@ -517,6 +527,7 @@ const TransferFileGeneration: React.FC = () => {
                                               type="radio"
                                               name={`edit-payment-${deposit.id}`}
                                               value="transfer"
+                                              checked={deposit.paymentMethod === 'transfer'}
                                               className="text-blue-600"
                                             />
                                             <span>계좌이체</span>
@@ -526,6 +537,7 @@ const TransferFileGeneration: React.FC = () => {
                                               type="radio"
                                               name={`edit-payment-${deposit.id}`}
                                               value="cash"
+                                              checked={deposit.paymentMethod === 'cash'}
                                               className="text-blue-600"
                                             />
                                             <span>현금지급</span>
