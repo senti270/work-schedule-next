@@ -177,11 +177,11 @@ const TaxFileGeneration: React.FC = () => {
     return {
       id: payroll.id,
       residentNumber: employee?.residentNumber || '정보없음',
+      employeeName: payroll.employeeName,
+      hireDate: employee?.hireDate ? new Date(employee.hireDate).toLocaleDateString('ko-KR') : '정보없음',
       bankName: employee?.bankName || '정보없음',
       bankCode: employee?.bankCode || '정보없음',
-      accountNumber: employee?.accountNumber || '정보없음',
       netPay: payroll.netPay,
-      employeeName: payroll.employeeName,
       grossPay: payroll.grossPay,
       memo: payroll.memo || ''
     };
@@ -271,22 +271,22 @@ const TaxFileGeneration: React.FC = () => {
                       주민번호
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      성명
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      입사일
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       은행
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       은행코드
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      계좌번호
-                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       지급액
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      성명
-                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      신고총액(월급여)
+                      신고총액
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       비고
@@ -300,19 +300,19 @@ const TaxFileGeneration: React.FC = () => {
                         {row.residentNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {row.employeeName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {row.hireDate}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {row.bankName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {row.bankCode}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {row.accountNumber}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
                         {(row.netPay || 0).toLocaleString()}원
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {row.employeeName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
                         {(row.grossPay || 0).toLocaleString()}원
