@@ -1914,7 +1914,7 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-            <h2 className="text-lg font-semibold text-gray-900">직원 목록</h2>
+            <h2 className="text-lg font-semibold text-gray-900">직원 목록 ({employees.length}명)</h2>
             
             {/* 필터링 및 검색 UI */}
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
