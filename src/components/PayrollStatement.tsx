@@ -14,6 +14,8 @@ interface Employee {
   bankName?: string;
   accountNumber?: string;
   employmentType?: string;
+  hireDate?: any;
+  resignationDate?: any;
 }
 
 interface ConfirmedPayroll {
