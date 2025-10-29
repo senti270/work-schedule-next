@@ -1375,10 +1375,9 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" colSpan={2}>실근무</th>
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">휴게시간</th>
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">근무시간</th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">합계</th>
                           </tr>
                           <tr>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold"></th>
+                            
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">출근</th>
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">퇴근</th>
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">출근</th>
@@ -1402,14 +1401,11 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                               <td className="border border-gray-400 p-2 text-center font-semibold">
                                 {formatTime(result.actualWorkHours || 0)}
                               </td>
-                              <td className="border border-gray-400 p-2 text-center font-bold text-blue-600">
-                                {formatTime(result.actualWorkHours || 0)}
-                              </td>
                             </tr>
                           ))}
                           {/* 지점별 합계 */}
                           <tr className="bg-gray-50 font-bold">
-                            <td className="border border-gray-400 p-2 text-center" colSpan={7}>합계</td>
+                            <td className="border border-gray-400 p-2 text-center" colSpan={6}>합계</td>
                             <td className="border border-gray-400 p-2 text-center text-blue-600">
                               {formatTime(branchTotalHours)}
                             </td>
@@ -1430,23 +1426,28 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   </div>
                 </div>
 
-                {/* 해당 직원용 메모 */}
+                {/* 메모 (선택된 월 기준) */}
                 {(() => {
-                  const employeeMemo = employeeMemos.find(memo => memo.employeeId === selectedEmployee);
-                  if (employeeMemo) {
-                    return (
-                      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300">
-                        <h4 className="text-md font-semibold text-gray-900 mb-2">해당직원공지용 메모</h4>
-                        <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                          {employeeMemo.memo}
-                        </div>
-                        <div className="mt-2 text-xs text-gray-500">
-                          작성일: {employeeMemo.createdAt.toLocaleDateString('ko-KR')}
-                        </div>
+                  const formatMonth = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                  const targetMonth = selectedMonth;
+                  const monthFiltered = employeeMemos
+                    .filter(m => m.employeeId === selectedEmployee && formatMonth(m.createdAt) === targetMonth)
+                    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+                  const employeeMemo = monthFiltered[0];
+
+                  if (!employeeMemo) return null;
+
+                  return (
+                    <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300">
+                      <h4 className="text-md font-semibold text-gray-900 mb-2">메모</h4>
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                        {employeeMemo.memo}
                       </div>
-                    );
-                  }
-                  return null;
+                      <div className="mt-2 text-xs text-gray-500">
+                        작성일: {employeeMemo.createdAt.toLocaleDateString('ko-KR')}
+                      </div>
+                    </div>
+                  );
                 })()}
               </div>
             </div>
