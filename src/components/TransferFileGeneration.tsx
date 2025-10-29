@@ -40,6 +40,7 @@ interface Deposit {
   depositDate: Date;
   amount: number;
   memo?: string;
+  paymentMethod?: 'transfer' | 'cash';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -462,9 +463,9 @@ const TransferFileGeneration: React.FC = () => {
                             <span>{(data.totalDeposits || 0).toLocaleString()}원</span>
                             <button
                               onClick={() => toggleRow(data.employeeId)}
-                              className="text-blue-600 hover:text-blue-800 text-sm"
+                              className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
                             >
-                              {expandedRows.has(data.employeeId) ? '▼' : '▶'}
+                              {expandedRows.has(data.employeeId) ? '[입금내역닫기]' : '[입금내역입력]'}
                             </button>
                           </div>
                         </td>
@@ -494,13 +495,22 @@ const TransferFileGeneration: React.FC = () => {
                                           className="px-2 py-1 border border-gray-300 rounded text-sm"
                                           readOnly
                                         />
-                                        <input
-                                          type="number"
-                                          value={editingDeposit.amount}
-                                          onChange={(e) => setEditingDeposit(prev => prev ? {...prev, amount: Number(e.target.value) || 0} : null)}
-                                          className="px-2 py-1 border border-gray-300 rounded text-sm w-24"
-                                          placeholder="입금액"
-                                        />
+                                        <div className="flex items-center space-x-2">
+                                          <input
+                                            type="number"
+                                            value={editingDeposit.amount}
+                                            onChange={(e) => setEditingDeposit(prev => prev ? {...prev, amount: Number(e.target.value) || 0} : null)}
+                                            className="px-2 py-1 border border-gray-300 rounded text-sm w-48"
+                                            placeholder="입금액"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => setEditingDeposit(prev => prev ? {...prev, amount: data.netPay} : null)}
+                                            className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200"
+                                          >
+                                            전액입금
+                                          </button>
+                                        </div>
                                         <div className="flex items-center space-x-2">
                                           <label className="flex items-center space-x-1 text-xs">
                                             <input
@@ -549,6 +559,9 @@ const TransferFileGeneration: React.FC = () => {
                                         <span className="text-sm font-medium w-24">
                                           {deposit.amount.toLocaleString()}원
                                         </span>
+                                        <span className="text-sm text-gray-600 w-20">
+                                          {deposit.paymentMethod === 'transfer' ? '계좌이체' : deposit.paymentMethod === 'cash' ? '현금지급' : '-'}
+                                        </span>
                                         <span className="text-sm text-gray-600 flex-1">
                                           {deposit.memo || '-'}
                                         </span>
@@ -578,17 +591,30 @@ const TransferFileGeneration: React.FC = () => {
                                   className="px-2 py-1 border border-gray-300 rounded text-sm"
                                   readOnly
                                 />
-                                <input
-                                  type="number"
-                                  value={newDeposit.employeeId === data.employeeId ? newDeposit.amount : ''}
-                                  onChange={(e) => setNewDeposit(prev => ({
-                                    ...prev,
-                                    employeeId: data.employeeId,
-                                    amount: Number(e.target.value) || 0
-                                  }))}
-                                  className="px-2 py-1 border border-gray-300 rounded text-sm w-24"
-                                  placeholder="입금액"
-                                />
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="number"
+                                    value={newDeposit.employeeId === data.employeeId ? newDeposit.amount : ''}
+                                    onChange={(e) => setNewDeposit(prev => ({
+                                      ...prev,
+                                      employeeId: data.employeeId,
+                                      amount: Number(e.target.value) || 0
+                                    }))}
+                                    className="px-2 py-1 border border-gray-300 rounded text-sm w-48"
+                                    placeholder="입금액"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setNewDeposit(prev => ({
+                                      ...prev,
+                                      employeeId: data.employeeId,
+                                      amount: data.netPay
+                                    }))}
+                                    className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200"
+                                  >
+                                    전액입금
+                                  </button>
+                                </div>
                                 <div className="flex items-center space-x-2">
                                   <label className="flex items-center space-x-1 text-xs">
                                     <input
