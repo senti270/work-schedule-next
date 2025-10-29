@@ -31,6 +31,7 @@ interface Employee {
   bankCode?: string;
   accountNumber?: string;
   hireDate?: any;
+  resignationDate?: any;
 }
 
 interface Branch {
