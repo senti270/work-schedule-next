@@ -286,6 +286,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
             salaryType: data.salaryType,
             weeklyWorkHours: data.weeklyWorkHours, // 기본값 설정을 위해 추가
             branches: data.branches && data.branches.length > 0 ? data.branches : (data.branchId ? [data.branchId] : []),
+            hireDate: data.hireDate?.toDate ? data.hireDate.toDate() : data.hireDate,
             probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : data.probationStartDate,
             probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : data.probationEndDate,
             resignationDate: data.resignationDate?.toDate ? data.resignationDate.toDate() : data.resignationDate
