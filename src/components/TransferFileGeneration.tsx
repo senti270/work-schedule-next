@@ -133,7 +133,7 @@ const TransferFileGeneration: React.FC = () => {
             id: doc.id,
             ...data,
             hireDate: data.hireDate?.toDate ? data.hireDate.toDate() : data.hireDate
-          };
+          } as Employee;
         })
         .filter(employee => {
           // 입사일과 퇴사일 확인
