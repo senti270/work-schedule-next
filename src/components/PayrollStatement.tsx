@@ -154,10 +154,12 @@ const PayrollStatement: React.FC = () => {
               name: employee.name,
               hireDate,
               resignationDate,
-              monthStart,
-              monthEnd,
+              monthStart: monthStart.toISOString(),
+              monthEnd: monthEnd.toISOString(),
               hireDateAfterMonthEnd: hireDate && hireDate > monthEnd,
-              resignationDateBeforeMonthStart: resignationDate && resignationDate < monthStart
+              resignationDateBeforeMonthStart: resignationDate && resignationDate < monthStart,
+              hireDateString: hireDate ? hireDate.toISOString() : 'null',
+              resignationDateString: resignationDate ? resignationDate.toISOString() : 'null'
             });
           }
           
