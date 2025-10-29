@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, getDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import DateInput from './DateInput';
@@ -221,10 +221,10 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
         // 각 직원의 현재 대표지점 확인 및 업데이트
         for (const { employeeId, branchId } of singleBranchEmployees) {
           const employeeDoc = doc(db, 'employees', employeeId);
-          const employeeSnap = await getDocs(employeeDoc);
+          const employeeSnap = await getDoc(employeeDoc);
           
-          if (!employeeSnap.empty) {
-            const employeeData = employeeSnap.docs[0].data();
+          if (employeeSnap.exists()) {
+            const employeeData = employeeSnap.data();
             
             // 대표지점이 설정되지 않았거나 다른 지점인 경우 업데이트
             if (!employeeData.primaryBranchId || employeeData.primaryBranchId !== branchId) {
