@@ -171,37 +171,51 @@ const TaxFileGeneration: React.FC = () => {
     ? confirmedPayrolls.filter(payroll => payroll.branchId === selectedBranchId)
     : confirmedPayrolls;
 
-  // 테이블 데이터 생성
-  const tableData = filteredPayrolls.map(payroll => {
+  // 테이블 데이터 생성 (대표지점 기준으로 그룹화)
+  const tableDataMap = new Map<string, any>();
+  
+  filteredPayrolls.forEach(payroll => {
     const employee = employees.find(emp => emp.id === payroll.employeeId);
+    if (!employee) return;
     
-    // 입사일 처리
-    let hireDateStr = '정보없음';
-    if (employee?.hireDate) {
-      try {
-        // Firebase Timestamp인 경우 toDate() 사용, 아니면 직접 Date 생성
-        const hireDate = employee.hireDate.toDate ? employee.hireDate.toDate() : new Date(employee.hireDate);
-        if (!isNaN(hireDate.getTime())) {
-          hireDateStr = hireDate.toLocaleDateString('ko-KR');
+    const key = payroll.employeeId;
+    
+    if (!tableDataMap.has(key)) {
+      // 입사일 처리
+      let hireDateStr = '정보없음';
+      if (employee?.hireDate) {
+        try {
+          // Firebase Timestamp인 경우 toDate() 사용, 아니면 직접 Date 생성
+          const hireDate = employee.hireDate.toDate ? employee.hireDate.toDate() : new Date(employee.hireDate);
+          if (!isNaN(hireDate.getTime())) {
+            hireDateStr = hireDate.toLocaleDateString('ko-KR');
+          }
+        } catch (error) {
+          console.error('입사일 변환 오류:', error, employee.hireDate);
+          hireDateStr = '정보없음';
         }
-      } catch (error) {
-        console.error('입사일 변환 오류:', error, employee.hireDate);
-        hireDateStr = '정보없음';
       }
+      
+      tableDataMap.set(key, {
+        id: payroll.id,
+        residentNumber: employee?.residentNumber || '-',
+        employeeName: payroll.employeeName,
+        hireDate: hireDateStr,
+        bankName: employee?.bankName || '-',
+        bankCode: employee?.bankCode || '-',
+        netPay: payroll.netPay,
+        grossPay: payroll.grossPay,
+        memo: payroll.memo || ''
+      });
+    } else {
+      // 이미 있는 경우 netPay와 grossPay 누적
+      const existing = tableDataMap.get(key)!;
+      existing.netPay += payroll.netPay;
+      existing.grossPay += payroll.grossPay;
     }
-    
-    return {
-      id: payroll.id,
-      residentNumber: employee?.residentNumber || '-',
-      employeeName: payroll.employeeName,
-      hireDate: hireDateStr,
-      bankName: employee?.bankName || '-',
-      bankCode: employee?.bankCode || '-',
-      netPay: payroll.netPay,
-      grossPay: payroll.grossPay,
-      memo: payroll.memo || ''
-    };
   });
+  
+  const tableData = Array.from(tableDataMap.values());
 
   return (
     <div className="space-y-6">

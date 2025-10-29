@@ -54,6 +54,9 @@ interface TransferData {
   totalDeposits: number;
   difference: number;
   deposits: Deposit[];
+  branchId: string;
+  branchName: string;
+  paymentMethod: 'transfer' | 'cash';
 }
 
 const TransferFileGeneration: React.FC = () => {
@@ -192,24 +195,46 @@ const TransferFileGeneration: React.FC = () => {
     ? confirmedPayrolls.filter(payroll => payroll.branchId === selectedBranchId)
     : confirmedPayrolls;
 
-  // 이체 데이터 생성
-  const transferData: TransferData[] = filteredPayrolls.map(payroll => {
+  // 이체 데이터 생성 (대표지점 기준으로 그룹화)
+  const transferDataMap = new Map<string, TransferData>();
+  
+  filteredPayrolls.forEach(payroll => {
     const employee = employees.find(emp => emp.id === payroll.employeeId);
-    const employeeDeposits = deposits.filter(deposit => deposit.employeeId === payroll.employeeId);
-    const totalDeposits = employeeDeposits.reduce((sum, deposit) => sum + deposit.amount, 0);
+    if (!employee) return;
     
-    return {
-      employeeId: payroll.employeeId,
-      employeeName: payroll.employeeName,
-      bankCode: employee?.bankCode || '-',
-      bankName: employee?.bankName || '-',
-      accountNumber: employee?.accountNumber || '-',
-      netPay: payroll.netPay,
-      totalDeposits,
-      difference: payroll.netPay - totalDeposits,
-      deposits: employeeDeposits
-    };
+    // 대표지점이 있으면 대표지점 사용, 없으면 첫 번째 지점 사용
+    const primaryBranchId = employee.primaryBranchId || payroll.branchId;
+    const primaryBranchName = employee.primaryBranchName || payroll.branchName;
+    
+    const key = payroll.employeeId;
+    
+    if (!transferDataMap.has(key)) {
+      const employeeDeposits = deposits.filter(deposit => deposit.employeeId === payroll.employeeId);
+      const totalDeposits = employeeDeposits.reduce((sum, deposit) => sum + deposit.amount, 0);
+      
+      transferDataMap.set(key, {
+        employeeId: payroll.employeeId,
+        employeeName: payroll.employeeName,
+        bankCode: employee?.bankCode || '-',
+        bankName: employee?.bankName || '-',
+        accountNumber: employee?.accountNumber || '-',
+        netPay: payroll.netPay,
+        totalDeposits,
+        difference: payroll.netPay - totalDeposits,
+        deposits: employeeDeposits,
+        branchId: primaryBranchId,
+        branchName: primaryBranchName,
+        paymentMethod: (employee?.accountNumber && employee.accountNumber !== '-') ? 'transfer' : 'cash'
+      });
+    } else {
+      // 이미 있는 경우 netPay 누적
+      const existing = transferDataMap.get(key)!;
+      existing.netPay += payroll.netPay;
+      existing.difference = existing.netPay - existing.totalDeposits;
+    }
   });
+  
+  const transferData: TransferData[] = Array.from(transferDataMap.values());
 
   // 행 펼치기/접기
   const toggleRow = (employeeId: string) => {
@@ -411,15 +436,12 @@ const TransferFileGeneration: React.FC = () => {
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       차액
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      상세
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {transferData.map((data, index) => (
-                    <React.Fragment key={data.employeeId}>
-                      <tr className="hover:bg-gray-50">
+                    <React.Fragment key={`${data.employeeId}-${data.branchId}`}>
+                      <tr className={`hover:bg-gray-50 ${(data.difference || 0) !== 0 ? 'bg-yellow-50' : ''}`}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {data.bankCode}
                         </td>
@@ -436,20 +458,20 @@ const TransferFileGeneration: React.FC = () => {
                           {(data.netPay || 0).toLocaleString()}원
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                          {(data.totalDeposits || 0).toLocaleString()}원
+                          <div className="flex items-center justify-end space-x-2">
+                            <span>{(data.totalDeposits || 0).toLocaleString()}원</span>
+                            <button
+                              onClick={() => toggleRow(data.employeeId)}
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              {expandedRows.has(data.employeeId) ? '📁' : '📂'}
+                            </button>
+                          </div>
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
                           (data.difference || 0) > 0 ? 'text-red-600' : (data.difference || 0) < 0 ? 'text-blue-600' : 'text-gray-900'
                         }`}>
                           {(data.difference || 0).toLocaleString()}원
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <button
-                            onClick={() => toggleRow(data.employeeId)}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            {expandedRows.has(data.employeeId) ? '📁' : '📂'}
-                          </button>
                         </td>
                       </tr>
                       
