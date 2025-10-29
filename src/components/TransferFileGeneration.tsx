@@ -60,6 +60,14 @@ interface TransferData {
   paymentMethod: 'transfer' | 'cash';
 }
 
+interface EditingDeposit {
+  id: string;
+  employeeId: string;
+  amount: number;
+  memo: string;
+  paymentMethod: 'transfer' | 'cash';
+}
+
 const TransferFileGeneration: React.FC = () => {
   // 🔥 매월 5일까지는 전달 급여를 기본값으로 설정
   const getCurrentMonth = () => {
@@ -87,7 +95,7 @@ const TransferFileGeneration: React.FC = () => {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [editingDeposit, setEditingDeposit] = useState<{id: string, employeeId: string, amount: number, memo: string} | null>(null);
+  const [editingDeposit, setEditingDeposit] = useState<EditingDeposit | null>(null);
   const [newDeposit, setNewDeposit] = useState<{employeeId: string, amount: number, memo: string}>({employeeId: '', amount: 0, memo: ''});
 
   // 지점 로드
@@ -527,7 +535,8 @@ const TransferFileGeneration: React.FC = () => {
                                               type="radio"
                                               name={`edit-payment-${deposit.id}`}
                                               value="transfer"
-                                              checked={deposit.paymentMethod === 'transfer'}
+                                              checked={editingDeposit.paymentMethod === 'transfer'}
+                                              onChange={(e) => setEditingDeposit(prev => prev ? {...prev, paymentMethod: 'transfer'} : null)}
                                               className="text-blue-600"
                                             />
                                             <span>계좌이체</span>
@@ -537,7 +546,8 @@ const TransferFileGeneration: React.FC = () => {
                                               type="radio"
                                               name={`edit-payment-${deposit.id}`}
                                               value="cash"
-                                              checked={deposit.paymentMethod === 'cash'}
+                                              checked={editingDeposit.paymentMethod === 'cash'}
+                                              onChange={(e) => setEditingDeposit(prev => prev ? {...prev, paymentMethod: 'cash'} : null)}
                                               className="text-blue-600"
                                             />
                                             <span>현금지급</span>
@@ -578,7 +588,13 @@ const TransferFileGeneration: React.FC = () => {
                                           {deposit.memo || '-'}
                                         </span>
                                         <button
-                                          onClick={() => setEditingDeposit({id: deposit.id, employeeId: data.employeeId, amount: deposit.amount, memo: deposit.memo || ''})}
+                                          onClick={() => setEditingDeposit({
+                                            id: deposit.id, 
+                                            employeeId: data.employeeId, 
+                                            amount: deposit.amount, 
+                                            memo: deposit.memo || '',
+                                            paymentMethod: deposit.paymentMethod || 'transfer'
+                                          })}
                                           className="px-2 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700"
                                         >
                                           수정

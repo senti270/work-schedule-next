@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Nodemailer 설정 (Gmail SMTP 사용)
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER, // 환경변수에서 이메일 주소
