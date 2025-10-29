@@ -14,6 +14,7 @@ import ManagerAccountManagement from './ManagerAccountManagement';
 import FormManagement from './FormManagement';
 import EmployeePayrollProcessing from './EmployeePayrollProcessing';
 import TaxFileGeneration from './TaxFileGeneration';
+import TransferFileGeneration from './TransferFileGeneration';
 import ShortTermWorkerManagement from './ShortTermWorkerManagement';
 import PayrollStatement from './PayrollStatement';
 import CurrentExpectedPayroll from './CurrentExpectedPayroll';
@@ -1490,48 +1491,7 @@ export default function Dashboard({ user }: DashboardProps) {
               )}
 
               {activeSubTab === 'payroll-file' && (
-                <div className="space-y-6">
-                  {/* 헤더 */}
-                  <div className="bg-white shadow rounded-lg p-6">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h1 className="text-2xl font-bold text-gray-900">급여이체파일 생성</h1>
-                        <p className="mt-1 text-sm text-gray-600">급여 이체용 Excel 파일을 생성합니다</p>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <label className="text-sm font-medium text-gray-700">처리할 월:</label>
-                          <input
-                            type="month"
-                            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          🔄 상태 새로고침
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 개발 예정 안내 */}
-                  <div className="bg-white overflow-hidden shadow rounded-lg">
-                    <div className="p-4 sm:p-6">
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                        <p className="text-sm text-yellow-800">
-                          <strong>개발 예정:</strong> 이 기능은 향후 구현될 예정입니다.
-                        </p>
-                      </div>
-                      <div className="mt-4">
-                        <button
-                          disabled
-                          className="bg-gray-300 text-gray-500 px-4 py-2 rounded-md text-sm font-medium cursor-not-allowed"
-                        >
-                          Excel 파일 다운로드 (개발 예정)
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <TransferFileGeneration />
               )}
 
               {activeSubTab === 'payroll-statement' && (
