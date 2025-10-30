@@ -25,6 +25,20 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Hand cursor for interactive elements */
+a[href],
+button,
+[role="button"],
+.clickable {
+  cursor: pointer;
+}
+
+/* Disabled state cursor */
+button:disabled,
+.disabled {
+  cursor: not-allowed;
+}
+
 /* 모바일 가독성 개선 */
 @media (max-width: 768px) {
   /* 텍스트 색상 강화 */
