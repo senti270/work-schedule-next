@@ -105,8 +105,6 @@ export default function WorkTimeComparison({
   } | null>(null);
   const [hasShownOvertimePopup, setHasShownOvertimePopup] = useState(false); // 팝업 표시 여부 추적
   const [showMenuDescription, setShowMenuDescription] = useState(false); // 메뉴 설명 펼침 여부
-  const [editingPosTimeRangeIndex, setEditingPosTimeRangeIndex] = useState<number | null>(null); // POS근무시각 편집 중인 인덱스
-  const [editingPosTimeRange, setEditingPosTimeRange] = useState<string>(''); // POS근무시각 편집 중인 값
   const [showDataCopyMethod, setShowDataCopyMethod] = useState(false); // 데이터 복사 방법 펼침 여부
   const [employeeBranches, setEmployeeBranches] = useState<string[]>([]); // 선택된 직원의 지점 목록
 
@@ -2573,20 +2571,7 @@ export default function WorkTimeComparison({
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
-                          <span className="text-gray-600">{result.posTimeRange || '-'}</span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingPosTimeRangeIndex(index);
-                              setEditingPosTimeRange(result.posTimeRange || '');
-                            }}
-                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                          >
-                            {result.posTimeRange || '-'}
-                          </button>
-                        )}
+                        <span className="text-gray-600">{result.posTimeRange || '-'}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
