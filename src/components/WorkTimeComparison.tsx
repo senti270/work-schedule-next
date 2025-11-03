@@ -1281,14 +1281,31 @@ export default function WorkTimeComparison({
       }
     });
 
-    // 날짜순으로 정렬
-    comparisons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // 중복 제거: 같은 직원/같은 지점/같은 날짜 키로 유일화
+    const uniqueMap = new Map<string, WorkTimeComparison>();
+    for (const comp of comparisons) {
+      const branchSuffix = comp.employeeName.includes('(')
+        ? comp.employeeName.substring(comp.employeeName.indexOf('('))
+        : '';
+      const key = `${comp.date}|${branchSuffix}`; // 날짜+지점 기준
+      if (!uniqueMap.has(key)) uniqueMap.set(key, comp);
+      else {
+        // 만약 중복이 있다면, 실제근무시간/posTimeRange가 있는 항목을 우선
+        const prev = uniqueMap.get(key)!;
+        const pick = (comp.actualTimeRange && comp.actualTimeRange !== '-') ? comp : prev;
+        uniqueMap.set(key, pick);
+      }
+    }
+    const uniqueComparisons = Array.from(uniqueMap.values());
     
-    console.log('🔥 최종 비교 결과 (지점별 분리):', comparisons);
-    setComparisonResults(comparisons);
+    // 날짜순으로 정렬
+    uniqueComparisons.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    console.log('🔥 최종 비교 결과 (지점별 분리, 중복제거):', uniqueComparisons);
+    setComparisonResults(uniqueComparisons);
     
     // 비교결과를 DB에 저장
-    await saveComparisonResults(comparisons);
+    await saveComparisonResults(uniqueComparisons);
     
     // 연장근무시간 계산 (정직원인 경우만)
     if (selectedEmployeeId) {
@@ -1306,7 +1323,7 @@ export default function WorkTimeComparison({
           // 근로소득자인 경우에만 연장근무시간 계산
           if (employeeData.type === '근로소득자' || employeeData.employmentType === '근로소득') {
             // 이번주 총 실제 근무시간 계산 (지점별 분리된 결과에서)
-            const totalActualHours = comparisons.reduce((sum, comp) => sum + comp.actualHours, 0);
+            const totalActualHours = uniqueComparisons.reduce((sum, comp) => sum + comp.actualHours, 0);
             
             // 이번주 시작일 계산 (월요일)
             const currentDate = new Date(selectedMonth);
@@ -1327,20 +1344,27 @@ export default function WorkTimeComparison({
     }
     
     // 모든 비교 결과를 DB에 저장
-    await saveAllComparisonResults(comparisons);
+    await saveAllComparisonResults(uniqueComparisons);
     
     // 비교결과 데이터가 한건이라도 있으면 검토중으로 상태 변경
-    if (comparisons.length > 0) {
-      console.log('비교 작업 완료, 검토중 상태로 변경:', selectedEmployeeId);
+    if (uniqueComparisons.length > 0) {
+      console.log('비교 작업 완료, 검토중 상태로 변경 + DB 저장:', selectedEmployeeId, selectedBranchId);
+      // 1) 화면 상태 업데이트
       setEmployeeReviewStatus(prev => {
         const updated = prev.map(status => 
           status.employeeId === selectedEmployeeId 
             ? { ...status, status: '검토중' as '검토전' | '검토중' | '근무시간검토완료' }
             : status
         );
-        console.log('비교 작업 후 검토 상태 업데이트:', updated);
+        console.log('비교 작업 후 검토 상태 업데이트(메모리):', updated);
         return updated;
       });
+      // 2) DB 반영 (현재 선택 지점 기준)
+      try {
+        await saveReviewStatus(selectedEmployeeId, '검토중', selectedBranchId);
+      } catch (e) {
+        console.error('비교 완료 후 검토중 상태 DB 저장 실패:', e);
+      }
     }
     
     // 자동 검토완료 변경 로직 제거 - 수동 버튼으로 변경
@@ -1661,6 +1685,22 @@ export default function WorkTimeComparison({
         )
       );
       
+      // 🔧 데이터 정리: 특정 날짜(2025-10-27)의 posTimeRange 가 null/빈값인 잘못된 문서 삭제
+      try {
+        const cleanupTargets = querySnapshot.docs.filter(d => {
+          const data = d.data();
+          return data.date === '2025-10-27' && (!data.posTimeRange || data.posTimeRange === null || data.posTimeRange === '');
+        });
+        if (cleanupTargets.length > 0) {
+          console.log('데이터 정리 - posTimeRange 누락 문서 삭제 대상:', cleanupTargets.length);
+          for (const bad of cleanupTargets) {
+            await deleteDoc(bad.ref);
+          }
+        }
+      } catch (e) {
+        console.warn('데이터 정리 중 오류(무시 가능):', e);
+      }
+
       console.log('DB 쿼리 결과:', querySnapshot.docs.length, '건');
       console.log('현재 employeeReviewStatus:', employeeReviewStatus);
       
