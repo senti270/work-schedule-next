@@ -980,6 +980,76 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   };
 
+  // 타지점 스케줄과 시간대 중복 확인 함수
+  const checkOtherBranchTimeOverlap = (employeeId: string, date: Date, schedule: Schedule | null) => {
+    if (!schedule) return false;
+    
+    const dateString = toLocalDateString(date);
+    const otherBranches = otherBranchSchedules[`${employeeId}-${dateString}`];
+    if (!otherBranches || otherBranches.length === 0) return false;
+    
+    // 현재 스케줄의 시간대 추출
+    const getCurrentTimeSlots = () => {
+      if (schedule.timeSlots && schedule.timeSlots.length > 0) {
+        return schedule.timeSlots;
+      } else {
+        return [{
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          breakTime: parseFloat(schedule.breakTime) || 0
+        }];
+      }
+    };
+    
+    const currentSlots = getCurrentTimeSlots();
+    
+    // 시간을 분 단위로 변환
+    const timeToMinutes = (timeStr: string) => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + (minutes || 0);
+    };
+    
+    // 타지점 스케줄 문자열을 시간대 배열로 파싱
+    const parseOtherBranchSchedule = (scheduleStr: string) => {
+      const timeParts = scheduleStr.split(',').map(part => part.trim());
+      const slots: {start: number, end: number}[] = [];
+      
+      for (const part of timeParts) {
+        // "10-22(2)" 또는 "18.5-23" 형태 파싱
+        const match = part.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)(?:\([\d.]+\))?$/);
+        if (match) {
+          const [, startStr, endStr] = match;
+          const startDecimal = parseFloat(startStr);
+          const endDecimal = parseFloat(endStr);
+          const startMinutes = Math.floor(startDecimal) * 60 + Math.round((startDecimal - Math.floor(startDecimal)) * 60);
+          const endMinutes = Math.floor(endDecimal) * 60 + Math.round((endDecimal - Math.floor(endDecimal)) * 60);
+          slots.push({ start: startMinutes, end: endMinutes });
+        }
+      }
+      
+      return slots;
+    };
+    
+    // 타지점 스케줄들과 시간대 겹침 확인
+    for (const otherBranch of otherBranches) {
+      const otherSlots = parseOtherBranchSchedule(otherBranch.schedule);
+      
+      for (const currentSlot of currentSlots) {
+        const currentStart = timeToMinutes(currentSlot.startTime);
+        const currentEnd = timeToMinutes(currentSlot.endTime);
+        
+        for (const otherSlot of otherSlots) {
+          // 시간 겹침 확인
+          if (currentStart < otherSlot.end && currentEnd > otherSlot.start) {
+            return true;
+          }
+        }
+      }
+    }
+    
+    return false;
+  };
+
   // 시간 겹침 검증 함수
   const checkTimeOverlap = (employeeId: string, date: Date, startTime: string, endTime: string, excludeScheduleId?: string) => {
     const dateString = toLocalDateString(date);
@@ -2067,7 +2137,11 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                           <div className="flex flex-col items-center">
                             <div
                               className={`relative px-1 py-1 text-xs rounded cursor-pointer hover:bg-gray-100 min-h-[24px] flex items-center w-full ${
-                                existingSchedule ? 'bg-blue-100 text-blue-800' : 'bg-gray-50 text-gray-500'
+                                checkOtherBranchTimeOverlap(employee.id, date, existingSchedule || null) 
+                                  ? 'bg-red-200 text-red-900 border-2 border-red-400' 
+                                  : existingSchedule 
+                                    ? 'bg-blue-100 text-blue-800' 
+                                    : 'bg-gray-50 text-gray-500'
                               } ${isLocked ? 'cursor-not-allowed opacity-50' : ''} ${
                                 dragState.isDragging && dragState.targetCell?.employeeId === employee.id && 
                                 dragState.targetCell?.date.toDateString() === date.toDateString() 
