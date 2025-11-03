@@ -5,6 +5,7 @@ import { collection, getDocs, getDoc, doc, query, where, orderBy } from 'firebas
 import { db } from '@/lib/firebase';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { getPayrollMonth } from '@/utils/dateUtils';
 
 interface Employee {
   id: string;
@@ -91,7 +92,7 @@ interface WorkTimeComparisonResult {
 }
 
 const PayrollStatement: React.FC = () => {
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>(getPayrollMonth());
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [confirmedPayrolls, setConfirmedPayrolls] = useState<ConfirmedPayroll[]>([]);
   const [workTimeComparisons, setWorkTimeComparisons] = useState<WorkTimeComparisonResult[]>([]);

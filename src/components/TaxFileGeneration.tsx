@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, getDoc, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { getPayrollMonth } from '@/utils/dateUtils';
 
 interface ConfirmedPayroll {
   id: string;
@@ -40,25 +41,7 @@ interface Branch {
 }
 
 const TaxFileGeneration: React.FC = () => {
-  // 🔥 매월 5일까지는 전달 급여를 기본값으로 설정
-  const getCurrentMonth = () => {
-    const now = new Date();
-    const currentDay = now.getDate();
-    
-    // 매월 5일까지는 전달 급여
-    let targetMonth: Date;
-    if (currentDay <= 5) {
-      // 전달로 설정
-      targetMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    } else {
-      // 이번 달
-      targetMonth = now;
-    }
-    
-    return `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, '0')}`;
-  };
-  
-  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonth());
+  const [selectedMonth, setSelectedMonth] = useState<string>(getPayrollMonth());
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [confirmedPayrolls, setConfirmedPayrolls] = useState<ConfirmedPayroll[]>([]);

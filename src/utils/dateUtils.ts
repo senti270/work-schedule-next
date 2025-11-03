@@ -47,3 +47,24 @@ export function toLocalDate(timestamp: unknown): Date {
     return new Date(timestamp as string | number);
   }
 }
+
+/**
+ * 급여 처리용 월 문자열 반환 (매달 25일까지는 전월로 설정)
+ * @returns YYYY-MM 형식의 월 문자열
+ */
+export function getPayrollMonth(): string {
+  const now = new Date();
+  const currentDay = now.getDate();
+  
+  // 매월 25일까지는 전월 급여 처리
+  let targetMonth: Date;
+  if (currentDay <= 25) {
+    // 전월로 설정
+    targetMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  } else {
+    // 이번 달
+    targetMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  
+  return `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, '0')}`;
+}

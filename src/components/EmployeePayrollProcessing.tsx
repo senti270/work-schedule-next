@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase';
 import { User } from 'firebase/auth';
 import WorkTimeComparison from './WorkTimeComparison';
 import PayrollCalculation from './PayrollCalculation';
+import { getPayrollMonth } from '@/utils/dateUtils';
 
 interface Employee {
   id: string;
@@ -56,7 +57,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>(getPayrollMonth());
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('전체');
