@@ -1149,16 +1149,34 @@ export default function WorkTimeComparison({
 
     // 각 지점별로 비교 결과 생성
     Object.values(branchGroups).forEach(({ branchId, branchName, schedules: branchSchedules }) => {
-      branchSchedules.forEach(schedule => {
-        const scheduleDate = toLocalDateString(schedule.date);
+      // 같은 날짜에 스케줄이 여러 건이면 1건으로 합치기 (시간범위는 콤마로 연결, 총근무/휴게시간 합산)
+      const schedulesByDate = branchSchedules.reduce((acc: Record<string, any>, s: any) => {
+        const d = toLocalDateString(s.date);
+        if (!acc[d]) {
+          acc[d] = {
+            date: d,
+            employeeName: s.employeeName,
+            totalHours: 0,
+            timeRanges: [] as string[],
+            breakTimeSum: 0
+          };
+        }
+        acc[d].totalHours += Number(s.totalHours) || 0;
+        if (s.startTime && s.endTime) acc[d].timeRanges.push(`${s.startTime}-${s.endTime}`);
+        acc[d].breakTimeSum += parseFloat(s.breakTime) || 0;
+        return acc;
+      }, {} as Record<string, any>);
+
+      Object.values(schedulesByDate).forEach((day: any) => {
+        const scheduleDate = day.date;
         const actualRecord = actualRecords.find(record => record.date === scheduleDate);
 
-        console.log(`스케줄: ${schedule.employeeName} ${scheduleDate} (${branchName})`, schedule);
+        console.log(`스케줄(합침): ${day.employeeName} ${scheduleDate} (${branchName})`, day);
         console.log(`실제근무 데이터 찾기:`, actualRecord);
 
         if (actualRecord) {
           // 휴게시간과 실근무시간 계산
-          const breakTime = parseFloat(schedule.breakTime) || 0; // 스케줄 휴게시간 (시간)
+          const breakTime = day.breakTimeSum || 0; // 합쳐진 스케줄 휴게시간 합
           // 🔥 POS 데이터가 여러 건이어서 휴게시간이 계산된 경우, 그것을 사용
           // 그렇지 않으면 스케줄 휴게시간 사용
           const actualBreakTime = actualRecord.calculatedBreakTime !== undefined 
@@ -1172,7 +1190,7 @@ export default function WorkTimeComparison({
           const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
           
           // 차이 계산: 실제순근무시간 - 스케줄시간 (많이 하면 +, 적게 하면 -)
-          const difference = actualWorkHours - schedule.totalHours;
+          const difference = actualWorkHours - (Number(day.totalHours) || 0);
           let status: 'time_match' | 'review_required' | 'review_completed' = 'time_match';
           
           // 10분(0.17시간) 이상 차이나면 확인필요, 이내면 시간일치
@@ -1183,13 +1201,13 @@ export default function WorkTimeComparison({
           }
           
           comparisons.push({
-            employeeName: `${schedule.employeeName} (${branchName})`,
+            employeeName: `${day.employeeName} (${branchName})`,
             date: scheduleDate,
-            scheduledHours: schedule.totalHours,
+            scheduledHours: Number(day.totalHours) || 0,
             actualHours: actualRecord.totalHours,
             difference,
             status,
-            scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
+            scheduledTimeRange: day.timeRanges.length > 0 ? day.timeRanges.join(',') : '-',
             actualTimeRange: actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime),
             // POS 근무시각 컬럼 표시용 (파싱된 원본 시간 유지)
             posTimeRange: actualRecord.posTimeRange || '',
@@ -1203,19 +1221,19 @@ export default function WorkTimeComparison({
       } else {
         // 스케줄은 있지만 실제근무 데이터가 없는 경우
         // 휴게시간과 실근무시간 계산 (실제근무 데이터가 없는 경우)
-        const breakTime = parseFloat(schedule.breakTime) || 0;
+        const breakTime = day.breakTimeSum || 0;
         const actualBreakTime = breakTime; // 최초 스케줄 휴게시간 가져오기
         console.log(`🔥 스케줄만 있음: ${scheduleDate} (${branchName}), breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}`);
         const actualWorkHours = 0; // 실제근무 데이터가 없으므로 0
         
         comparisons.push({
-          employeeName: `${schedule.employeeName} (${branchName})`,
+          employeeName: `${day.employeeName} (${branchName})`,
           date: scheduleDate,
-          scheduledHours: schedule.totalHours,
+          scheduledHours: Number(day.totalHours) || 0,
           actualHours: 0,
-          difference: -schedule.totalHours,
+          difference: -(Number(day.totalHours) || 0),
           status: 'review_required',
-          scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
+          scheduledTimeRange: day.timeRanges.length > 0 ? day.timeRanges.join(',') : '-',
           actualTimeRange: '-',
           isModified: false,
           breakTime: breakTime,
@@ -1224,7 +1242,7 @@ export default function WorkTimeComparison({
           posTimeRange: '' // 실제근무 데이터가 없으므로 빈 값
         });
       }
-    });
+      });
     });
 
     // 2. 실제근무 데이터는 있지만 스케줄이 없는 경우
