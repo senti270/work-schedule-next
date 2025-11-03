@@ -179,11 +179,8 @@ const TaxFileGeneration: React.FC = () => {
     }
   };
 
-  // 지점별 필터링된 데이터 (대표지점 기준으로 보정)
-  const filteredPayrolls = (selectedBranchId 
-    ? confirmedPayrolls.filter(payroll => payroll.branchId === selectedBranchId)
-    : confirmedPayrolls
-  ).map(payroll => {
+  // 전체 데이터(대표지점 기준 보정) - 탭 건수 계산용, selectedBranchId와 무관
+  const normalizedAllPayrolls = confirmedPayrolls.map(payroll => {
     // branchId가 비어있는 기존 데이터 보정: 직원의 대표지점 사용
     if (!payroll.branchId) {
       const emp = employees.find(e => e.id === payroll.employeeId) as any;
@@ -193,6 +190,12 @@ const TaxFileGeneration: React.FC = () => {
     }
     return payroll;
   });
+
+  // 지점별 필터링된 데이터 (대표지점 기준 보정) - 실제 표시용
+  const filteredPayrolls = (selectedBranchId 
+    ? normalizedAllPayrolls.filter(payroll => payroll.branchId === selectedBranchId)
+    : normalizedAllPayrolls
+  );
 
   // 테이블 데이터 생성 (대표지점 기준으로 그룹화)
   const tableDataMap = new Map<string, any>();
@@ -279,10 +282,10 @@ const TaxFileGeneration: React.FC = () => {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                전체 ({confirmedPayrolls.length}건)
+                전체 ({normalizedAllPayrolls.length}건)
               </button>
               {branches.map((branch) => {
-                const branchCount = filteredPayrolls.filter(p => p.branchId === branch.id).length;
+                const branchCount = normalizedAllPayrolls.filter(p => p.branchId === branch.id).length;
                 return (
                   <button
                     key={branch.id}
