@@ -408,16 +408,24 @@ export default function WorkTimeComparison({
   // 중복 데이터 정리 함수 (현재 사용하지 않음 - 전체 함수 제거)
 
   // 검토 상태를 DB에 저장 (지점별로 분리)
-  const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료') => {
+  const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료', branchIdParam?: string) => {
     try {
-      console.log('🔵 검토 상태 저장 시작:', { employeeId, status, selectedMonth, selectedBranchId });
+      // branchId 파라미터가 있으면 사용, 없으면 selectedBranchId 사용
+      const targetBranchId = branchIdParam || selectedBranchId;
+      console.log('🔵 검토 상태 저장 시작:', { employeeId, status, selectedMonth, targetBranchId, branchIdParam, selectedBranchId });
+      
+      if (!targetBranchId) {
+        console.error('❌ branchId가 없습니다. 상태 저장을 취소합니다.');
+        alert('지점이 선택되지 않았습니다. 지점을 먼저 선택해주세요.');
+        return;
+      }
       
       // 현재 선택된 지점에 대한 상태 저장
       const reviewStatusRecord = {
         employeeId,
         status,
         month: selectedMonth,
-        branchId: selectedBranchId,
+        branchId: targetBranchId,
         updatedAt: new Date()
       };
 
@@ -426,7 +434,7 @@ export default function WorkTimeComparison({
         collection(db, 'employeeReviewStatus'),
         where('employeeId', '==', employeeId),
         where('month', '==', selectedMonth),
-        where('branchId', '==', selectedBranchId)
+        where('branchId', '==', targetBranchId)
       );
       
       const existingDocs = await getDocs(existingQuery);
@@ -436,7 +444,7 @@ export default function WorkTimeComparison({
         // 새로 추가
         // 🔥 최적화: 자주 조회하는 데이터를 역정규화하여 포함
         const selectedEmployee = employees.find(emp => emp.id === employeeId);
-        const selectedBranch = branches.find(br => br.id === selectedBranchId);
+        const selectedBranch = branches.find(br => br.id === targetBranchId);
         
         const optimizedReviewStatusRecord = {
           ...reviewStatusRecord,
@@ -1910,7 +1918,7 @@ export default function WorkTimeComparison({
                                           // 🔥 비교 결과 테이블 강제 리렌더링을 위해 복사
                                           setComparisonResults([...comparisonResults]);
                                           
-                                          await saveReviewStatus(selectedEmployeeId, '검토중');
+                                          await saveReviewStatus(selectedEmployeeId, '검토중', branchId);
                                         }
                                       }}
                                       className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700"
@@ -1944,7 +1952,7 @@ export default function WorkTimeComparison({
                                           // 🔥 비교 결과 테이블 강제 리렌더링을 위해 복사
                                           setComparisonResults([...comparisonResults]);
                                           
-                                          await saveReviewStatus(selectedEmployeeId, '근무시간검토완료');
+                                          await saveReviewStatus(selectedEmployeeId, '근무시간검토완료', branchId);
                                           // 🔥 loadReviewStatus 제거: 이미 상태를 업데이트했으므로 불필요
                                           // await loadReviewStatus(employees);
                                           
@@ -2000,7 +2008,7 @@ export default function WorkTimeComparison({
                                           setComparisonResults([...comparisonResults]);
                                           
                                           console.log('🔥🔥🔥 saveReviewStatus 호출 직전, branchId:', branchId);
-                                          await saveReviewStatus(selectedEmployeeId, '근무시간검토완료');
+                                          await saveReviewStatus(selectedEmployeeId, '근무시간검토완료', branchId);
                                           console.log('🔥🔥🔥 saveReviewStatus 호출 완료');
                                         } else {
                                           console.log('🔥🔥🔥 확인 취소됨');
