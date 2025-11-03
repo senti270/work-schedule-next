@@ -504,56 +504,32 @@ export default function ReportManagement() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {(() => {
-                  const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
-                  const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0);
+                  // reportData에서 해당 직원의 필터링된 스케줄 가져오기
+                  let employeeSchedules: Schedule[] = [];
                   
-                  const startDateStr = toLocalDateString(startDate);
-                  const endDateStr = toLocalDateString(endDate);
-                  const employeeSchedules = schedules.filter(schedule => {
-                    const scheduleDateStr = toLocalDateString(schedule.date);
-                    return schedule.employeeId === selectedEmployee &&
-                           scheduleDateStr >= startDateStr && 
-                           scheduleDateStr <= endDateStr;
-                  }).sort((a, b) => {
+                  if (selectedBranch) {
+                    // 지점이 선택된 경우: 해당 지점의 데이터만
+                    const branchData = reportData.find(
+                      data => data.employeeName === employees.find(e => e.id === selectedEmployee)?.name &&
+                              data.branchName === branches.find(b => b.id === selectedBranch)?.name
+                    );
+                    if (branchData) {
+                      employeeSchedules = branchData.schedules;
+                    }
+                  } else {
+                    // 지점이 선택되지 않은 경우: 모든 지점의 스케줄 합치기
+                    const allEmployeeData = reportData.filter(
+                      data => data.employeeName === employees.find(e => e.id === selectedEmployee)?.name
+                    );
+                    employeeSchedules = allEmployeeData.flatMap(data => data.schedules);
+                  }
+                  
+                  // 날짜순 정렬
+                  employeeSchedules.sort((a, b) => {
                     const dateA = toLocalDateString(a.date);
                     const dateB = toLocalDateString(b.date);
                     return dateA.localeCompare(dateB);
                   });
-                  
-                  return employeeSchedules.map((schedule, index) => (
-                    <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(schedule.date).toLocaleDateString('ko-KR', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                          weekday: 'short'
-                        })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {schedule.startTime}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {schedule.endTime}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {schedule.breakTime}시간
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {schedule.totalHours}시간
-                      </td>
-                    </tr>
-                  ));
-                })()}
-                {(() => {
-                  const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
-                  const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0);
-                  
-                  const employeeSchedules = schedules.filter(schedule => 
-                    schedule.employeeId === selectedEmployee &&
-                    schedule.date >= startDate && 
-                    schedule.date <= endDate
-                  );
                   
                   if (employeeSchedules.length === 0) {
                     return (
@@ -565,27 +541,50 @@ export default function ReportManagement() {
                     );
                   }
                   
-                  const totalHours = employeeSchedules.reduce((sum, schedule) => sum + schedule.totalHours, 0);
-                  const totalBreakHours = employeeSchedules.reduce((sum, schedule) => sum + parseFloat(schedule.breakTime || '0'), 0);
-                  
                   return (
-                    <tr className="bg-gray-50 font-medium">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        합계
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        -
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        -
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {totalBreakHours.toFixed(1)}시간
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {totalHours.toFixed(1)}시간
-                      </td>
-                    </tr>
+                    <>
+                      {employeeSchedules.map((schedule, index) => (
+                        <tr key={index}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(schedule.date).toLocaleDateString('ko-KR', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              weekday: 'short'
+                            })}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {schedule.startTime}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {schedule.endTime}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {schedule.breakTime}시간
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {schedule.totalHours}시간
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-gray-50 font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          합계
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          -
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          -
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {employeeSchedules.reduce((sum, schedule) => sum + parseFloat(schedule.breakTime || '0'), 0).toFixed(1)}시간
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {employeeSchedules.reduce((sum, schedule) => sum + schedule.totalHours, 0).toFixed(1)}시간
+                        </td>
+                      </tr>
+                    </>
                   );
                 })()}
               </tbody>
