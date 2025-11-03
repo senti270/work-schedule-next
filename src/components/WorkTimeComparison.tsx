@@ -386,6 +386,15 @@ export default function WorkTimeComparison({
     saveComparisonResults(updated).catch(err => console.error('수동 행 저장 실패:', err));
   }, [selectedEmployeeId, selectedMonth, employees, branches, selectedBranchId, comparisonResults]);
 
+  // 선택 월의 시작/끝 날짜 반환
+  const getSelectedMonthRange = useCallback(() => {
+    if (!selectedMonth) return { start: null as Date | null, end: null as Date | null };
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const start = new Date(y, (m || 1) - 1, 1);
+    const end = new Date(y, (m || 1), 0, 23, 59, 59, 999);
+    return { start, end };
+  }, [selectedMonth]);
+
   const loadBranches = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
@@ -2631,25 +2640,66 @@ export default function WorkTimeComparison({
                   const rowBgColor = (result.status === 'review_completed' || result.status === 'time_match') 
                     ? 'bg-white' 
                     : 'bg-yellow-50';
+                  const range = getSelectedMonthRange();
+                  const minDateStr = range.start ? `${range.start.getFullYear()}-${String(range.start.getMonth()+1).padStart(2,'0')}-01` : undefined;
+                  const maxDateStr = range.end ? `${range.end.getFullYear()}-${String(range.end.getMonth()+1).padStart(2,'0')}-${String(range.end.getDate()).padStart(2,'0')}` : undefined;
                   
                   // const allReviewCompleted = isBranchReviewCompleted || (completedCount === comparisonResults.length && comparisonResults.length > 0);
                   
                   return (
                     <tr key={index} className={`hover:bg-gray-50 ${rowBgColor} border-t border-gray-200`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
+                        {/* 날짜는 수동 추가된 행(isNew)만 편집 허용 */}
+                        {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) || !result.isNew ? (
                           <span>{result.date}</span>
                         ) : (
+                          <div className="flex items-center">
                           <input
                             type="date"
                             value={result.date}
-                            onChange={(e) => {
+                            min={minDateStr}
+                            max={maxDateStr}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                               const updated = [...comparisonResults];
                               updated[index] = { ...result, date: e.target.value, isModified: true };
                               setComparisonResults(updated);
                             }}
+                            onBlur={() => {
+                              // 월 범위 검증 및 정렬 후 저장
+                              const { start, end } = getSelectedMonthRange();
+                              try {
+                                const d = new Date(result.date);
+                                if (start && end && (d < start || d > end)) {
+                                  alert('선택한 월 범위 내의 날짜만 입력할 수 있습니다.');
+                                  // 범위를 벗어나면 해당 월의 1일로 되돌림
+                                  const fallback = `${selectedMonth}-01`;
+                                  const updated = [...comparisonResults];
+                                  updated[index] = { ...result, date: fallback };
+                                  setComparisonResults(updated);
+                                } else {
+                                  // 날짜 정렬
+                                  const sorted = [...comparisonResults].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                                  setComparisonResults(sorted);
+                                  // 저장
+                                  saveComparisonResults(sorted).catch(err => console.error('날짜 저장 실패:', err));
+                                }
+                              } catch {}
+                            }}
                             className="px-2 py-1 border border-gray-300 rounded text-xs"
                           />
+                          {result.isNew && (
+                            <button
+                              onClick={() => {
+                                const updated = comparisonResults.filter((_, i) => i !== index);
+                                setComparisonResults(updated);
+                                saveComparisonResults(updated).catch(err => console.error('행 삭제 실패:', err));
+                              }}
+                              className="ml-2 px-2 py-1 border border-red-300 text-red-600 rounded text-xs hover:bg-red-50"
+                            >
+                              삭제
+                            </button>
+                          )}
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
