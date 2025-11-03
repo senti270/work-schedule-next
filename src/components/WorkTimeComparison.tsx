@@ -2012,6 +2012,8 @@ export default function WorkTimeComparison({
                                   : 'border-gray-200 hover:bg-gray-50'
                               }`}
                               onClick={async () => {
+                                // 🔥 지점 변경 시 기존 비교 결과 초기화 (다른 지점의 수정된 데이터가 로드를 막지 않도록)
+                                setComparisonResults([]);
                                 setSelectedBranchId(branchId);
                                 console.log('🔥 지점 선택됨:', branchId, branch?.name);
                                 // 🔥 지점 변경 시 해당 지점의 비교 데이터 다시 로드
