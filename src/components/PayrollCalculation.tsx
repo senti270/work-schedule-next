@@ -939,7 +939,10 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
                   return dateA.getTime() - dateB.getTime();
                 }).map((detail, idx) => (
                   <li key={idx}>
-                    {detail.weekStart} ~ {detail.weekEnd}: {detail.hours.toFixed(1)}시간, {detail.pay.toLocaleString()}원 ({detail.eligible ? '지급' : `미지급 - ${detail.reason}`})
+                    {detail.weekStart} ~ {detail.weekEnd}: {detail.eligible || !(detail.reason && String(detail.reason).includes('이월'))
+                      ? `${detail.hours.toFixed(1)}시간, ${detail.pay.toLocaleString()}원 `
+                      : ''}
+                    ({detail.eligible ? '지급' : `미지급 - ${detail.reason}`})
                   </li>
                 ))}
               </ul>
