@@ -632,18 +632,18 @@ export class PayrollCalculator {
     };
   }
 
-  // 🔥 스케줄을 주차별로 그룹화
+  // 🔥 스케줄을 주차별로 그룹화 (일요일~토요일 기준)
   private groupSchedulesByWeek(): Schedule[][] {
     const weeklyGroups: { [key: string]: Schedule[] } = {};
 
     this.schedules.forEach(schedule => {
-      // 해당 주의 월요일 찾기
-      const monday = new Date(schedule.date);
-      const dayOfWeek = monday.getDay();
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      monday.setDate(monday.getDate() + mondayOffset);
-      
-      const weekKey = monday.toISOString().split('T')[0];
+      // 해당 주의 일요일(주 시작) 찾기
+      const sunday = new Date(schedule.date);
+      const dayOfWeek = sunday.getDay(); // 0=일, 6=토
+      const sundayOffset = -dayOfWeek; // 이전(또는 당일) 일요일
+      sunday.setDate(sunday.getDate() + sundayOffset);
+
+      const weekKey = sunday.toISOString().split('T')[0];
       if (!weeklyGroups[weekKey]) {
         weeklyGroups[weekKey] = [];
       }
@@ -683,14 +683,19 @@ export class PayrollCalculator {
       pay = Math.round(hours * salaryAmount);
     }
 
-    // 날짜 순으로 정렬 후 첫 번째와 마지막 날짜 사용
+    // 날짜 순으로 정렬 후 주차 경계(일~토) 계산
     const sortedSchedules = [...weekSchedules].sort((a, b) => a.date.getTime() - b.date.getTime());
-    const weekStart = sortedSchedules[0]?.date.toISOString().split('T')[0] || '';
-    const weekEnd = sortedSchedules[sortedSchedules.length - 1]?.date.toISOString().split('T')[0] || '';
+    const anchor = sortedSchedules[0]?.date || new Date();
+    const startSunday = new Date(anchor);
+    startSunday.setDate(startSunday.getDate() - startSunday.getDay()); // 이전 일요일
+    const endSaturday = new Date(startSunday);
+    endSaturday.setDate(startSunday.getDate() + 6); // 토요일
+    const weekStart = startSunday.toISOString().split('T')[0];
+    const weekEnd = endSaturday.toISOString().split('T')[0];
 
     // 마지막 주인지 확인 (다음달로 이월되는 주)
-    const isLastWeek = this.isLastWeekOfMonth(weekSchedules);
-    const isLastWeekEndingOnSunday = this.isLastWeekEndingOnSunday(weekSchedules);
+    const isLastWeek = this.isLastWeekOfMonth_SatEnd(weekSchedules);
+    const isLastWeekEndingOnSaturday = this.isLastWeekEndingOnSaturday(weekSchedules);
 
     // 🔥 디버깅 로그 추가
     console.log('🔥 주휴수당 계산:', {
@@ -705,14 +710,14 @@ export class PayrollCalculator {
       salaryAmount,
       eligible,
       isLastWeek,
-      isLastWeekEndingOnSunday
+      isLastWeekEndingOnSaturday
     });
 
-    // 주휴수당 지급 조건:
-    // 1. 15시간 이상 + 마지막 주가 아니면 → 주휴수당 지급
-    // 2. 15시간 이상 + 마지막 주 + 일요일로 끝남 → 주휴수당 지급
-    // 3. 마지막 주 + 일요일로 끝나지 않음 → 다음달로 이월하여 합산
-    const finalEligible = eligible && !(isLastWeek && !isLastWeekEndingOnSunday);
+    // 주휴수당 지급 조건 (일~토 기준)
+    // 1) 15시간 이상 + 마지막 주가 아니면 지급
+    // 2) 15시간 이상 + 마지막 주이지만 토요일로 끝나면 지급
+    // 3) 마지막 주이고 토요일로 끝나지 않으면 다음달로 이월
+    const finalEligible = eligible && !(isLastWeek && !isLastWeekEndingOnSaturday);
     const finalHours = finalEligible ? hours : 0;
     const finalPay = finalEligible ? pay : 0;
 
@@ -722,12 +727,12 @@ export class PayrollCalculator {
       hours: finalHours,
       pay: finalPay,
       eligible: finalEligible,
-      reason: finalEligible ? undefined : (isLastWeek && !isLastWeekEndingOnSunday ? '다음달로 이월하여 합산' : '근무시간 부족 또는 출근일 부족')
+      reason: finalEligible ? undefined : (isLastWeek && !isLastWeekEndingOnSaturday ? '다음달로 이월하여 합산' : '근무시간 부족 또는 출근일 부족')
     };
   }
 
-  // 🔥 해당 주가 월의 마지막 주인지 확인 (다음달로 이월되는 주)
-  private isLastWeekOfMonth(weekSchedules: Schedule[]): boolean {
+  // 🔥 해당 주가 월의 마지막 주인지 확인 (일~토 기준, 다음달로 이월되는 주)
+  private isLastWeekOfMonth_SatEnd(weekSchedules: Schedule[]): boolean {
     if (weekSchedules.length === 0) return false;
     
     // 해당 주의 첫 번째 날짜 찾기
@@ -739,18 +744,18 @@ export class PayrollCalculator {
     const year = firstDate.getFullYear();
     const lastDayOfMonth = new Date(year, month + 1, 0);
     
-    // 해당 주의 일요일 계산 (해당 주의 마지막 날)
-    const sunday = new Date(firstDate);
-    const dayOfWeek = sunday.getDay();
-    const sundayOffset = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
-    sunday.setDate(sunday.getDate() + sundayOffset);
-    
-    // 해당 주의 일요일이 해당 월의 마지막 날과 같거나 이후이면 마지막 주
-    return sunday >= lastDayOfMonth;
+    // 해당 주의 토요일 계산 (해당 주의 마지막 날)
+    const saturday = new Date(firstDate);
+    const dayOfWeek = saturday.getDay();
+    const saturdayOffset = 6 - dayOfWeek;
+    saturday.setDate(saturday.getDate() + saturdayOffset);
+
+    // 해당 주의 토요일이 해당 월의 마지막 날과 같거나 이후이면 마지막 주
+    return saturday >= lastDayOfMonth;
   }
 
-  // 🔥 해당 주가 일요일로 끝나는 마지막 주인지 확인
-  private isLastWeekEndingOnSunday(weekSchedules: Schedule[]): boolean {
+  // 🔥 해당 주가 토요일로 끝나는 마지막 주인지 확인 (일~토 기준)
+  private isLastWeekEndingOnSaturday(weekSchedules: Schedule[]): boolean {
     if (weekSchedules.length === 0) return false;
     
     // 해당 주의 마지막 날짜 찾기
@@ -762,10 +767,14 @@ export class PayrollCalculator {
     const year = lastDate.getFullYear();
     const lastDayOfMonth = new Date(year, month + 1, 0);
     
-    // 마지막 날이 해당 주에 포함되어 있고, 그 주가 일요일로 끝나면
-    const daysDifference = lastDayOfMonth.getDate() - lastDate.getDate();
-    
-    return daysDifference <= 6 && lastDayOfMonth.getDay() === 0;
+    // 해당 주의 토요일 계산
+    const saturday = new Date(lastDate);
+    const dayOfWeek = saturday.getDay();
+    const saturdayOffset = 6 - dayOfWeek;
+    saturday.setDate(saturday.getDate() + saturdayOffset);
+
+    // 해당 주의 토요일이 해당 월의 마지막 날인지 확인
+    return saturday.getTime() === lastDayOfMonth.getTime();
   }
 
   // 🔥 지점별 근무시간 계산
