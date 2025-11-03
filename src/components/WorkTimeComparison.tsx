@@ -1496,7 +1496,10 @@ export default function WorkTimeComparison({
   // 기존 비교 데이터를 불러오는 함수
   // 비교결과를 DB에 저장하는 함수
   const saveComparisonResults = async (results: WorkTimeComparison[]) => {
-    if (!selectedEmployeeId || !selectedMonth) return;
+    if (!selectedEmployeeId || !selectedMonth) {
+      console.log('저장 실패: 필수 정보 없음', { selectedEmployeeId, selectedMonth });
+      return;
+    }
     
     try {
       console.log('비교결과 저장 시작:', results.length, '건');
@@ -1504,13 +1507,27 @@ export default function WorkTimeComparison({
       // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
       const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
       
+      if (!branchId) {
+        console.warn('branchId가 없어서 저장할 수 없음:', { isManager, userBranch, selectedBranchId });
+        // branchId가 없어도 저장은 계속 진행 (기존 데이터와 일치하도록)
+      }
+      
       // 기존 비교결과 데이터 삭제
-      const existingQuery = query(
-        collection(db, 'workTimeComparisonResults'),
-        where('employeeId', '==', selectedEmployeeId),
-        where('month', '==', selectedMonth),
-        where('branchId', '==', branchId)
-      );
+      let existingQuery;
+      if (branchId) {
+        existingQuery = query(
+          collection(db, 'workTimeComparisonResults'),
+          where('employeeId', '==', selectedEmployeeId),
+          where('month', '==', selectedMonth),
+          where('branchId', '==', branchId)
+        );
+      } else {
+        existingQuery = query(
+          collection(db, 'workTimeComparisonResults'),
+          where('employeeId', '==', selectedEmployeeId),
+          where('month', '==', selectedMonth)
+        );
+      }
       
       const existingSnapshot = await getDocs(existingQuery);
       console.log('기존 비교결과 데이터 삭제:', existingSnapshot.docs.length, '건');
@@ -2688,17 +2705,17 @@ export default function WorkTimeComparison({
                               };
                               updatedResults[index] = updatedResult;
                               
-                              // 상태 업데이트
+                              // 상태 업데이트 (먼저 업데이트하여 화면에 반영)
                               setComparisonResults(updatedResults);
                               setEditingBreakTimeIndex(null);
                               setEditingBreakTimeValue('');
                               
-                              // DB에 즉시 저장
-                              try {
-                                await saveComparisonResults(updatedResults);
-                              } catch (error) {
+                              // DB에 즉시 저장 (비동기로 실행하되 상태는 이미 업데이트됨)
+                              saveComparisonResults(updatedResults).catch(error => {
                                 console.error('실휴게시간 저장 실패:', error);
-                              }
+                                // 저장 실패 시 사용자에게 알림하지 않고 조용히 실패 처리
+                                // 상태는 이미 업데이트되어 있으므로 화면에는 반영됨
+                              });
                             }}
                             onFocus={() => {
                               // 포커스를 받을 때 현재 값을 편집 값으로 설정
