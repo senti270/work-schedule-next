@@ -47,6 +47,7 @@ interface WorkTimeComparison {
   actualBreakTime?: number; // 실휴게시간 (시간) - 신규 필드 (편집 가능)
   actualWorkHours?: number; // 실근무시간 (actualTimeRange시간 - actualBreakTime)
   posTimeRange?: string; // POS 원본 시간 범위
+  isNew?: boolean; // 수동 추가된 행 여부
 }
 
 interface WorkTimeComparisonProps {
@@ -356,6 +357,34 @@ export default function WorkTimeComparison({
       setComparisonResults([]);
     }
   }, [selectedEmployeeId, selectedMonth]);
+
+  // 수동 행 추가
+  const addManualComparisonRow = useCallback(() => {
+    if (!selectedEmployeeId || !selectedMonth) return;
+    const employee = employees.find(emp => emp.id === selectedEmployeeId);
+    const branchName = branches.find(b => b.id === selectedBranchId)?.name || '';
+    const defaultDate = `${selectedMonth}-01`;
+    const newRow: WorkTimeComparison = {
+      employeeName: employee ? `${employee.name}${branchName ? ` (${branchName})` : ''}` : '직원',
+      date: defaultDate,
+      scheduledHours: 0,
+      actualHours: 0,
+      difference: 0,
+      status: 'review_required',
+      scheduledTimeRange: '-',
+      actualTimeRange: '',
+      isModified: true,
+      breakTime: 0,
+      actualBreakTime: 0,
+      actualWorkHours: 0,
+      posTimeRange: '',
+      isNew: true
+    };
+    const updated = [...comparisonResults, newRow];
+    setComparisonResults(updated);
+    // 비동기 저장
+    saveComparisonResults(updated).catch(err => console.error('수동 행 저장 실패:', err));
+  }, [selectedEmployeeId, selectedMonth, employees, branches, selectedBranchId, comparisonResults]);
 
   const loadBranches = async () => {
     try {
@@ -2513,6 +2542,15 @@ export default function WorkTimeComparison({
 
 
       {/* 비교 결과 */}
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={addManualComparisonRow}
+          disabled={!selectedEmployeeId || !selectedMonth}
+          className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
+        >
+          + 행 추가
+        </button>
+      </div>
       {(() => {
         // 🔥 통일된 편집 가능 여부 조건
         const currentBranchStatus = employeeReviewStatus.find(status => 
@@ -2599,7 +2637,20 @@ export default function WorkTimeComparison({
                   return (
                     <tr key={index} className={`hover:bg-gray-50 ${rowBgColor} border-t border-gray-200`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {result.date}
+                        {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
+                          <span>{result.date}</span>
+                        ) : (
+                          <input
+                            type="date"
+                            value={result.date}
+                            onChange={(e) => {
+                              const updated = [...comparisonResults];
+                              updated[index] = { ...result, date: e.target.value, isModified: true };
+                              setComparisonResults(updated);
+                            }}
+                            className="px-2 py-1 border border-gray-300 rounded text-xs"
+                          />
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         <div className="space-y-1">
