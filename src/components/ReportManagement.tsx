@@ -507,27 +507,24 @@ export default function ReportManagement() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {(() => {
-                  // reportData에서 해당 직원의 필터링된 스케줄 가져오기
-                  let employeeSchedules: Schedule[] = [];
+                  // 원본 schedules에서 직접 필터링
+                  let employeeSchedules = [...schedules];
                   
-                  if (selectedBranch) {
-                    // 지점이 선택된 경우: 해당 지점의 데이터만
-                    const branchData = reportData.find(
-                      data => data.employeeName === employees.find(e => e.id === selectedEmployee)?.name &&
-                              data.branchName === branches.find(b => b.id === selectedBranch)?.name
+                  // 직원 필터링
+                  if (selectedEmployee) {
+                    employeeSchedules = employeeSchedules.filter(schedule => 
+                      schedule.employeeId === selectedEmployee
                     );
-                    if (branchData) {
-                      employeeSchedules = branchData.schedules;
-                    }
-                  } else {
-                    // 지점이 선택되지 않은 경우: 모든 지점의 스케줄 합치기
-                    const allEmployeeData = reportData.filter(
-                      data => data.employeeName === employees.find(e => e.id === selectedEmployee)?.name
-                    );
-                    employeeSchedules = allEmployeeData.flatMap(data => data.schedules);
                   }
                   
-                  // 추가 월 필터링 (안전장치)
+                  // 지점 필터링
+                  if (selectedBranch) {
+                    employeeSchedules = employeeSchedules.filter(schedule => 
+                      schedule.branchId === selectedBranch
+                    );
+                  }
+                  
+                  // 월 필터링
                   if (reportType === 'monthly') {
                     const year = selectedMonth.getFullYear();
                     const month = selectedMonth.getMonth();
@@ -538,6 +535,12 @@ export default function ReportManagement() {
                     employeeSchedules = employeeSchedules.filter(schedule => {
                       const scheduleDateStr = toLocalDateString(schedule.date);
                       return scheduleDateStr >= startDateStr && scheduleDateStr <= endDateStr;
+                    });
+                  } else {
+                    const targetYearStr = `${selectedYear}-`;
+                    employeeSchedules = employeeSchedules.filter(schedule => {
+                      const scheduleDateStr = toLocalDateString(schedule.date);
+                      return scheduleDateStr.startsWith(targetYearStr);
                     });
                   }
                   
