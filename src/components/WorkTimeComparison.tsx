@@ -882,7 +882,7 @@ export default function WorkTimeComparison({
     // 근무시간 비교 시작 시 자동으로 검토중 상태로 변경
     try {
       console.log('🔄 근무시간 비교 시작 - 검토중 상태로 변경');
-      await saveReviewStatus(selectedEmployeeId, '검토중');
+      await saveReviewStatus(selectedEmployeeId, '검토중', selectedBranchId);
       await loadReviewStatus(employees);
     } catch (error) {
       console.error('❌ 검토중 상태 변경 실패:', error);
@@ -2642,7 +2642,7 @@ export default function WorkTimeComparison({
                                   
                                   // DB에 저장
                                   await saveModifiedData(updatedResults[index]);
-                                  await saveReviewStatus(selectedEmployeeId, finalStatus);
+                                  await saveReviewStatus(selectedEmployeeId, finalStatus, selectedBranchId);
                                 }}
                                 className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700"
                               >
@@ -2685,7 +2685,7 @@ export default function WorkTimeComparison({
                                   
                                   // DB에 저장
                                   await saveModifiedData(updatedResults[index]);
-                                  await saveReviewStatus(selectedEmployeeId, finalStatus);
+                                  await saveReviewStatus(selectedEmployeeId, finalStatus, selectedBranchId);
                                 }}
                                 className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
                               >
@@ -2734,7 +2734,7 @@ export default function WorkTimeComparison({
                                     
                                     // DB에 저장
                                     await saveModifiedData(updatedResults[index]);
-                                    await saveReviewStatus(selectedEmployeeId, finalStatus);
+                                    await saveReviewStatus(selectedEmployeeId, finalStatus, selectedBranchId);
                                   }
                                 }}
                                 className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
