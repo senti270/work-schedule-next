@@ -2649,11 +2649,24 @@ export default function WorkTimeComparison({
                             onChange={(e) => {
                               const newActualTimeRange = e.target.value;
                               const updatedResults = [...comparisonResults];
+                              // actualWorkHours 재계산
+                              const newActualWorkHours = Math.max(0, parseTimeRangeToHours(newActualTimeRange) - (result.actualBreakTime || 0));
+                              // difference 재계산: 실제순근무시간 - 스케줄시간
+                              const newDifference = newActualWorkHours - result.scheduledHours;
+                              // status 재계산: 10분(0.17시간) 이상 차이나면 확인필요
+                              let newStatus = result.status;
+                              if (Math.abs(newDifference) >= 0.17) {
+                                newStatus = 'review_required';
+                              } else {
+                                newStatus = 'time_match';
+                              }
+                              
                               updatedResults[index] = {
                                 ...result,
                                 actualTimeRange: newActualTimeRange,
-                                // actualWorkHours 재계산
-                                actualWorkHours: Math.max(0, parseTimeRangeToHours(newActualTimeRange) - (result.actualBreakTime || 0)),
+                                actualWorkHours: newActualWorkHours,
+                                difference: newDifference,
+                                status: newStatus,
                                 // posTimeRange는 변경하지 않음 (POS 원본 데이터 유지)
                                 isModified: true
                               };
