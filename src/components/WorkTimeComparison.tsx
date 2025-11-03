@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc, orderBy, limit, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc, orderBy, limit, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toLocalDate, toLocalDateString } from '@/utils/dateUtils';
 
@@ -509,38 +509,17 @@ export default function WorkTimeComparison({
         updatedAt: new Date()
       };
 
-      // 기존 상태가 있는지 확인 (지점별로)
-      const existingQuery = query(
-        collection(db, 'employeeReviewStatus'),
-        where('employeeId', '==', employeeId),
-        where('month', '==', selectedMonth),
-        where('branchId', '==', targetBranchId)
-      );
-      
-      const existingDocs = await getDocs(existingQuery);
-      console.log('🔵 기존 검토 상태 쿼리 결과:', existingDocs.docs.length, '개');
-      
-      if (existingDocs.empty) {
-        // 새로 추가
-        // 🔥 최적화: 자주 조회하는 데이터를 역정규화하여 포함
-        const selectedEmployee = employees.find(emp => emp.id === employeeId);
-        const selectedBranch = branches.find(br => br.id === targetBranchId);
-        
-        const optimizedReviewStatusRecord = {
-          ...reviewStatusRecord,
-          employeeName: selectedEmployee?.name || '알 수 없음', // 🔥 역정규화
-          branchName: selectedBranch?.name || '알 수 없음', // 🔥 역정규화
-        };
-        
-        const docRef = await addDoc(collection(db, 'employeeReviewStatus'), optimizedReviewStatusRecord);
-        console.log('✅ 새로운 검토 상태 저장됨:', optimizedReviewStatusRecord);
-        console.log('✅ 저장된 문서 ID:', docRef.id);
-      } else {
-        // 기존 데이터 업데이트
-        const docId = existingDocs.docs[0].id;
-        await updateDoc(doc(db, 'employeeReviewStatus', docId), reviewStatusRecord);
-        console.log('✅ 기존 검토 상태 업데이트됨:', reviewStatusRecord);
-      }
+      // 고정 키로 업서트 (멱등): employeeId_branchId_month
+      const selectedEmployee = employees.find(emp => emp.id === employeeId);
+      const selectedBranch = branches.find(br => br.id === targetBranchId);
+      const optimizedReviewStatusRecord = {
+        ...reviewStatusRecord,
+        employeeName: selectedEmployee?.name || '알 수 없음',
+        branchName: selectedBranch?.name || '알 수 없음',
+      };
+      const fixedId = `${employeeId}_${targetBranchId}_${selectedMonth}`;
+      await setDoc(doc(db, 'employeeReviewStatus', fixedId), optimizedReviewStatusRecord, { merge: true });
+      console.log('✅ 검토 상태 업서트 완료 (setDoc):', fixedId, optimizedReviewStatusRecord);
       
       console.log('🔵 검토 상태 저장 완료, loadReviewStatus 호출 예정');
       
@@ -604,32 +583,9 @@ export default function WorkTimeComparison({
         return;
       }
       
-      // 모든 직원에 대해 상태 설정
-      const allReviewStatuses = await Promise.all(
-        employeesList.map(async (employee) => {
-          // DB에 저장된 상태들을 모두 가져오기
-          const savedStatuses = savedReviewStatuses.filter(status => status.employeeId === employee.id);
-          
-          if (savedStatuses.length > 0) {
-            // 저장된 상태가 있으면 모든 지점 상태 반환
-            console.log(`직원 ${employee.name}의 저장된 상태 ${savedStatuses.length}개 사용:`, savedStatuses.map(s => s.status));
-            return savedStatuses;
-          }
-          
-          // DB에 상태가 없으면 기본적으로 검토전으로 설정
-          console.log(`직원 ${employee.name}의 저장된 상태 없음, 검토전으로 설정`);
-          return [{
-            employeeId: employee.id,
-            branchId: selectedBranchId,
-            status: '검토전' as '검토전' | '검토중' | '근무시간검토완료'
-          }];
-        })
-      );
-      
-      // 배열의 배열을 평면화
-      const flattenedStatuses = allReviewStatuses.flat();
-      setEmployeeReviewStatus(flattenedStatuses);
-      console.log('최종 검토 상태 설정됨:', flattenedStatuses);
+      // 저장된 상태만 반영 (없으면 표시만 검토전으로 보이되 DB는 생성하지 않음)
+      setEmployeeReviewStatus(savedReviewStatuses);
+      console.log('최종 검토 상태 설정됨(저장된 상태만):', savedReviewStatuses);
     } catch (error) {
       console.error('검토 상태 로드 실패:', error);
     }
