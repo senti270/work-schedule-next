@@ -524,6 +524,17 @@ export default function ReportManagement() {
                     employeeSchedules = allEmployeeData.flatMap(data => data.schedules);
                   }
                   
+                  // 추가 월 필터링 (안전장치)
+                  if (reportType === 'monthly') {
+                    const year = selectedMonth.getFullYear();
+                    const month = selectedMonth.getMonth();
+                    const targetMonthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+                    employeeSchedules = employeeSchedules.filter(schedule => {
+                      const scheduleDateStr = toLocalDateString(schedule.date);
+                      return scheduleDateStr.startsWith(targetMonthStr);
+                    });
+                  }
+                  
                   // 날짜순 정렬
                   employeeSchedules.sort((a, b) => {
                     const dateA = toLocalDateString(a.date);
