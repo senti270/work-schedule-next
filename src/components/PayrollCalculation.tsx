@@ -491,6 +491,11 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       // 총액 계산 (세무사 전송파일/이체파일에서 사용)
       const totalGrossPay = payrollResults.reduce((sum, r) => sum + (r.grossPay || 0), 0);
       const totalNetPay = payrollResults.reduce((sum, r) => sum + (r.netPay || 0), 0);
+      // 대표지점(Primary) 기준 branch 정보 결정
+      const empDoc = employees.find(emp => emp.id === selectedEmployeeId) as any;
+      const primaryBranchId: string | undefined = empDoc?.primaryBranchId || (empDoc?.branches && empDoc.branches[0]);
+      const primaryBranchName: string | undefined = empDoc?.primaryBranchName || '';
+
       const confirmedPayrollData = {
         month: selectedMonth,
         employeeId: selectedEmployeeId,
@@ -498,6 +503,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         calculations: payrollResults,
         grossPay: totalGrossPay,
         netPay: totalNetPay,
+        // 대표지점 기준 저장 (지점별 집계/필터에서 사용)
+        branchId: primaryBranchId || '',
+        branchName: primaryBranchName || '',
         confirmedAt: new Date(),
         confirmedBy: 'admin'
       };
