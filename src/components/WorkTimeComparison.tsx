@@ -109,6 +109,8 @@ export default function WorkTimeComparison({
   const [employeeBranches, setEmployeeBranches] = useState<string[]>([]); // 선택된 직원의 지점 목록
   const [editingBreakTimeIndex, setEditingBreakTimeIndex] = useState<number | null>(null); // 실휴게시간 편집 중인 인덱스
   const [editingBreakTimeValue, setEditingBreakTimeValue] = useState<string>(''); // 실휴게시간 편집 중인 원시 값
+  const [editingActualTimeRangeIndex, setEditingActualTimeRangeIndex] = useState<number | null>(null); // 실근무시각 편집 인덱스
+  const [editingActualTimeRangeValue, setEditingActualTimeRangeValue] = useState<string>(''); // 실근무시각 편집 값
 
   // 🔥 최적화: 컴포넌트 마운트 시 초기 설정
   useEffect(() => {
@@ -2645,16 +2647,24 @@ export default function WorkTimeComparison({
                         ) : (
                           <input
                             type="text"
-                            value={result.actualTimeRange || ''}
+                            value={editingActualTimeRangeIndex === index ? editingActualTimeRangeValue : (result.actualTimeRange || '')}
                             onChange={(e) => {
-                              const newActualTimeRange = e.target.value;
+                              setEditingActualTimeRangeIndex(index);
+                              setEditingActualTimeRangeValue(e.target.value);
+                            }}
+                            onFocus={() => {
+                              setEditingActualTimeRangeIndex(index);
+                              setEditingActualTimeRangeValue(result.actualTimeRange || '');
+                            }}
+                            onBlur={async () => {
+                              const newActualTimeRange = editingActualTimeRangeValue;
                               const updatedResults = [...comparisonResults];
                               // actualWorkHours 재계산
                               const newActualWorkHours = Math.max(0, parseTimeRangeToHours(newActualTimeRange) - (result.actualBreakTime || 0));
                               // difference 재계산: 실제순근무시간 - 스케줄시간
                               const newDifference = newActualWorkHours - result.scheduledHours;
                               // status 재계산: 10분(0.17시간) 이상 차이나면 확인필요
-                              let newStatus = result.status;
+                              let newStatus: 'time_match' | 'review_required' | 'review_completed' = 'time_match';
                               if (Math.abs(newDifference) >= 0.17) {
                                 newStatus = 'review_required';
                               } else {
@@ -2667,10 +2677,15 @@ export default function WorkTimeComparison({
                                 actualWorkHours: newActualWorkHours,
                                 difference: newDifference,
                                 status: newStatus,
-                                // posTimeRange는 변경하지 않음 (POS 원본 데이터 유지)
                                 isModified: true
                               };
                               setComparisonResults(updatedResults);
+                              setEditingActualTimeRangeIndex(null);
+                              setEditingActualTimeRangeValue('');
+                              // DB 저장 (비동기)
+                              saveComparisonResults(updatedResults).catch(err => {
+                                console.error('실근무시각 저장 실패:', err);
+                              });
                             }}
                             className="w-30 px-2 py-1 border border-gray-300 rounded text-xs text-center"
                             placeholder="10:02-22:32"
