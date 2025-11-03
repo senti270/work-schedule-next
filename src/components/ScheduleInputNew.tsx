@@ -1409,15 +1409,16 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     previousWeekStart.setDate(previousWeekStart.getDate() - 7);
     
     const previousWeekSchedules = schedules.filter(schedule => {
-      const scheduleDate = schedule.date;
-      const weekStart = new Date(previousWeekStart);
-      const weekEnd = new Date(previousWeekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
+      const scheduleDateStr = toLocalDateString(schedule.date);
+      const weekStartStr = toLocalDateString(previousWeekStart);
+      const weekEndDate = new Date(previousWeekStart);
+      weekEndDate.setDate(weekEndDate.getDate() + 6);
+      const weekEndStr = toLocalDateString(weekEndDate);
       
       return schedule.employeeId === employeeId && 
              schedule.branchId === selectedBranchId && // 해당 지점만 확인
-             scheduleDate >= weekStart && 
-             scheduleDate <= weekEnd;
+             scheduleDateStr >= weekStartStr && 
+             scheduleDateStr <= weekEndStr;
     });
     
     return previousWeekSchedules.length > 0;
@@ -1459,14 +1460,15 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       // 해당 직원의 이전 주 모든 스케줄 확인 (지점 무관)
       const allPreviousWeekSchedules = schedules.filter(schedule => {
-        const scheduleDate = schedule.date;
-        const weekStart = new Date(previousWeekStart);
-        const weekEnd = new Date(previousWeekStart);
-        weekEnd.setDate(weekEnd.getDate() + 6);
+        const scheduleDateStr = toLocalDateString(schedule.date);
+        const weekStartStr = toLocalDateString(previousWeekStart);
+        const weekEndDate = new Date(previousWeekStart);
+        weekEndDate.setDate(weekEndDate.getDate() + 6);
+        const weekEndStr = toLocalDateString(weekEndDate);
         
         return schedule.employeeId === employeeId && 
-               scheduleDate >= weekStart && 
-               scheduleDate <= weekEnd;
+               scheduleDateStr >= weekStartStr && 
+               scheduleDateStr <= weekEndStr;
       });
       
       console.log('이전 주 전체 스케줄 (지점 무관):', allPreviousWeekSchedules.map(s => ({
@@ -1478,23 +1480,19 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
       
       // 이전 주의 스케줄 데이터 가져오기 (해당 지점만)
       const previousWeekSchedules = schedules.filter(schedule => {
-        const scheduleDate = new Date(schedule.date);
-        const weekStart = new Date(previousWeekStart);
-        const weekEnd = new Date(previousWeekStart);
-        weekEnd.setDate(weekEnd.getDate() + 6);
+        const scheduleDateStr = toLocalDateString(schedule.date);
+        const weekStartStr = toLocalDateString(previousWeekStart);
+        const weekEndDate = new Date(previousWeekStart);
+        weekEndDate.setDate(weekEndDate.getDate() + 6);
+        const weekEndStr = toLocalDateString(weekEndDate);
         
-        // 날짜만 비교하기 위해 시간 부분 제거
-        const scheduleDateOnly = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), scheduleDate.getDate());
-        const weekStartOnly = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
-        const weekEndOnly = new Date(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate());
-        
-        const isInRange = scheduleDateOnly >= weekStartOnly && scheduleDateOnly <= weekEndOnly;
+        const isInRange = scheduleDateStr >= weekStartStr && scheduleDateStr <= weekEndStr;
         
         console.log('날짜 범위 확인:', {
-          scheduleDate: scheduleDate.toDateString(),
-          weekStart: weekStart.toDateString(),
-          weekEnd: weekEnd.toDateString(),
-          isInRange: isInRange,
+          scheduleDateStr,
+          weekStartStr,
+          weekEndStr,
+          isInRange,
           employeeMatch: schedule.employeeId === employeeId,
           branchMatch: schedule.branchId === selectedBranchId
         });
@@ -1505,8 +1503,7 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                
         if (isMatch) {
           console.log('이전 주 스케줄 발견:', {
-            date: scheduleDate.toDateString(),
-            dayOfWeek: scheduleDate.getDay(),
+            date: scheduleDateStr,
             branchId: schedule.branchId,
             branchName: schedule.branchName,
             schedule: `${schedule.startTime}-${schedule.endTime}(${schedule.breakTime})`
@@ -1523,15 +1520,16 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
 
       // 현재 주의 기존 스케줄 삭제 (해당 지점만) - 이전주 데이터 유무와 관계없이 모든 현재주 데이터 삭제
       const currentWeekSchedules = schedules.filter(schedule => {
-        const scheduleDate = schedule.date;
-        const weekStart = new Date(currentWeekStart);
-        const weekEnd = new Date(currentWeekStart);
-        weekEnd.setDate(weekEnd.getDate() + 6);
+        const scheduleDateStr = toLocalDateString(schedule.date);
+        const weekStartStr = toLocalDateString(currentWeekStart);
+        const weekEndDate = new Date(currentWeekStart);
+        weekEndDate.setDate(weekEndDate.getDate() + 6);
+        const weekEndStr = toLocalDateString(weekEndDate);
         
         return schedule.employeeId === employeeId && 
                schedule.branchId === selectedBranchId && // 해당 지점만
-               scheduleDate >= weekStart && 
-               scheduleDate <= weekEnd;
+               scheduleDateStr >= weekStartStr && 
+               scheduleDateStr <= weekEndStr;
       });
 
       console.log('현재 주 삭제할 스케줄:', currentWeekSchedules.map(s => ({
@@ -2293,9 +2291,9 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
                 const dayData = weekDates.map(date => {
                   // 해당 날짜의 모든 스케줄 필터링
                   const daySchedules = schedules.filter(schedule => {
-                    const scheduleDate = schedule.date;
-                    const isSameDate = scheduleDate.toDateString() === date.toDateString();
-                    return isSameDate && schedule.branchId === selectedBranchId;
+                    const scheduleDateStr = toLocalDateString(schedule.date);
+                    const targetDateStr = toLocalDateString(date);
+                    return scheduleDateStr === targetDateStr && schedule.branchId === selectedBranchId;
                   });
                   
                   // 해당 시간에 근무하는 직원들 찾기

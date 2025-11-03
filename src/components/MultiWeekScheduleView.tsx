@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { toLocalDate } from '@/utils/dateUtils';
+import { toLocalDate, toLocalDateString } from '@/utils/dateUtils';
 // import DateInput from './DateInput'; // 사용하지 않음
 
 interface Schedule {
@@ -112,12 +112,11 @@ export default function MultiWeekScheduleView({ selectedBranchId }: MultiWeekSch
     console.log('주간 날짜들:', weekDates.map(d => d.toDateString()));
     console.log('사용할 입력 데이터:', inputsToUse);
 
-    // 주간 스케줄 필터링
+    // 주간 스케줄 필터링 (날짜 문자열로 비교하여 타임존 문제 해결)
+    const weekDateStrs = weekDates.map(date => toLocalDateString(date));
     let weekSchedules = schedules.filter(schedule => {
-      const scheduleDate = new Date(schedule.date);
-      return weekDates.some(weekDate => 
-        scheduleDate.toDateString() === weekDate.toDateString()
-      );
+      const scheduleDateStr = toLocalDateString(schedule.date);
+      return weekDateStrs.includes(scheduleDateStr);
     });
     
     console.log('기존 스케줄들:', weekSchedules);

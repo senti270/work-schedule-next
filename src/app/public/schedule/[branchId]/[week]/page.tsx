@@ -715,11 +715,11 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
                 // 각 시간대별로 근무 인원 계산
                 const hourlyData = timeSlots.map(hour => {
                   const dayData = weekDates.map(date => {
-                    // 해당 날짜의 모든 스케줄 필터링
+                    // 해당 날짜의 모든 스케줄 필터링 (날짜 문자열로 비교하여 타임존 문제 해결)
+                    const targetDateStr = toLocalDateString(date);
                     const daySchedules = schedules.filter(schedule => {
-                      const scheduleDate = schedule.date;
-                      const isSameDate = scheduleDate.toDateString() === date.toDateString();
-                      return isSameDate;
+                      const scheduleDateStr = toLocalDateString(schedule.date);
+                      return scheduleDateStr === targetDateStr;
                     });
                     
                     // 해당 시간에 근무하는 직원들 찾기

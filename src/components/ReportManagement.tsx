@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { toLocalDateString } from '@/utils/dateUtils';
 
 interface Schedule {
   id: string;
@@ -149,14 +150,16 @@ export default function ReportManagement() {
     if (reportType === 'monthly') {
       const year = selectedMonth.getFullYear();
       const month = selectedMonth.getMonth();
+      const targetMonthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
       filteredSchedules = filteredSchedules.filter(schedule => {
-        const scheduleDate = new Date(schedule.date);
-        return scheduleDate.getFullYear() === year && scheduleDate.getMonth() === month;
+        const scheduleDateStr = toLocalDateString(schedule.date);
+        return scheduleDateStr.startsWith(targetMonthStr);
       });
     } else {
+      const targetYearStr = `${selectedYear}-`;
       filteredSchedules = filteredSchedules.filter(schedule => {
-        const scheduleDate = new Date(schedule.date);
-        return scheduleDate.getFullYear() === selectedYear;
+        const scheduleDateStr = toLocalDateString(schedule.date);
+        return scheduleDateStr.startsWith(targetYearStr);
       });
     }
 
@@ -504,11 +507,18 @@ export default function ReportManagement() {
                   const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
                   const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0);
                   
-                  const employeeSchedules = schedules.filter(schedule => 
-                    schedule.employeeId === selectedEmployee &&
-                    schedule.date >= startDate && 
-                    schedule.date <= endDate
-                  ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                  const startDateStr = toLocalDateString(startDate);
+                  const endDateStr = toLocalDateString(endDate);
+                  const employeeSchedules = schedules.filter(schedule => {
+                    const scheduleDateStr = toLocalDateString(schedule.date);
+                    return schedule.employeeId === selectedEmployee &&
+                           scheduleDateStr >= startDateStr && 
+                           scheduleDateStr <= endDateStr;
+                  }).sort((a, b) => {
+                    const dateA = toLocalDateString(a.date);
+                    const dateB = toLocalDateString(b.date);
+                    return dateA.localeCompare(dateB);
+                  });
                   
                   return employeeSchedules.map((schedule, index) => (
                     <tr key={index}>

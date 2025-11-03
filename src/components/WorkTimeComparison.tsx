@@ -987,7 +987,7 @@ export default function WorkTimeComparison({
     // 각 지점별로 비교 결과 생성
     Object.values(branchGroups).forEach(({ branchId, branchName, schedules: branchSchedules }) => {
       branchSchedules.forEach(schedule => {
-        const scheduleDate = schedule.date.toISOString().split('T')[0];
+        const scheduleDate = toLocalDateString(schedule.date);
         const actualRecord = actualRecords.find(record => record.date === scheduleDate);
 
         console.log(`스케줄: ${schedule.employeeName} ${scheduleDate} (${branchName})`, schedule);
