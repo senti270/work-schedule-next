@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { getPayrollMonth } from '@/utils/dateUtils';
 
 interface ShortTermWorker {
   id: string;
@@ -67,7 +68,7 @@ export default function ShortTermWorkerManagement({ userBranch, isManager }: Sho
   const [expandedWorker, setExpandedWorker] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingWorker, setEditingWorker] = useState<ShortTermWorker | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>(getPayrollMonth());
   const [showEditModal, setShowEditModal] = useState(false);
   const [workerToEdit, setWorkerToEdit] = useState<ShortTermWorker | null>(null);
   const [bankCodes, setBankCodes] = useState<Array<{code: string, name: string}>>([]);
