@@ -2011,11 +2011,13 @@ export default function WorkTimeComparison({
                                   ? 'border-blue-500 bg-blue-50' 
                                   : 'border-gray-200 hover:bg-gray-50'
                               }`}
-                              onClick={() => {
+                              onClick={async () => {
                                 setSelectedBranchId(branchId);
                                 console.log('🔥 지점 선택됨:', branchId, branch?.name);
-                                // 🔥 지점 변경 시 해당 지점의 비교 데이터 다시 로드 (현재 비활성화)
-                                // loadExistingComparisonData();
+                                // 🔥 지점 변경 시 해당 지점의 비교 데이터 다시 로드
+                                // 상태 업데이트 후 비교 데이터 로드
+                                await new Promise(resolve => setTimeout(resolve, 0));
+                                await loadExistingComparisonData();
                               }}>
                                 <div className="flex items-center space-x-3 flex-1">
                                   <span className={`text-sm font-medium ${
