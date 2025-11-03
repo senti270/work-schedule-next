@@ -2664,7 +2664,7 @@ export default function WorkTimeComparison({
                               setEditingBreakTimeIndex(index);
                               setEditingBreakTimeValue(timeStr);
                             }}
-                            onBlur={(e) => {
+                            onBlur={async (e) => {
                               // 포커스를 잃을 때 파싱 및 업데이트
                               const timeStr = e.target.value;
                               let newActualBreakTime = 0;
@@ -2679,16 +2679,26 @@ export default function WorkTimeComparison({
                               }
                               
                               const updatedResults = [...comparisonResults];
-                              updatedResults[index] = {
+                              const updatedResult = {
                                 ...result,
                                 actualBreakTime: newActualBreakTime,
                                 // actualWorkHours 재계산
                                 actualWorkHours: Math.max(0, parseTimeRangeToHours(result.actualTimeRange || '') - newActualBreakTime),
                                 isModified: true
                               };
+                              updatedResults[index] = updatedResult;
+                              
+                              // 상태 업데이트
                               setComparisonResults(updatedResults);
                               setEditingBreakTimeIndex(null);
                               setEditingBreakTimeValue('');
+                              
+                              // DB에 즉시 저장
+                              try {
+                                await saveComparisonResults(updatedResults);
+                              } catch (error) {
+                                console.error('실휴게시간 저장 실패:', error);
+                              }
                             }}
                             onFocus={() => {
                               // 포커스를 받을 때 현재 값을 편집 값으로 설정
