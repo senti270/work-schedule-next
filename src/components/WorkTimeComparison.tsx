@@ -93,7 +93,7 @@ export default function WorkTimeComparison({
   }[]>([]);
   const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
   const [employeeReviewStatus, setEmployeeReviewStatus] = useState<{employeeId: string, branchId: string, status: '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료'}[]>([]);
-  const [payrollConfirmedEmployees] = useState<string[]>([]);
+  const [payrollConfirmedEmployees, setPayrollConfirmedEmployees] = useState<string[]>([]);
   const [employeeMemos, setEmployeeMemos] = useState<{[employeeId: string]: {admin: string, employee: string}}>({});
   
   // 전월 이월 연장근무시간 입력 팝업 상태
@@ -127,6 +127,27 @@ export default function WorkTimeComparison({
       setSelectedBranchId(userBranch.id);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 🔒 급여확정된 직원 목록 로드 (선택된 월 기준)
+  useEffect(() => {
+    async function loadPayrollConfirmed() {
+      try {
+        if (!selectedMonth) return;
+        const snapshot = await getDocs(
+          query(
+            collection(db, 'confirmedPayrolls'),
+            where('month', '==', selectedMonth)
+          )
+        );
+        const ids = Array.from(new Set(snapshot.docs.map(d => d.data().employeeId).filter(Boolean)));
+        setPayrollConfirmedEmployees(ids as string[]);
+        console.log('🔒 급여확정 직원 목록 로드:', ids);
+      } catch (e) {
+        console.warn('급여확정 목록 로드 실패(무시 가능):', e);
+      }
+    }
+    loadPayrollConfirmed();
+  }, [selectedMonth]);
   
   // 🔥 최적화: 월 변경 시에만 직원 로드 (지점 무관)
   useEffect(() => {
@@ -490,6 +511,11 @@ export default function WorkTimeComparison({
   // 검토 상태를 DB에 저장 (지점별로 분리)
   const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료', branchIdParam?: string) => {
     try {
+      // 🔒 급여확정 시 상태 변경 차단 (확정완료만 허용)
+      if (status !== '급여확정완료' && payrollConfirmedEmployees.includes(employeeId)) {
+        alert('급여확정완료 상태에서는 검토상태를 변경할 수 없습니다.');
+        return;
+      }
       // branchId 파라미터가 있으면 사용, 없으면 selectedBranchId 사용
       const targetBranchId = branchIdParam || selectedBranchId;
       console.log('🔵 검토 상태 저장 시작:', { employeeId, status, selectedMonth, targetBranchId, branchIdParam, selectedBranchId });
@@ -1538,6 +1564,11 @@ export default function WorkTimeComparison({
       console.log('저장 실패: 필수 정보 없음', { selectedEmployeeId, selectedMonth });
       return;
     }
+    // 🔒 급여확정 시 저장 차단
+    if (payrollConfirmedEmployees.includes(selectedEmployeeId)) {
+      console.warn('급여확정된 직원은 비교결과 저장이 차단됩니다.');
+      return;
+    }
     
     try {
       console.log('비교결과 저장 시작:', results.length, '건');
@@ -1618,6 +1649,7 @@ export default function WorkTimeComparison({
       setComparisonResults([]);
       return;
     }
+    // 🔒 급여확정 시: DB 로드는 허용하되 편집은 상위에서 차단됨
     
     // 🔥 현재 비교 결과에 수정된 항목이 있으면 로드하지 않음 (사용자가 수정 중인 데이터 보호)
     const hasModifiedResults = comparisonResults.some(result => result.isModified);
