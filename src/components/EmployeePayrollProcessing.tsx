@@ -265,27 +265,47 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
       const now = new Date();
       
       // 🔥 병렬로 조회 (JOIN 대신)
-      const [employeesSnapshot, contractsSnapshot] = await Promise.all([
+      const [employeesSnapshot, contractsSnapshot, employeeBranchesSnapshot] = await Promise.all([
         getDocs(query(collection(db, 'employees'), orderBy('name'))),
-        getDocs(collection(db, 'employmentContracts'))
+        getDocs(collection(db, 'employmentContracts')),
+        getDocs(collection(db, 'employeeBranches'))
       ]);
       
       console.log('Firestore 조회 완료:', {
         직원수: employeesSnapshot.docs.length,
-        계약수: contractsSnapshot.docs.length
+        계약수: contractsSnapshot.docs.length,
+        직원지점관계수: employeeBranchesSnapshot.docs.length
       });
+      
+      // 직원-지점 관계 맵 생성
+      const employeeBranchesMap = new Map<string, string[]>();
+      employeeBranchesSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const employeeId = data.employeeId;
+        const branchId = data.branchId;
+        if (employeeId && branchId) {
+          if (!employeeBranchesMap.has(employeeId)) {
+            employeeBranchesMap.set(employeeId, []);
+          }
+          employeeBranchesMap.get(employeeId)!.push(branchId);
+        }
+      });
+      
+      console.log('직원-지점 관계 맵:', Array.from(employeeBranchesMap.entries()).slice(0, 5));
       
       // 1. 직원 데이터 변환 (재직중인 직원만)
       const allEmployees = employeesSnapshot.docs
         .map(doc => {
           const data = doc.data();
+          // employeeBranches 컬렉션에서 실제 근무 지점 정보 가져오기
+          const branchIds = employeeBranchesMap.get(doc.id) || [];
           return {
             id: doc.id,
             name: data.name,
             // employmentType은 employmentContracts에서 가져오므로 여기서는 제거
             salaryType: data.salaryType,
             weeklyWorkHours: data.weeklyWorkHours, // 기본값 설정을 위해 추가
-            branches: data.branches && data.branches.length > 0 ? data.branches : (data.branchId ? [data.branchId] : []),
+            branches: branchIds.length > 0 ? branchIds : (data.branches && data.branches.length > 0 ? data.branches : (data.branchId ? [data.branchId] : [])),
             hireDate: data.hireDate?.toDate ? data.hireDate.toDate() : data.hireDate,
             probationStartDate: data.probationStartDate?.toDate ? data.probationStartDate.toDate() : data.probationStartDate,
             probationEndDate: data.probationEndDate?.toDate ? data.probationEndDate.toDate() : data.probationEndDate,
