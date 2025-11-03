@@ -99,7 +99,7 @@ const PayrollStatement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [filterWithWorkHistory, setFilterWithWorkHistory] = useState(false);
   const [filterWithConfirmedPayroll, setFilterWithConfirmedPayroll] = useState(false);
-  const [employeeMemos, setEmployeeMemos] = useState<Array<{id: string, employeeId: string, memo: string, createdAt: Date}>>([]);
+  const [employeeMemos, setEmployeeMemos] = useState<Array<{id: string, employeeId: string, month: string, type: string, memo: string, createdAt: Date}>>([]);
 
   // 월 문자열 표준화: 'YYYY-M' -> 'YYYY-MM'
   const normalizeMonth = (value: string) => {
@@ -263,9 +263,12 @@ const PayrollStatement: React.FC = () => {
       const memosSnapshot = await getDocs(collection(db, 'employeeMemos'));
       const memosData = memosSnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date()
-      })) as Array<{id: string, employeeId: string, memo: string, createdAt: Date}>;
+        employeeId: doc.data().employeeId,
+        month: doc.data().month,
+        type: doc.data().type,
+        memo: doc.data().memo || '',
+        createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : (doc.data().updatedAt?.toDate ? doc.data().updatedAt.toDate() : new Date())
+      })) as Array<{id: string, employeeId: string, month: string, type: string, memo: string, createdAt: Date}>;
       
       console.log('🔥 직원 메모 로드:', memosData.length, '개');
       setEmployeeMemos(memosData);
@@ -1428,12 +1431,19 @@ ${selectedMonth} 급여명세서를 전달드립니다.
 
                 {/* 메모 (선택된 월 기준) */}
                 {(() => {
-                  const formatMonth = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                  const targetMonth = selectedMonth;
+                  const targetMonth = normalizeMonth(selectedMonth);
+                  // month 필드로 필터링 (관리자용 메모 우선, 없으면 해당직원공지용 메모)
                   const monthFiltered = employeeMemos
-                    .filter(m => m.employeeId === selectedEmployee && formatMonth(m.createdAt) === targetMonth)
-                    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-                  const employeeMemo = monthFiltered[0];
+                    .filter(m => m.employeeId === selectedEmployee && normalizeMonth(m.month) === targetMonth)
+                    .sort((a, b) => {
+                      // 관리자용 메모를 우선으로
+                      if (a.type === 'admin' && b.type !== 'admin') return -1;
+                      if (a.type !== 'admin' && b.type === 'admin') return 1;
+                      return b.createdAt.getTime() - a.createdAt.getTime();
+                    });
+                  
+                  // 관리자용 메모가 있으면 그것을, 없으면 해당직원공지용 메모를 사용
+                  const employeeMemo = monthFiltered.find(m => m.type === 'admin') || monthFiltered.find(m => m.type === 'employee') || monthFiltered[0];
 
                   if (!employeeMemo) return null;
 

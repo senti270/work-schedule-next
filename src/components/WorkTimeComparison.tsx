@@ -292,10 +292,46 @@ export default function WorkTimeComparison({
     }
   }, [selectedBranchId, selectedEmployeeId, selectedMonth, loadEmployees]);
 
-  // 메모 로드 (현재 비활성화)
-  // useEffect(() => {
-  //   loadEmployeeMemos();
-  // }, [selectedMonth, loadEmployeeMemos]);
+  // 직원 메모 로드
+  const loadEmployeeMemos = useCallback(async () => {
+    if (!selectedMonth || !selectedEmployeeId) return;
+    
+    try {
+      // 관리자용 메모와 해당직원공지용 메모를 모두 로드
+      const memosQuery = query(
+        collection(db, 'employeeMemos'),
+        where('month', '==', selectedMonth),
+        where('employeeId', '==', selectedEmployeeId)
+      );
+      
+      const memosSnapshot = await getDocs(memosQuery);
+      const memosData: {admin: string, employee: string} = { admin: '', employee: '' };
+      
+      memosSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.type === 'admin') {
+          memosData.admin = data.memo || '';
+        } else if (data.type === 'employee') {
+          memosData.employee = data.memo || '';
+        }
+      });
+      
+      // 로컬 상태 업데이트
+      setEmployeeMemos(prev => ({
+        ...prev,
+        [selectedEmployeeId]: memosData
+      }));
+      
+      console.log('🔥 직원 메모 로드 완료:', selectedEmployeeId, memosData);
+    } catch (error) {
+      console.error('직원 메모 로드 실패:', error);
+    }
+  }, [selectedMonth, selectedEmployeeId]);
+
+  // 메모 로드
+  useEffect(() => {
+    loadEmployeeMemos();
+  }, [loadEmployeeMemos]);
 
   // 직원이 변경될 때 실제근무데이터 초기화 및 기존 데이터 로드
   useEffect(() => {
