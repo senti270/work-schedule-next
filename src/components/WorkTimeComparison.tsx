@@ -107,6 +107,8 @@ export default function WorkTimeComparison({
   const [showMenuDescription, setShowMenuDescription] = useState(false); // 메뉴 설명 펼침 여부
   const [showDataCopyMethod, setShowDataCopyMethod] = useState(false); // 데이터 복사 방법 펼침 여부
   const [employeeBranches, setEmployeeBranches] = useState<string[]>([]); // 선택된 직원의 지점 목록
+  const [editingBreakTimeIndex, setEditingBreakTimeIndex] = useState<number | null>(null); // 실휴게시간 편집 중인 인덱스
+  const [editingBreakTimeValue, setEditingBreakTimeValue] = useState<string>(''); // 실휴게시간 편집 중인 원시 값
 
   // 🔥 최적화: 컴포넌트 마운트 시 초기 설정
   useEffect(() => {
@@ -2611,13 +2613,23 @@ export default function WorkTimeComparison({
                         ) : (
                           <input
                             type="text"
-                            value={(() => {
-                              const actualBreakTime = result.actualBreakTime || 0;
-                              const hours = Math.floor(actualBreakTime);
-                              const minutes = Math.round((actualBreakTime - hours) * 60);
-                              return `${hours}:${minutes.toString().padStart(2, '0')}`;
-                            })()}
+                            value={editingBreakTimeIndex === index 
+                              ? editingBreakTimeValue
+                              : (() => {
+                                  const actualBreakTime = result.actualBreakTime || 0;
+                                  const hours = Math.floor(actualBreakTime);
+                                  const minutes = Math.round((actualBreakTime - hours) * 60);
+                                  return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                                })()
+                            }
                             onChange={(e) => {
+                              const timeStr = e.target.value;
+                              // 편집 중인 값 업데이트
+                              setEditingBreakTimeIndex(index);
+                              setEditingBreakTimeValue(timeStr);
+                            }}
+                            onBlur={(e) => {
+                              // 포커스를 잃을 때 파싱 및 업데이트
                               const timeStr = e.target.value;
                               let newActualBreakTime = 0;
                               
@@ -2639,6 +2651,16 @@ export default function WorkTimeComparison({
                                 isModified: true
                               };
                               setComparisonResults(updatedResults);
+                              setEditingBreakTimeIndex(null);
+                              setEditingBreakTimeValue('');
+                            }}
+                            onFocus={() => {
+                              // 포커스를 받을 때 현재 값을 편집 값으로 설정
+                              const actualBreakTime = result.actualBreakTime || 0;
+                              const hours = Math.floor(actualBreakTime);
+                              const minutes = Math.round((actualBreakTime - hours) * 60);
+                              setEditingBreakTimeIndex(index);
+                              setEditingBreakTimeValue(`${hours}:${minutes.toString().padStart(2, '0')}`);
                             }}
                             className="w-16 px-2 py-1 border border-gray-300 rounded text-xs text-center"
                             placeholder="0:30"
