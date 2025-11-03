@@ -2720,11 +2720,24 @@ export default function WorkTimeComparison({
                               }
                               
                               const updatedResults = [...comparisonResults];
+                              // actualWorkHours 재계산
+                              const newActualWorkHours = Math.max(0, parseTimeRangeToHours(result.actualTimeRange || '') - newActualBreakTime);
+                              // difference 재계산: 실제순근무시간 - 스케줄시간
+                              const newDifference = newActualWorkHours - result.scheduledHours;
+                              // status 재계산: 10분(0.17시간) 이상 차이나면 확인필요
+                              let newStatus = result.status;
+                              if (Math.abs(newDifference) >= 0.17) {
+                                newStatus = 'review_required';
+                              } else {
+                                newStatus = 'time_match';
+                              }
+                              
                               const updatedResult = {
                                 ...result,
                                 actualBreakTime: newActualBreakTime,
-                                // actualWorkHours 재계산
-                                actualWorkHours: Math.max(0, parseTimeRangeToHours(result.actualTimeRange || '') - newActualBreakTime),
+                                actualWorkHours: newActualWorkHours,
+                                difference: newDifference,
+                                status: newStatus,
                                 isModified: true
                               };
                               updatedResults[index] = updatedResult;
