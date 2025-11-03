@@ -150,10 +150,13 @@ export default function ReportManagement() {
     if (reportType === 'monthly') {
       const year = selectedMonth.getFullYear();
       const month = selectedMonth.getMonth();
-      const targetMonthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+      const startDateStr = toLocalDateString(startDate);
+      const endDateStr = toLocalDateString(endDate);
       filteredSchedules = filteredSchedules.filter(schedule => {
         const scheduleDateStr = toLocalDateString(schedule.date);
-        return scheduleDateStr.startsWith(targetMonthStr);
+        return scheduleDateStr >= startDateStr && scheduleDateStr <= endDateStr;
       });
     } else {
       const targetYearStr = `${selectedYear}-`;
@@ -528,10 +531,13 @@ export default function ReportManagement() {
                   if (reportType === 'monthly') {
                     const year = selectedMonth.getFullYear();
                     const month = selectedMonth.getMonth();
-                    const targetMonthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+                    const startDate = new Date(year, month, 1);
+                    const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+                    const startDateStr = toLocalDateString(startDate);
+                    const endDateStr = toLocalDateString(endDate);
                     employeeSchedules = employeeSchedules.filter(schedule => {
                       const scheduleDateStr = toLocalDateString(schedule.date);
-                      return scheduleDateStr.startsWith(targetMonthStr);
+                      return scheduleDateStr >= startDateStr && scheduleDateStr <= endDateStr;
                     });
                   }
                   
