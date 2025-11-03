@@ -28,6 +28,8 @@ interface ActualWorkRecord {
   employeeName?: string; // 파싱 후 매칭을 위해 추가
   isNewFormat?: boolean; // 새로운 형식인지 여부 (휴게시간 이미 차감됨)
   posTimeRange?: string; // POS 원본 시간 범위 (예: "10:02-22:32")
+  calculatedBreakTime?: number; // POS 데이터가 여러 건일 때 계산된 휴게시간 (시간 단위)
+  isMultipleRecords?: boolean; // 같은 날 여러 건이 합쳐졌는지 여부
 }
 
 interface WorkTimeComparison {
@@ -103,6 +105,8 @@ export default function WorkTimeComparison({
   } | null>(null);
   const [hasShownOvertimePopup, setHasShownOvertimePopup] = useState(false); // 팝업 표시 여부 추적
   const [showMenuDescription, setShowMenuDescription] = useState(false); // 메뉴 설명 펼침 여부
+  const [editingPosTimeRangeIndex, setEditingPosTimeRangeIndex] = useState<number | null>(null); // POS근무시각 편집 중인 인덱스
+  const [editingPosTimeRange, setEditingPosTimeRange] = useState<string>(''); // POS근무시각 편집 중인 값
   const [showDataCopyMethod, setShowDataCopyMethod] = useState(false); // 데이터 복사 방법 펼침 여부
   const [employeeBranches, setEmployeeBranches] = useState<string[]>([]); // 선택된 직원의 지점 목록
 
@@ -837,8 +841,83 @@ export default function WorkTimeComparison({
       }
     });
 
-    // console.log('파싱 완료된 실제근무 데이터:', records);
-    return records;
+    // 🔥 같은 날짜의 레코드들을 합치기
+    const recordsByDate = new Map<string, ActualWorkRecord[]>();
+    
+    records.forEach(record => {
+      if (!recordsByDate.has(record.date)) {
+        recordsByDate.set(record.date, []);
+      }
+      recordsByDate.get(record.date)!.push(record);
+    });
+    
+    // 각 날짜별로 레코드 합치기
+    const mergedRecords: ActualWorkRecord[] = [];
+    
+    recordsByDate.forEach((dayRecords, date) => {
+      if (dayRecords.length === 1) {
+        // 레코드가 1개면 그대로 사용
+        mergedRecords.push(dayRecords[0]);
+      } else {
+        // 레코드가 여러 개면 시간순으로 정렬
+        dayRecords.sort((a, b) => {
+          const timeA = new Date(a.startTime).getTime();
+          const timeB = new Date(b.startTime).getTime();
+          return timeA - timeB;
+        });
+        
+        // 첫 시작 시간과 마지막 종료 시간
+        const firstStart = dayRecords[0].startTime;
+        const lastEnd = dayRecords[dayRecords.length - 1].endTime;
+        
+        // 각 레코드 사이의 간격을 계산하여 휴게시간으로 사용
+        let breakTimeMinutes = 0;
+        for (let i = 0; i < dayRecords.length - 1; i++) {
+          const currentEnd = new Date(dayRecords[i].endTime);
+          const nextStart = new Date(dayRecords[i + 1].startTime);
+          const breakMs = nextStart.getTime() - currentEnd.getTime();
+          breakTimeMinutes += breakMs / (1000 * 60); // 분 단위로 변환
+        }
+        
+        // 전체 시간 범위 계산
+        const totalStart = new Date(firstStart);
+        const totalEnd = new Date(lastEnd);
+        const totalMs = totalEnd.getTime() - totalStart.getTime();
+        const totalHoursFromRange = totalMs / (1000 * 60 * 60);
+        
+        // posTimeRange 생성 (첫 시작 ~ 마지막 종료)
+        let posTimeRange = '';
+        try {
+          const startTimeOnly = firstStart.split(' ')[1]?.split(':').slice(0, 2).join(':') || '';
+          const endTimeOnly = lastEnd.split(' ')[1]?.split(':').slice(0, 2).join(':') || '';
+          if (startTimeOnly && endTimeOnly) {
+            posTimeRange = `${startTimeOnly}-${endTimeOnly}`;
+          }
+        } catch (error) {
+          console.error('posTimeRange 생성 오류:', error);
+        }
+        
+        // 합쳐진 레코드 생성
+        mergedRecords.push({
+          date,
+          startTime: firstStart,
+          endTime: lastEnd,
+          totalHours: totalHoursFromRange, // 합쳐진 범위에서 계산
+          isNewFormat: dayRecords[0].isNewFormat,
+          posTimeRange: posTimeRange,
+          // 🔥 여러 건이 있어서 휴게시간이 계산된 경우를 표시
+          calculatedBreakTime: breakTimeMinutes / 60, // 시간 단위로 변환
+          isMultipleRecords: true
+        });
+      }
+    });
+    
+    console.log('🔥 같은 날짜 레코드 합치기 완료:', {
+      원본레코드수: records.length,
+      합쳐진레코드수: mergedRecords.length
+    });
+    
+    return mergedRecords;
   };
 
   async function compareWorkTimes() {
@@ -1003,9 +1082,13 @@ export default function WorkTimeComparison({
 
         if (actualRecord) {
           // 휴게시간과 실근무시간 계산
-          const breakTime = parseFloat(schedule.breakTime) || 0; // 휴게시간 (시간)
-          const actualBreakTime = breakTime; // 최초 스케줄 휴게시간 가져오기
-          console.log(`🔥 스케줄과 실제근무 매칭: ${scheduleDate}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}`);
+          const breakTime = parseFloat(schedule.breakTime) || 0; // 스케줄 휴게시간 (시간)
+          // 🔥 POS 데이터가 여러 건이어서 휴게시간이 계산된 경우, 그것을 사용
+          // 그렇지 않으면 스케줄 휴게시간 사용
+          const actualBreakTime = actualRecord.calculatedBreakTime !== undefined 
+            ? actualRecord.calculatedBreakTime 
+            : breakTime;
+          console.log(`🔥 스케줄과 실제근무 매칭: ${scheduleDate}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}, isMultipleRecords: ${actualRecord.isMultipleRecords}`);
           
           // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
           const actualTimeRange = actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime);
@@ -1075,10 +1158,12 @@ export default function WorkTimeComparison({
         const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
         const employeeName = selectedEmployee ? selectedEmployee.name : '알 수 없음';
 
-        // 스케줄이 없는 경우 휴게시간은 0으로 가정
+        // 스케줄이 없는 경우 휴게시간은 0으로 가정하되, POS 데이터가 여러 건이면 계산된 휴게시간 사용
         const breakTime = 0; // 스케줄이 없으므로 휴게시간 정보 없음
-        const actualBreakTime = 0; // 최초 스케줄 휴게시간 가져오기 (스케줄 없으므로 0)
-        console.log(`🔥 실제근무만 있음: ${actualRecord.date}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}`);
+        const actualBreakTime = actualRecord.calculatedBreakTime !== undefined 
+          ? actualRecord.calculatedBreakTime 
+          : 0; // POS 데이터가 여러 건이면 계산된 휴게시간, 아니면 0
+        console.log(`🔥 실제근무만 있음: ${actualRecord.date}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}, isMultipleRecords: ${actualRecord.isMultipleRecords}`);
         // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
         const actualTimeRange = actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime);
         const actualTimeRangeHours = parseTimeRangeToHours(actualTimeRange);
@@ -2488,7 +2573,20 @@ export default function WorkTimeComparison({
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        <span className="text-gray-600">{result.posTimeRange || '-'}</span>
+                        {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
+                          <span className="text-gray-600">{result.posTimeRange || '-'}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingPosTimeRangeIndex(index);
+                              setEditingPosTimeRange(result.posTimeRange || '');
+                            }}
+                            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          >
+                            {result.posTimeRange || '-'}
+                          </button>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {!isEditable || result.status === 'review_completed' || isPayrollConfirmed(selectedEmployeeId) ? (
