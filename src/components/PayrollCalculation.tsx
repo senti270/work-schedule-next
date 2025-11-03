@@ -488,11 +488,16 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     
     try {
       // 1. confirmedPayrolls에 급여 확정 데이터 추가
+      // 총액 계산 (세무사 전송파일/이체파일에서 사용)
+      const totalGrossPay = payrollResults.reduce((sum, r) => sum + (r.grossPay || 0), 0);
+      const totalNetPay = payrollResults.reduce((sum, r) => sum + (r.netPay || 0), 0);
       const confirmedPayrollData = {
         month: selectedMonth,
         employeeId: selectedEmployeeId,
         employeeName: payrollResults[0].employeeName,
         calculations: payrollResults,
+        grossPay: totalGrossPay,
+        netPay: totalNetPay,
         confirmedAt: new Date(),
         confirmedBy: 'admin'
       };
