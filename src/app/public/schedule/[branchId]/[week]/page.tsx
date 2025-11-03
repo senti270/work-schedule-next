@@ -173,13 +173,16 @@ export default function PublicSchedulePage({ params }: PublicSchedulePageProps) 
         };
       });
 
-      // 클라이언트에서 필터링
-      console.log('필터링 범위:', { weekStart: weekStart.toISOString(), weekEnd: weekEnd.toISOString() });
+      // 클라이언트에서 필터링 (날짜 문자열로 비교하여 타임존 문제 해결)
+      const weekStartStr = toLocalDateString(weekStart);
+      const weekEndStr = toLocalDateString(weekEnd);
+      console.log('필터링 범위:', { weekStartStr, weekEndStr });
+      
       let filteredSchedules = allSchedulesData.filter(schedule => {
-        const scheduleDate = new Date(schedule.date);
-        const isInRange = scheduleDate >= weekStart && scheduleDate <= weekEnd;
-        if (scheduleDate.getDay() === 0) { // 일요일 스케줄 디버그
-          console.log(`일요일 스케줄 확인: ${schedule.employeeName}, 날짜: ${scheduleDate.toISOString()}, 범위 내: ${isInRange}`);
+        const scheduleDateStr = toLocalDateString(schedule.date);
+        const isInRange = scheduleDateStr >= weekStartStr && scheduleDateStr <= weekEndStr;
+        if (schedule.date.getDay() === 0) { // 일요일 스케줄 디버그
+          console.log(`일요일 스케줄 확인: ${schedule.employeeName}, 날짜: ${scheduleDateStr}, 범위 내: ${isInRange}`);
         }
         return isInRange;
       });
