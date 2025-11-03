@@ -75,7 +75,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         return;
       }
       
-      const schedulesData = schedulesSnapshot.docs.map(doc => {
+      let schedulesData = schedulesSnapshot.docs.map(doc => {
         const data = doc.data();
         console.log('🔥 스케줄 데이터:', data);
         return {
@@ -87,6 +87,39 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           breakTime: data.breakTime || 0
         };
       }) as Schedule[];
+
+      // 🔧 첫 주 보정: 전월 말~월초 주(일~토) 합산을 위해 전월 마지막 6일 데이터를 추가 로드
+      try {
+        const [year, monthNum] = selectedMonth.split('-').map(Number);
+        const monthStart = new Date(year, monthNum - 1, 1);
+        const windowStart = new Date(monthStart);
+        windowStart.setDate(windowStart.getDate() - 6); // 최대 6일 이전
+        const prevMonthStr = `${windowStart.getFullYear()}-${String(windowStart.getMonth() + 1).padStart(2, '0')}`;
+
+        const prevQuery = query(
+          collection(db, 'workTimeComparisonResults'),
+          where('month', '==', prevMonthStr),
+          where('employeeId', '==', selectedEmployeeId)
+        );
+        const prevSnap = await getDocs(prevQuery);
+        const prevData = prevSnap.docs.map(doc => doc.data()).filter(d => {
+          const dDate: Date = d.date?.toDate ? d.date.toDate() : new Date(d.date);
+          return dDate >= windowStart && dDate < monthStart; // 전월 말~전일
+        }).map(d => ({
+          employeeId: d.employeeId,
+          date: d.date?.toDate ? d.date.toDate() : new Date(d.date),
+          actualWorkHours: d.actualWorkHours || 0,
+          branchId: d.branchId,
+          branchName: d.branchName || '지점명 없음',
+          breakTime: d.breakTime || 0
+        })) as Schedule[];
+        if (prevData.length > 0) {
+          console.log('🔧 전월 보정 데이터 추가:', prevData.length);
+          schedulesData = schedulesData.concat(prevData);
+        }
+      } catch (e) {
+        console.warn('전월 보정 로드 실패(무시 가능):', e);
+      }
 
       console.log('🔥 변환된 스케줄 데이터:', schedulesData);
       setWeeklySchedules(schedulesData);
