@@ -1607,6 +1607,17 @@ export default function WorkTimeComparison({
       }
       
       // 새 데이터 저장
+      // 직원명 조회 (result.employeeName이 "직원"이면 DB에서 다시 조회)
+      let employeeNameSnapshot: string | null = null;
+      if (selectedEmployeeId) {
+        try {
+          const empDoc = await getDoc(doc(db, 'employees', selectedEmployeeId));
+          if (empDoc.exists()) {
+            employeeNameSnapshot = empDoc.data().name || '';
+          }
+        } catch {}
+      }
+      
       // 지점명 조회
       let branchNameSnapshot: string | null = null;
       if (branchId) {
@@ -1615,10 +1626,16 @@ export default function WorkTimeComparison({
           branchNameSnapshot = bSnap.docs[0]?.data()?.name || '';
         } catch {}
       }
+      
       for (const result of results) {
+        // employeeName이 "직원"이면 DB에서 조회한 이름 사용, 아니면 result.employeeName 사용
+        const finalEmployeeName = result.employeeName === '직원' && employeeNameSnapshot
+          ? `${employeeNameSnapshot}${branchNameSnapshot ? ` (${branchNameSnapshot})` : ''}`
+          : result.employeeName;
+        
         await addDoc(collection(db, 'workTimeComparisonResults'), {
           employeeId: selectedEmployeeId,
-          employeeName: result.employeeName,
+          employeeName: finalEmployeeName,
           month: selectedMonth,
           branchId: branchId,
           branchName: branchNameSnapshot || (result as any).branchName || '',
