@@ -54,19 +54,6 @@ const TaxFileGeneration: React.FC = () => {
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set());
 
-  // 모달 열 때 초기 선택 상태 설정 (전체 선택, 외국인 제외)
-  useEffect(() => {
-    if (showExcelModal && tableData.length > 0) {
-      const defaultIds = new Set(tableData
-        .filter(row => {
-          const emp = employees.find(e => e.id === row.id);
-          return emp && emp.employmentType !== '외국인';
-        })
-        .map(row => row.id));
-      setSelectedEmployeeIds(defaultIds);
-    }
-  }, [showExcelModal, tableData, employees]);
-
   // 지점 로드
   const loadBranches = useCallback(async () => {
     try {
@@ -260,6 +247,19 @@ const TaxFileGeneration: React.FC = () => {
   });
   
   const tableData = Array.from(tableDataMap.values());
+
+  // 모달 열 때 초기 선택 상태 설정 (전체 선택, 외국인 제외)
+  useEffect(() => {
+    if (showExcelModal && tableData.length > 0) {
+      const defaultIds = new Set(tableData
+        .filter(row => {
+          const emp = employees.find(e => e.id === row.id);
+          return emp && emp.employmentType !== '외국인';
+        })
+        .map(row => row.id));
+      setSelectedEmployeeIds(defaultIds);
+    }
+  }, [showExcelModal, tableData, employees]);
 
   // 엑셀 저장 함수
   const handleExcelDownload = () => {
