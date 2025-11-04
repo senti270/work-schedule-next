@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, getDoc, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getPayrollMonth } from '@/utils/dateUtils';
+import * as XLSX from 'xlsx';
 
 interface ConfirmedPayroll {
   id: string;
@@ -17,6 +18,7 @@ interface ConfirmedPayroll {
   deductions: number;
   netPay: number;
   memo?: string; // 비고란 추가
+  employmentType?: string; // 고용형태
   branches: {
     branchId: string;
     branchName: string;
@@ -33,6 +35,7 @@ interface Employee {
   accountNumber?: string;
   hireDate?: any;
   resignationDate?: any;
+  employmentType?: string;
 }
 
 interface Branch {
@@ -48,6 +51,21 @@ const TaxFileGeneration: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingMemo, setEditingMemo] = useState<{[key: string]: string}>({});
+  const [showExcelModal, setShowExcelModal] = useState(false);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set());
+
+  // 모달 열 때 초기 선택 상태 설정 (전체 선택, 외국인 제외)
+  useEffect(() => {
+    if (showExcelModal && tableData.length > 0) {
+      const defaultIds = new Set(tableData
+        .filter(row => {
+          const emp = employees.find(e => e.id === row.id);
+          return emp && emp.employmentType !== '외국인';
+        })
+        .map(row => row.id));
+      setSelectedEmployeeIds(defaultIds);
+    }
+  }, [showExcelModal, tableData, employees]);
 
   // 지점 로드
   const loadBranches = useCallback(async () => {
@@ -243,6 +261,115 @@ const TaxFileGeneration: React.FC = () => {
   
   const tableData = Array.from(tableDataMap.values());
 
+  // 엑셀 저장 함수
+  const handleExcelDownload = () => {
+    if (!selectedMonth) {
+      alert('월을 선택해주세요.');
+      return;
+    }
+
+    // 선택된 직원 필터링 (모두 선택 시 전체, 외국인 제외)
+    const filteredData = tableData.filter(row => {
+      if (selectedEmployeeIds.size === 0) {
+        // 전체 선택 시 외국인만 제외
+        const emp = employees.find(e => e.id === row.id);
+        return emp && emp.employmentType !== '외국인';
+      }
+      return selectedEmployeeIds.has(row.id);
+    });
+
+    if (filteredData.length === 0) {
+      alert('저장할 데이터가 없습니다.');
+      return;
+    }
+
+    // 지점별로 그룹화
+    const branchGroups = new Map<string, typeof filteredData>();
+    filteredData.forEach(row => {
+      const payroll = normalizedAllPayrolls.find(p => p.employeeId === row.id);
+      const branchId = payroll?.branchId || '전체';
+      const branchName = payroll?.branchName || '전체';
+      const key = branchId;
+      
+      if (!branchGroups.has(key)) {
+        branchGroups.set(key, []);
+      }
+      branchGroups.get(key)!.push(row);
+    });
+
+    // 엑셀 워크북 생성
+    const wb = XLSX.utils.book_new();
+
+    // 각 지점별로 시트 생성
+    branchGroups.forEach((data, branchId) => {
+      const branchName = branches.find(b => b.id === branchId)?.name || '전체';
+      
+      // 근로소득, 일용직, 사업소득으로 분류 (payroll 또는 employee에서 가져오기)
+      const laborIncome = data.filter(row => {
+        const payroll = normalizedAllPayrolls.find(p => p.employeeId === row.id);
+        const emp = employees.find(e => e.id === row.id);
+        const employmentType = payroll?.employmentType || emp?.employmentType;
+        return employmentType === '근로소득';
+      });
+      const dailyWorker = data.filter(row => {
+        const payroll = normalizedAllPayrolls.find(p => p.employeeId === row.id);
+        const emp = employees.find(e => e.id === row.id);
+        const employmentType = payroll?.employmentType || emp?.employmentType;
+        return employmentType === '일용직';
+      });
+      const businessIncome = data.filter(row => {
+        const payroll = normalizedAllPayrolls.find(p => p.employeeId === row.id);
+        const emp = employees.find(e => e.id === row.id);
+        const employmentType = payroll?.employmentType || emp?.employmentType;
+        return employmentType && employmentType !== '근로소득' && employmentType !== '일용직';
+      });
+
+      // 섹션별 데이터 변환
+      const convertToExcelData = (rows: typeof data) => rows.map(row => ({
+        주민번호: row.residentNumber,
+        성명: row.employeeName,
+        입사일: row.hireDate,
+        은행: row.bankName,
+        은행코드: row.bankCode,
+        지급액: row.netPay,
+        신고총액: row.grossPay,
+        비고: row.memo || ''
+      }));
+
+      const excelData: any[] = [];
+      
+      // 근로소득 섹션
+      if (laborIncome.length > 0) {
+        excelData.push({ 주민번호: '4대보험', 성명: '', 입사일: '', 은행: '', 은행코드: '', 지급액: '', 신고총액: '', 비고: '' });
+        excelData.push(...convertToExcelData(laborIncome));
+        excelData.push({}); // 빈 행
+      }
+
+      // 일용직 섹션
+      if (dailyWorker.length > 0) {
+        excelData.push({ 주민번호: '일용직', 성명: '', 입사일: '', 은행: '', 은행코드: '', 지급액: '', 신고총액: '', 비고: '' });
+        excelData.push(...convertToExcelData(dailyWorker));
+        excelData.push({}); // 빈 행
+      }
+
+      // 사업소득 섹션
+      if (businessIncome.length > 0) {
+        excelData.push({ 주민번호: '사업소득', 성명: '', 입사일: '', 은행: '', 은행코드: '', 지급액: '', 신고총액: '', 비고: '' });
+        excelData.push(...convertToExcelData(businessIncome));
+      }
+
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      XLSX.utils.book_append_sheet(wb, ws, branchName);
+    });
+
+    // 파일명: YYYY-MM_세무사전송용_급여내역.xlsx
+    const fileName = `${selectedMonth}_세무사전송용_급여내역.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    setShowExcelModal(false);
+    alert('엑셀 파일이 저장되었습니다.');
+  };
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
@@ -262,6 +389,12 @@ const TaxFileGeneration: React.FC = () => {
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+            <button 
+              onClick={() => setShowExcelModal(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              📥 엑셀 저장
+            </button>
             <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
               🔄 상태 새로고침
             </button>
@@ -406,6 +539,90 @@ const TaxFileGeneration: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 엑셀 저장 모달 */}
+      {showExcelModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">엑셀 저장할 직원 선택</h2>
+            
+            <div className="mb-4 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  const allIds = new Set(tableData
+                    .filter(row => {
+                      const emp = employees.find(e => e.id === row.id);
+                      return emp && emp.employmentType !== '외국인';
+                    })
+                    .map(row => row.id));
+                  setSelectedEmployeeIds(allIds);
+                }}
+                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+              >
+                전체 선택 (외국인 제외)
+              </button>
+              <button
+                onClick={() => setSelectedEmployeeIds(new Set())}
+                className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+              >
+                전체 해제
+              </button>
+            </div>
+
+            <div className="space-y-2 mb-4 max-h-96 overflow-y-auto">
+              {tableData.map((row) => {
+                const emp = employees.find(e => e.id === row.id);
+                const isForeigner = emp?.employmentType === '외국인';
+                const isSelected = selectedEmployeeIds.has(row.id);
+                
+                return (
+                  <label
+                    key={row.id}
+                    className={`flex items-center p-2 border rounded cursor-pointer ${
+                      isSelected ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'
+                    } ${isForeigner ? 'opacity-50' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        const newSet = new Set(selectedEmployeeIds);
+                        if (e.target.checked) {
+                          newSet.add(row.id);
+                        } else {
+                          newSet.delete(row.id);
+                        }
+                        setSelectedEmployeeIds(newSet);
+                      }}
+                      disabled={isForeigner}
+                      className="mr-2"
+                    />
+                    <span className="flex-1">
+                      {row.employeeName} 
+                      {isForeigner && <span className="text-gray-500 text-sm"> (외국인 - 제외됨)</span>}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowExcelModal(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleExcelDownload}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                엑셀 저장
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

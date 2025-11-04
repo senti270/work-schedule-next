@@ -88,34 +88,41 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         };
       }) as Schedule[];
 
-      // 🔧 첫 주 보정: 전월 말~월초 주(일~토) 합산을 위해 전월 마지막 6일 데이터를 추가 로드
+      // 🔧 첫 주 보정: 해당 월의 첫 주(일~토)가 시작되는 일요일부터만 전월 데이터 추가
       try {
         const [year, monthNum] = selectedMonth.split('-').map(Number);
         const monthStart = new Date(year, monthNum - 1, 1);
-        const windowStart = new Date(monthStart);
-        windowStart.setDate(windowStart.getDate() - 6); // 최대 6일 이전
-        const prevMonthStr = `${windowStart.getFullYear()}-${String(windowStart.getMonth() + 1).padStart(2, '0')}`;
-
-        const prevQuery = query(
-          collection(db, 'workTimeComparisonResults'),
-          where('month', '==', prevMonthStr),
-          where('employeeId', '==', selectedEmployeeId)
-        );
-        const prevSnap = await getDocs(prevQuery);
-        const prevData = prevSnap.docs.map(doc => doc.data()).filter(d => {
-          const dDate: Date = d.date?.toDate ? d.date.toDate() : new Date(d.date);
-          return dDate >= windowStart && dDate < monthStart; // 전월 말~전일
-        }).map(d => ({
-          employeeId: d.employeeId,
-          date: d.date?.toDate ? d.date.toDate() : new Date(d.date),
-          actualWorkHours: d.actualWorkHours || 0,
-          branchId: d.branchId,
-          branchName: d.branchName || '지점명 없음',
-          breakTime: d.breakTime || 0
-        })) as Schedule[];
-        if (prevData.length > 0) {
-          console.log('🔧 전월 보정 데이터 추가:', prevData.length);
-          schedulesData = schedulesData.concat(prevData);
+        
+        // 해당 월의 첫 주의 일요일 계산 (월의 첫 날이 포함된 주의 시작)
+        const firstDayOfMonth = monthStart.getDay(); // 0=일요일, 6=토요일
+        const firstSunday = new Date(monthStart);
+        firstSunday.setDate(firstSunday.getDate() - firstDayOfMonth); // 첫 주의 일요일
+        
+        // 전월 데이터는 첫 주의 일요일부터만 가져오기 (9/28~9/30 같은 경우)
+        if (firstSunday < monthStart) {
+          const prevMonthStr = `${firstSunday.getFullYear()}-${String(firstSunday.getMonth() + 1).padStart(2, '0')}`;
+          
+          const prevQuery = query(
+            collection(db, 'workTimeComparisonResults'),
+            where('month', '==', prevMonthStr),
+            where('employeeId', '==', selectedEmployeeId)
+          );
+          const prevSnap = await getDocs(prevQuery);
+          const prevData = prevSnap.docs.map(doc => doc.data()).filter(d => {
+            const dDate: Date = d.date?.toDate ? d.date.toDate() : new Date(d.date);
+            return dDate >= firstSunday && dDate < monthStart; // 첫 주의 일요일~월 시작 전
+          }).map(d => ({
+            employeeId: d.employeeId,
+            date: d.date?.toDate ? d.date.toDate() : new Date(d.date),
+            actualWorkHours: d.actualWorkHours || 0,
+            branchId: d.branchId,
+            branchName: d.branchName || '지점명 없음',
+            breakTime: d.breakTime || 0
+          })) as Schedule[];
+          if (prevData.length > 0) {
+            console.log('🔧 전월 보정 데이터 추가 (첫 주 일요일부터):', prevData.length, '건');
+            schedulesData = schedulesData.concat(prevData);
+          }
         }
       } catch (e) {
         console.warn('전월 보정 로드 실패(무시 가능):', e);
@@ -268,26 +275,20 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     setNoScheduleData(false);
 
     try {
-      // PayrollCalculator에 전달할 데이터 준비 (이미 계약서 정보가 병합된 employee 사용)
-      const employeeData = {
-        id: employee.id,
-        name: employee.name,
-        employmentType: employee.employmentType,
-        salaryType: employee.salaryType,
-        salaryAmount: employee.salaryAmount,
-        probationStartDate: employee.probationStartDate,
-        probationEndDate: employee.probationEndDate,
-        includesWeeklyHolidayInWage: employee.includesWeeklyHolidayInWage,
-        weeklyWorkHours: employee.weeklyWorkHours || 40
-      };
+      // 🔥 중도 계약 변경 처리: employmentContracts 로드
+      const contractsSnapshot = await getDocs(
+        query(collection(db, 'employmentContracts'), where('employeeId', '==', selectedEmployeeId))
+      );
+      const contracts = contractsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((c: any) => c.startDate) // startDate 필수
+        .map((c: any) => ({
+          ...c,
+          startDate: c.startDate?.toDate ? c.startDate.toDate() : new Date(c.startDate)
+        }))
+        .sort((a: any, b: any) => a.startDate.getTime() - b.startDate.getTime()); // startDate 기준 정렬
 
-      const contractData = {
-        employmentType: employee.employmentType,
-        salaryType: employee.salaryType || 'hourly',
-        salaryAmount: employee.salaryAmount || 0,
-        weeklyWorkHours: employee.weeklyWorkHours || 40,
-        includeHolidayAllowance: employee.includesWeeklyHolidayInWage
-      };
+      console.log('🔥 employmentContracts 로드:', contracts.length, '건');
 
       // 스케줄 데이터 처리 (월급직의 경우 빈 배열)
       const scheduleData = schedulesToUse.length > 0 ? 
@@ -318,19 +319,148 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           };
         })) : [];
 
+      // 🔥 중도 계약 변경이 있는 경우: 날짜별로 분할 계산
+      if (contracts.length > 1 || (contracts.length === 1 && contracts[0].startDate)) {
+        const [year, month] = selectedMonth.split('-').map(Number);
+        const monthStart = new Date(year, month - 1, 1);
+        const monthEnd = new Date(year, month, 0, 23, 59, 59);
+        
+        const contractPeriods: Array<{contract: any; start: Date; end: Date; schedules: typeof scheduleData}> = [];
+        
+        for (let i = 0; i < contracts.length; i++) {
+          const contract = contracts[i];
+          const contractStart = contract.startDate;
+          const contractEnd = i < contracts.length - 1 ? new Date(contracts[i + 1].startDate.getTime() - 1) : monthEnd;
+          
+          const periodStart = contractStart > monthStart ? contractStart : monthStart;
+          const periodEnd = contractEnd < monthEnd ? contractEnd : monthEnd;
+          
+          if (periodStart <= periodEnd) {
+            const periodSchedules = scheduleData.filter(s => {
+              const sDate = new Date(s.date);
+              return sDate >= periodStart && sDate <= periodEnd;
+            });
+            
+            contractPeriods.push({
+              contract,
+              start: periodStart,
+              end: periodEnd,
+              schedules: periodSchedules
+            });
+          }
+        }
+
+        console.log('🔥 계약 구간별 분할:', contractPeriods.length, '개 구간');
+
+        // 각 구간별로 계산 후 합산
+        const results: PayrollResult[] = [];
+        for (const period of contractPeriods) {
+          const employeeData = {
+            id: employee.id,
+            name: employee.name,
+            employmentType: period.contract.employmentType || employee.employmentType,
+            salaryType: period.contract.salaryType || employee.salaryType,
+            salaryAmount: period.contract.salaryAmount || employee.salaryAmount,
+            probationStartDate: employee.probationStartDate,
+            probationEndDate: employee.probationEndDate,
+            includesWeeklyHolidayInWage: period.contract.includeHolidayAllowance ?? employee.includesWeeklyHolidayInWage,
+            weeklyWorkHours: period.contract.weeklyWorkHours || employee.weeklyWorkHours || 40
+          };
+
+          const contractData = {
+            employmentType: period.contract.employmentType || employee.employmentType,
+            salaryType: period.contract.salaryType || employee.salaryType || 'hourly',
+            salaryAmount: period.contract.salaryAmount || employee.salaryAmount || 0,
+            weeklyWorkHours: period.contract.weeklyWorkHours || employee.weeklyWorkHours || 40,
+            includeHolidayAllowance: period.contract.includeHolidayAllowance ?? employee.includesWeeklyHolidayInWage
+          };
+
+          const calculator = new PayrollCalculator(employeeData, contractData, period.schedules);
+          const periodResult = calculator.calculate();
+          results.push(periodResult);
+        }
+
+        // 구간별 결과 합산
+        const combinedResult = results.reduce((acc, r, idx) => {
+          if (idx === 0) {
+            // 첫 번째 결과를 기본값으로 사용
+            return { ...r };
+          }
+          acc.totalWorkHours += r.totalWorkHours;
+          acc.actualWorkHours += r.actualWorkHours;
+          acc.grossPay += r.grossPay;
+          acc.deductions.total += r.deductions.total;
+          acc.deductions.insurance += r.deductions.insurance;
+          acc.deductions.tax += r.deductions.tax;
+          acc.netPay += r.netPay;
+          acc.weeklyHolidayPay = (acc.weeklyHolidayPay || 0) + (r.weeklyHolidayPay || 0);
+          acc.weeklyHolidayHours = (acc.weeklyHolidayHours || 0) + (r.weeklyHolidayHours || 0);
+          if (r.weeklyHolidayDetails) {
+            acc.weeklyHolidayDetails = [...(acc.weeklyHolidayDetails || []), ...r.weeklyHolidayDetails];
+          }
+          // branches 합산 (지점별로 시간 합산)
+          const branchMap = new Map(acc.branches.map((b: any) => [b.branchId, b]));
+          r.branches.forEach((b: any) => {
+            const existing = branchMap.get(b.branchId);
+            if (existing) {
+              existing.workHours += b.workHours;
+            } else {
+              branchMap.set(b.branchId, { ...b });
+            }
+          });
+          acc.branches = Array.from(branchMap.values());
+          return acc;
+        }, results[0]);
+
+        // 🔥 보존된 공제 데이터가 있으면 적용
+        if (Object.keys(preservedDeductions).length > 0) {
+          console.log('🔥 보존된 공제 데이터 적용:', preservedDeductions);
+          setEditableDeductions(preservedDeductions);
+          if (combinedResult.deductions && combinedResult.deductions.editableDeductions) {
+            combinedResult.deductions.editableDeductions = preservedDeductions as {
+              nationalPension: number;
+              healthInsurance: number;
+              longTermCare: number;
+              employmentInsurance: number;
+              incomeTax: number;
+              localIncomeTax: number;
+            };
+            const totalDeductions = Object.values(preservedDeductions).reduce((sum: number, val: unknown) => sum + ((val as number) || 0), 0);
+            combinedResult.deductions.total = totalDeductions;
+            combinedResult.netPay = combinedResult.grossPay - totalDeductions;
+          }
+        }
+
+        setPayrollResults([combinedResult]);
+        return;
+      }
+
+      // 단일 계약 또는 계약이 없는 경우: 기존 로직
+      const contract = contracts.length > 0 ? contracts[0] : null;
+      const employeeData = {
+        id: employee.id,
+        name: employee.name,
+        employmentType: contract?.employmentType || employee.employmentType,
+        salaryType: contract?.salaryType || employee.salaryType,
+        salaryAmount: contract?.salaryAmount || employee.salaryAmount,
+        probationStartDate: employee.probationStartDate,
+        probationEndDate: employee.probationEndDate,
+        includesWeeklyHolidayInWage: contract?.includeHolidayAllowance ?? employee.includesWeeklyHolidayInWage,
+        weeklyWorkHours: contract?.weeklyWorkHours || employee.weeklyWorkHours || 40
+      };
+
+      const contractData = {
+        employmentType: contract?.employmentType || employee.employmentType,
+        salaryType: contract?.salaryType || employee.salaryType || 'hourly',
+        salaryAmount: contract?.salaryAmount || employee.salaryAmount || 0,
+        weeklyWorkHours: contract?.weeklyWorkHours || employee.weeklyWorkHours || 40,
+        includeHolidayAllowance: contract?.includeHolidayAllowance ?? employee.includesWeeklyHolidayInWage
+      };
+
       console.log('🔥 PayrollCalculator 입력 데이터:', { 
-        employeeData: {
-          ...employeeData,
-          salaryAmount: employeeData.salaryAmount,
-          probationStartDate: employeeData.probationStartDate,
-          probationEndDate: employeeData.probationEndDate
-        }, 
-        contractData: {
-          ...contractData,
-          salaryAmount: contractData.salaryAmount
-        }, 
-        scheduleData: scheduleData.length,
-        scheduleDataWithBranchNames: scheduleData.map(s => ({ branchId: s.branchId, branchName: s.branchName }))
+        employeeData,
+        contractData,
+        scheduleData: scheduleData.length
       });
 
       // PayrollCalculator로 계산

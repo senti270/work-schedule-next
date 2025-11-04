@@ -605,6 +605,15 @@ export class PayrollCalculator {
       return { weeklyHolidayPay: 0, weeklyHolidayHours: 0, weeklyHolidayDetails: [] };
     }
 
+    // 🔥 선택된 월의 시작일과 종료일 계산 (스케줄의 첫 번째 날짜 기준)
+    if (this.schedules.length === 0) {
+      return { weeklyHolidayPay: 0, weeklyHolidayHours: 0, weeklyHolidayDetails: [] };
+    }
+    const firstSchedule = this.schedules[0];
+    const monthDate = new Date(firstSchedule.date.getFullYear(), firstSchedule.date.getMonth(), 1);
+    const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59);
+
     // 주차별로 그룹화
     const weeklyGroups = this.groupSchedulesByWeek();
     let totalWeeklyHolidayPay = 0;
@@ -619,7 +628,26 @@ export class PayrollCalculator {
     }> = [];
 
     weeklyGroups.forEach(week => {
-      const weeklyHolidayResult = this.calculateWeeklyHolidayForWeek(week);
+      // 🔥 해당 주가 선택된 월과 겹치는지 확인
+      const sortedWeek = [...week].sort((a, b) => a.date.getTime() - b.date.getTime());
+      const weekStartDate = sortedWeek[0].date;
+      const weekEndDate = sortedWeek[sortedWeek.length - 1].date;
+      
+      // 주의 일요일 계산
+      const sunday = new Date(weekStartDate);
+      sunday.setDate(sunday.getDate() - sunday.getDay());
+      const saturday = new Date(sunday);
+      saturday.setDate(sunday.getDate() + 6);
+
+      // 해당 주의 일부라도 선택된 월에 포함되면 계산
+      const weekOverlapsMonth = (sunday <= monthEnd && saturday >= monthStart);
+      
+      if (!weekOverlapsMonth) {
+        console.log('🔥 주차 제외 (월 범위 밖):', sunday.toISOString().split('T')[0], '~', saturday.toISOString().split('T')[0]);
+        return; // 이 주차는 제외
+      }
+
+      const weeklyHolidayResult = this.calculateWeeklyHolidayForWeek(week, monthStart, monthEnd);
       totalWeeklyHolidayPay += weeklyHolidayResult.pay;
       totalWeeklyHolidayHours += weeklyHolidayResult.hours;
       weeklyHolidayDetails.push(weeklyHolidayResult);
@@ -654,7 +682,7 @@ export class PayrollCalculator {
   }
 
   // 🔥 특정 주의 주휴수당 계산
-  private calculateWeeklyHolidayForWeek(weekSchedules: Schedule[]): {
+  private calculateWeeklyHolidayForWeek(weekSchedules: Schedule[], monthStart?: Date, monthEnd?: Date): {
     weekStart: string;
     weekEnd: string;
     hours: number;
@@ -694,8 +722,10 @@ export class PayrollCalculator {
     const weekEnd = endSaturday.toISOString().split('T')[0];
 
     // 마지막 주인지 확인 (다음달로 이월되는 주)
-    const isLastWeek = this.isLastWeekOfMonth_SatEnd(weekSchedules);
-    const isLastWeekEndingOnSaturday = this.isLastWeekEndingOnSaturday(weekSchedules);
+    // 🔥 주의 토요일이 선택된 월의 마지막 날보다 이후인 경우만 이월
+    const isLastWeek = monthEnd ? endSaturday > monthEnd : this.isLastWeekOfMonth_SatEnd(weekSchedules);
+    // 🔥 주의 토요일이 선택된 월의 마지막 날과 같으면 이번 달에 포함
+    const isLastWeekEndingOnSaturday = monthEnd ? endSaturday.getTime() === monthEnd.getTime() : this.isLastWeekEndingOnSaturday(weekSchedules);
 
     // 🔥 디버깅 로그 추가
     console.log('🔥 주휴수당 계산:', {
