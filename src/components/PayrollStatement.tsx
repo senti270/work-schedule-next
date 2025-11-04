@@ -1256,7 +1256,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
             const actual = parseRange(item.actualTimeRange as any);
             const actualHours = (item as any).actualWorkHours ?? (item as any).actualHours ?? 0;
             const scheduleHours = (item as any).scheduledHours ?? 0;
-            const breakTime = (item as any).breakTime ?? 0;
+            const breakTime = (item as any).actualBreakTime ?? (item as any).breakTime ?? 0;
             return {
               date: (item as any).date,
               scheduleStartTime: sched.start,
@@ -1348,7 +1348,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                     const pos = parseRange((item as any).posTimeRange);
                     const actual = parseRange((item as any).actualTimeRange);
                     const actualHours = (item as any).actualWorkHours ?? 0;
-                    const breakTime = (item as any).breakTime ?? 0;
+                    const breakTime = (item as any).actualBreakTime ?? (item as any).breakTime ?? 0;
                     return {
                       date: (item as any).date,
                       posStartTime: pos.start,
