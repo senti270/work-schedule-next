@@ -1747,53 +1747,8 @@ export default function WorkTimeComparison({
         setComparisonResults(existingData);
         console.log('기존 비교 데이터 로드됨:', existingData);
         
-        // 기존 데이터가 있으면 해당 직원+지점을 검토중으로 상태 변경 (단, 이미 검토완료/급여확정완료가 아닌 경우에만)
-        if (existingData.length > 0) {
-          // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
-          const targetBranchId = isManager && userBranch ? userBranch.id : selectedBranchId;
-          
-          // 🔥 지점별 상태 확인
-          const currentBranchStatus = employeeReviewStatus.find(status => 
-            status.employeeId === selectedEmployeeId && status.branchId === targetBranchId
-          );
-          const currentStatus = currentBranchStatus?.status || '검토전';
-          
-          console.log('기존 데이터 발견, 현재 상태:', currentStatus, '직원:', selectedEmployeeId, '지점:', targetBranchId);
-          
-          // 🔥 급여확정완료 상태인지 확인 (해당 지점)
-          const isPayrollConfirmed = currentStatus === '급여확정완료';
-          
-          if (isPayrollConfirmed) {
-            console.log('급여확정완료 상태이므로 상태 변경하지 않음:', selectedEmployeeId, targetBranchId);
-          } else if (currentStatus !== '근무시간검토완료') {
-            console.log('검토중 상태로 변경:', selectedEmployeeId, targetBranchId);
-            // 🔥 지점별 상태 업데이트 (DB 저장은 하지 않고 메모리만 업데이트)
-            setEmployeeReviewStatus(prev => {
-              const existingIndex = prev.findIndex(status => 
-                status.employeeId === selectedEmployeeId && status.branchId === targetBranchId
-              );
-              
-              if (existingIndex >= 0) {
-                // 기존 상태 업데이트
-                const updated = [...prev];
-                updated[existingIndex] = { ...updated[existingIndex], status: '검토중' as '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료' };
-                console.log('검토 상태 업데이트 (기존):', updated);
-                return updated;
-              } else {
-                // 새 상태 추가
-                const updated = [...prev, {
-                  employeeId: selectedEmployeeId,
-                  branchId: targetBranchId,
-                  status: '검토중' as '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료'
-                }];
-                console.log('검토 상태 추가 (신규):', updated);
-                return updated;
-              }
-            });
-          } else {
-            console.log('이미 검토완료 상태이므로 상태 변경하지 않음:', selectedEmployeeId, targetBranchId);
-          }
-        }
+        // 🔥 상태는 DB에 저장된 실제 상태를 유지하므로, 비교 데이터 로드 시 상태를 변경하지 않음
+        // 상태 변경은 사용자가 명시적으로 버튼을 클릭했을 때만 이루어져야 함
       } else {
         // 기존 데이터가 없으면 비교 결과 초기화
         setComparisonResults([]);
