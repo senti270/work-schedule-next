@@ -3016,29 +3016,11 @@ export default function WorkTimeComparison({
                                   };
                                   setComparisonResults(sortComparisonResults(updatedResults));
                                   
-                                  // 🔥 전체 검토완료 여부 확인
-                                  const allCompleted = updatedResults.every(r => 
-                                    r.status === 'review_completed' || r.status === 'time_match'
-                                  );
-                                  const finalStatus: '검토전' | '검토중' | '근무시간검토완료' = allCompleted ? '근무시간검토완료' : '검토중';
-                                  
-                                  setEmployeeReviewStatus(prev => {
-                                    const existingIndex = prev.findIndex(status => 
-                                      status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
-                                    );
-                                    
-                                    if (existingIndex >= 0) {
-                                      const updated = [...prev];
-                                      updated[existingIndex] = { ...updated[existingIndex], status: finalStatus };
-                                      return updated;
-                                    } else {
-                                      return [...prev, { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: finalStatus }];
-                                    }
-                                  });
+                                  // 🔥 비교 결과 테이블의 행별 확인 버튼은 상태를 변경하지 않음
+                                  // 상태 변경은 지점별 검토상태 버튼에서만 이루어짐
                                   
                                   // DB에 저장
                                   await saveModifiedData(updatedResults[index]);
-                                  await saveReviewStatus(selectedEmployeeId, finalStatus, selectedBranchId);
                                 }}
                                 className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700"
                               >
@@ -3056,32 +3038,11 @@ export default function WorkTimeComparison({
                                   };
                                   setComparisonResults(sortComparisonResults(updatedResults));
                                   
-                                  // 🔥 전체 검토완료 여부 확인
-                                  const allCompleted = updatedResults.every(r => 
-                                    r.status === 'review_completed' || r.status === 'time_match'
-                                  );
-                                  const finalStatus: '검토전' | '검토중' | '근무시간검토완료' = allCompleted ? '근무시간검토완료' : '검토중';
-                                  
-                                  setEmployeeReviewStatus(prev => {
-                                    const existingIndex = prev.findIndex(status => 
-                                      status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
-                                    );
-                                    
-                                    if (existingIndex >= 0) {
-                                      // 기존 상태 업데이트
-                                      const updated = [...prev];
-                                      updated[existingIndex] = { ...updated[existingIndex], status: finalStatus };
-                                      return updated;
-                                    } else {
-                                      // 새로운 상태 추가
-                                      const newStatus = { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: finalStatus };
-                                      return [...prev, newStatus];
-                                    }
-                                  });
+                                  // 🔥 비교 결과 테이블의 행별 확인 버튼은 상태를 변경하지 않음
+                                  // 상태 변경은 지점별 검토상태 버튼에서만 이루어짐
                                   
                                   // DB에 저장
                                   await saveModifiedData(updatedResults[index]);
-                                  await saveReviewStatus(selectedEmployeeId, finalStatus, selectedBranchId);
                                 }}
                                 className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
                               >
@@ -3105,32 +3066,11 @@ export default function WorkTimeComparison({
                                     };
                                     setComparisonResults(sortComparisonResults(updatedResults));
                                     
-                                    // 🔥 전체 검토완료 여부 확인
-                                    const allCompleted = updatedResults.every(r => 
-                                      r.status === 'review_completed' || r.status === 'time_match'
-                                    );
-                                    const finalStatus: '검토전' | '검토중' | '근무시간검토완료' = allCompleted ? '근무시간검토완료' : '검토중';
-                                    
-                                    setEmployeeReviewStatus(prev => {
-                                      const existingIndex = prev.findIndex(status => 
-                                        status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
-                                      );
-                                      
-                                      if (existingIndex >= 0) {
-                                        // 기존 상태 업데이트
-                                        const updated = [...prev];
-                                        updated[existingIndex] = { ...updated[existingIndex], status: finalStatus };
-                                        return updated;
-                                      } else {
-                                        // 새로운 상태 추가
-                                        const newStatus = { employeeId: selectedEmployeeId, branchId: selectedBranchId, status: finalStatus };
-                                        return [...prev, newStatus];
-                                      }
-                                    });
+                                    // 🔥 비교 결과 테이블의 행별 확인 버튼은 상태를 변경하지 않음
+                                    // 상태 변경은 지점별 검토상태 버튼에서만 이루어짐
                                     
                                     // DB에 저장
                                     await saveModifiedData(updatedResults[index]);
-                                    await saveReviewStatus(selectedEmployeeId, finalStatus, selectedBranchId);
                                   }
                                 }}
                                 className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
