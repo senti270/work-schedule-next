@@ -1341,7 +1341,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                       <td className="border border-gray-400 p-2">{selectedMonth}</td>
                       <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">총 실근무시간</td>
                       <td className="border border-gray-400 p-2 font-bold text-blue-600">
-                        {formatTime(selectedWorkTimeComparison?.totalActualHours || 0)}
+                        {formatTime(overallTotalActual || 0)}
                       </td>
                     </tr>
                   </tbody>
@@ -1385,25 +1385,21 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                       <table className="w-full border-collapse border border-gray-400 mb-4">
                         <thead>
                           <tr>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">날짜</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" rowSpan={2}>날짜</th>
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" colSpan={2}>POS</th>
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" colSpan={2}>실근무</th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">휴게시간</th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">근무시간</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" rowSpan={2}>휴게시간</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" rowSpan={2}>근무시간</th>
                           </tr>
                           <tr>
-                            
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">출근</th>
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">퇴근</th>
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">출근</th>
                             <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">퇴근</th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold"></th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold"></th>
-                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold"></th>
                           </tr>
                         </thead>
                         <tbody>
-                          {rows.map((result, index) => (
+                          {rows.filter(result => (Number(result.actualWorkHours) || 0) > 0).map((result, index) => (
                             <tr key={index}>
                               <td className="border border-gray-400 p-2 text-center">{formatDate(result.date)}</td>
                               <td className="border border-gray-400 p-2 text-center">{result.posStartTime || '-'}</td>
@@ -1422,7 +1418,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                           <tr className="bg-gray-50 font-bold">
                             <td className="border border-gray-400 p-2 text-center" colSpan={6}>합계</td>
                             <td className="border border-gray-400 p-2 text-center text-blue-600">
-                              {formatTime(branchTotalHours)}
+                              {formatTime(rows.filter(r => (Number(r.actualWorkHours) || 0) > 0).reduce((sum, r) => sum + (Number(r.actualWorkHours) || 0), 0))}
                             </td>
                           </tr>
                         </tbody>
