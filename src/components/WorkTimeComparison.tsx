@@ -610,9 +610,9 @@ export default function WorkTimeComparison({
       }
       
       // 선택된 직원이 있으면 해당 직원의 지점별로 상태 확인 및 생성
-      // 🔥 단, 이미 로드된 상태가 있으면 추가로 생성하지 않음 (지점 클릭 시 상태가 변경되지 않도록)
-      if (selectedEmployeeId && savedReviewStatuses.filter(s => s.employeeId === selectedEmployeeId).length === 0) {
-        // 직원의 지점 정보를 DB에서 직접 가져오기
+      // 🔥 단, 이미 DB에 상태가 있으면 추가로 생성하지 않음 (급여확정 취소 후 상태가 덮어쓰이지 않도록)
+      if (selectedEmployeeId) {
+        // 해당 직원의 모든 지점에 대해 DB에 상태가 있는지 확인
         const employeeBranchesQuery = query(
           collection(db, 'employeeBranches'),
           where('employeeId', '==', selectedEmployeeId)
@@ -620,7 +620,18 @@ export default function WorkTimeComparison({
         const employeeBranchesSnapshot = await getDocs(employeeBranchesQuery);
         const employeeBranchIds = employeeBranchesSnapshot.docs.map(doc => doc.data().branchId).filter(Boolean);
         
-        if (employeeBranchIds.length > 0) {
+        // 해당 직원의 모든 지점에 대해 DB에 상태가 있는지 확인
+        const allStatusesExist = employeeBranchIds.every(branchId => {
+          return savedReviewStatuses.some(s => 
+            s.employeeId === selectedEmployeeId && s.branchId === branchId
+          );
+        });
+        
+        // 모든 지점의 상태가 DB에 있으면 추가 생성하지 않음
+        if (allStatusesExist) {
+          console.log('✅ 해당 직원의 모든 지점 상태가 DB에 존재, 추가 생성하지 않음');
+        } else if (employeeBranchIds.length > 0) {
+          // 일부 지점의 상태가 없으면 없는 지점만 생성
           const branchesSnapshot = await getDocs(collection(db, 'branches'));
           const branchesMap = new Map(branchesSnapshot.docs.map(d => [d.id, d.data()]));
           const selectedEmployee = employeesList.find(emp => emp.id === selectedEmployeeId);

@@ -699,6 +699,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
             const fixedId = `${selectedEmployeeId}_${branchId}_${selectedMonth}`;
             const branchName = branchesMap.get(branchId) || '';
             
+            // 🔥 merge: false로 설정하여 기존 상태를 완전히 덮어쓰기
             await setDoc(doc(db, 'employeeReviewStatus', fixedId), {
               employeeId: selectedEmployeeId,
               employeeName: employee.name,
@@ -707,8 +708,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
               branchName: branchName,
               status: '급여확정완료',
               updatedAt: new Date(),
-              createdAt: new Date() // merge 시 createdAt이 없으면 생성
-            }, { merge: true });
+              createdAt: new Date()
+            });
             
             console.log('✅ 급여확정완료 상태 업데이트:', fixedId);
           }
@@ -792,6 +793,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
             const fixedId = `${selectedEmployeeId}_${branchId}_${selectedMonth}`;
             const branchName = branchesMap.get(branchId) || '';
             
+            // 🔥 merge: false로 설정하여 기존 상태를 완전히 덮어쓰기
             await setDoc(doc(db, 'employeeReviewStatus', fixedId), {
               employeeId: selectedEmployeeId,
               employeeName: employee.name,
@@ -800,8 +802,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
               branchName: branchName,
               status: '근무시간검토완료',
               updatedAt: new Date(),
-              createdAt: new Date() // merge 시 createdAt이 없으면 생성
-            }, { merge: true });
+              createdAt: new Date()
+            });
             
             console.log('✅ 급여확정취소 - 상태 되돌리기:', fixedId);
           }
