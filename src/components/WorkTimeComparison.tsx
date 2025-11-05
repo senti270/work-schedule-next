@@ -610,7 +610,8 @@ export default function WorkTimeComparison({
       }
       
       // 선택된 직원이 있으면 해당 직원의 지점별로 상태 확인 및 생성
-      if (selectedEmployeeId) {
+      // 🔥 단, 이미 로드된 상태가 있으면 추가로 생성하지 않음 (지점 클릭 시 상태가 변경되지 않도록)
+      if (selectedEmployeeId && savedReviewStatuses.filter(s => s.employeeId === selectedEmployeeId).length === 0) {
         // 직원의 지점 정보를 DB에서 직접 가져오기
         const employeeBranchesQuery = query(
           collection(db, 'employeeBranches'),
