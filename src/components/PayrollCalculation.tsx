@@ -954,29 +954,45 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           </div>
           
           {/* 수습기간 정보 */}
-          {(calc.probationHours || 0) > 0 && (
-            <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <h4 className="text-sm font-medium text-yellow-800 mb-2">수습기간 적용</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-yellow-700">수습시간:</span>
-                  <span className="ml-2 font-medium text-yellow-900">{(calc.probationHours || 0).toFixed(1)}시간</span>
-                </div>
-                <div>
-                  <span className="text-yellow-700">수습급여:</span>
-                  <span className="ml-2 font-medium text-yellow-900">{(calc.probationPay || 0).toLocaleString()}원 (90%)</span>
-                </div>
-                <div>
-                  <span className="text-yellow-700">정규시간:</span>
-                  <span className="ml-2 font-medium text-yellow-900">{(calc.regularHours || 0).toFixed(1)}시간</span>
-                </div>
-                <div>
-                  <span className="text-yellow-700">정규급여:</span>
-                  <span className="ml-2 font-medium text-yellow-900">{(calc.regularPay || 0).toLocaleString()}원 (100%)</span>
+          {(calc.probationHours || 0) > 0 && (() => {
+            const employee = employees.find(emp => emp.id === selectedEmployeeId);
+            const probationStartDate = employee?.probationStartDate;
+            const probationEndDate = employee?.probationEndDate;
+            const formatDate = (date: Date | undefined) => {
+              if (!date) return '-';
+              const d = date instanceof Date ? date : new Date(date);
+              return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+            };
+            return (
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="text-sm font-medium text-yellow-800 mb-2">수습기간 적용</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-yellow-700">수습기간:</span>
+                    <span className="ml-2 font-medium text-yellow-900">
+                      {formatDate(probationStartDate)} ~ {formatDate(probationEndDate)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-yellow-700">수습시간:</span>
+                    <span className="ml-2 font-medium text-yellow-900">{(calc.probationHours || 0).toFixed(1)}시간</span>
+                  </div>
+                  <div>
+                    <span className="text-yellow-700">수습급여:</span>
+                    <span className="ml-2 font-medium text-yellow-900">{(calc.probationPay || 0).toLocaleString()}원 (90%)</span>
+                  </div>
+                  <div>
+                    <span className="text-yellow-700">정규시간:</span>
+                    <span className="ml-2 font-medium text-yellow-900">{(calc.regularHours || 0).toFixed(1)}시간</span>
+                  </div>
+                  <div>
+                    <span className="text-yellow-700">정규급여:</span>
+                    <span className="ml-2 font-medium text-yellow-900">{(calc.regularPay || 0).toLocaleString()}원 (100%)</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 근무시간 요약 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
