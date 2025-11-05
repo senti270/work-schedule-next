@@ -659,19 +659,27 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       const primaryBranchId: string | undefined = empDoc?.primaryBranchId || (empDoc?.branches && empDoc.branches[0]);
       const primaryBranchName: string | undefined = empDoc?.primaryBranchName || '';
 
-      const confirmedPayrollData = {
+      // undefined 값 제거를 위한 필터링
+      const confirmedPayrollData: any = {
         month: selectedMonth,
         employeeId: selectedEmployeeId,
-        employeeName: payrollResults[0].employeeName,
+        employeeName: payrollResults[0]?.employeeName || '',
         calculations: payrollResults,
-        grossPay: totalGrossPay,
-        netPay: totalNetPay,
+        grossPay: totalGrossPay || 0,
+        netPay: totalNetPay || 0,
         // 대표지점 기준 저장 (지점별 집계/필터에서 사용)
         branchId: primaryBranchId || '',
         branchName: primaryBranchName || '',
         confirmedAt: new Date(),
         confirmedBy: 'admin'
       };
+
+      // undefined 값 제거
+      Object.keys(confirmedPayrollData).forEach(key => {
+        if (confirmedPayrollData[key] === undefined) {
+          delete confirmedPayrollData[key];
+        }
+      });
       
       await addDoc(collection(db, 'confirmedPayrolls'), confirmedPayrollData);
       
