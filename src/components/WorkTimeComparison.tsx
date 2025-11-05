@@ -572,7 +572,7 @@ export default function WorkTimeComparison({
     }
   };
 
-  // 검토 상태를 DB에서 로드하고, 없는 경우 기존 비교 데이터로 상태 설정
+  // 검토 상태를 DB에서 로드하고, 없으면 "검토전"으로 insert
   const loadReviewStatus = useCallback(async (employeesList: typeof employees) => {
     try {
       if (!selectedMonth) return;
@@ -581,7 +581,7 @@ export default function WorkTimeComparison({
       console.log('🔥🔥🔥 loadReviewStatus 시작 - 선택된 월:', selectedMonth);
       console.log('🔥🔥🔥 직원 목록 길이:', employeesList.length);
       
-      // 해당 직원의 모든 지점의 검토 상태 조회
+      // 해당 월의 모든 검토 상태 조회
       const reviewStatusQuery = query(
         collection(db, 'employeeReviewStatus'),
         where('month', '==', selectedMonth)
@@ -602,19 +602,6 @@ export default function WorkTimeComparison({
       
       console.log('🔥🔥🔥 DB에서 로드된 검토 상태 총', savedReviewStatuses.length, '건:', savedReviewStatuses);
       
-      // 김유정의 상태를 특별히 확인
-      const kimYoojungStatuses = savedReviewStatuses.filter(status => status.employeeId === 'sB7t9lJAdZr4slD2rEYf');
-      console.log('🔥🔥🔥 김유정의 모든 저장된 상태:', kimYoojungStatuses);
-      
-      // 모든 잘못된 상태 확인
-      const wrongStatuses = savedReviewStatuses.filter(status => 
-        status.status === '검토중'
-      );
-      if (wrongStatuses.length > 0) {
-        console.log('⚠️ 잘못된 상태 데이터 발견:', wrongStatuses);
-        console.log('이 상태들을 삭제해야 합니다!');
-      }
-      
       // 직원 목록이 비어있으면 저장된 상태만 사용
       if (employeesList.length === 0) {
         console.log('직원 목록이 비어있음, 저장된 상태만 사용');
@@ -622,13 +609,53 @@ export default function WorkTimeComparison({
         return;
       }
       
-      // 저장된 상태만 반영 (없으면 표시만 검토전으로 보이되 DB는 생성하지 않음)
+      // 선택된 직원이 있으면 해당 직원의 지점별로 상태 확인 및 생성
+      if (selectedEmployeeId && employeeBranches.length > 0) {
+        const branchesSnapshot = await getDocs(collection(db, 'branches'));
+        const branchesMap = new Map(branchesSnapshot.docs.map(d => [d.id, d.data()]));
+        const selectedEmployee = employeesList.find(emp => emp.id === selectedEmployeeId);
+        
+        for (const branchId of employeeBranches) {
+          const fixedId = `${selectedEmployeeId}_${branchId}_${selectedMonth}`;
+          const existingStatus = savedReviewStatuses.find(s => 
+            s.employeeId === selectedEmployeeId && s.branchId === branchId
+          );
+          
+          // 상태가 없으면 "검토전"으로 insert
+          if (!existingStatus) {
+            const branchData = branchesMap.get(branchId);
+            const branchName = branchData?.name || '';
+            
+            await setDoc(doc(db, 'employeeReviewStatus', fixedId), {
+              employeeId: selectedEmployeeId,
+              employeeName: selectedEmployee?.name || '알 수 없음',
+              month: selectedMonth,
+              branchId: branchId,
+              branchName: branchName,
+              status: '검토전',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+            
+            console.log('✅ 검토전 상태 생성:', fixedId);
+            
+            // savedReviewStatuses에 추가
+            savedReviewStatuses.push({
+              employeeId: selectedEmployeeId,
+              branchId: branchId,
+              status: '검토전'
+            });
+          }
+        }
+      }
+      
+      // 저장된 상태 반영
       setEmployeeReviewStatus(savedReviewStatuses);
-      console.log('최종 검토 상태 설정됨(저장된 상태만):', savedReviewStatuses);
+      console.log('최종 검토 상태 설정됨:', savedReviewStatuses);
     } catch (error) {
       console.error('검토 상태 로드 실패:', error);
     }
-  }, [selectedMonth, selectedBranchId]);
+  }, [selectedMonth, selectedEmployeeId, employeeBranches]);
 
   // 직원 목록이 로드되면 검토 상태 로드
   useEffect(() => {
@@ -1341,28 +1368,8 @@ export default function WorkTimeComparison({
     // 모든 비교 결과를 DB에 저장
     await saveAllComparisonResults(uniqueComparisons);
     
-    // 비교결과 데이터가 한건이라도 있으면 검토중으로 상태 변경
-    if (uniqueComparisons.length > 0) {
-      console.log('비교 작업 완료, 검토중 상태로 변경 + DB 저장:', selectedEmployeeId, selectedBranchId);
-      // 1) 화면 상태 업데이트
-      setEmployeeReviewStatus(prev => {
-        const updated = prev.map(status => 
-          status.employeeId === selectedEmployeeId 
-            ? { ...status, status: '검토중' as '검토전' | '검토중' | '근무시간검토완료' }
-            : status
-        );
-        console.log('비교 작업 후 검토 상태 업데이트(메모리):', updated);
-        return updated;
-      });
-      // 2) DB 반영 (현재 선택 지점 기준)
-      try {
-        await saveReviewStatus(selectedEmployeeId, '검토중', selectedBranchId);
-      } catch (e) {
-        console.error('비교 완료 후 검토중 상태 DB 저장 실패:', e);
-      }
-    }
-    
-    // 자동 검토완료 변경 로직 제거 - 수동 버튼으로 변경
+    // 🔥 근무시간비교 버튼 클릭 시 "검토중" 상태로 변경 (이미 버튼 클릭 시점에 변경됨)
+    // 비교 완료 후에는 상태 변경하지 않음 - 사용자가 명시적으로 버튼을 클릭했을 때만 변경
   }
 
   const getStatusColor = (status: string) => {
