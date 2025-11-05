@@ -583,25 +583,11 @@ const TaxFileGeneration: React.FC = () => {
                     className={`flex items-center p-2 border rounded cursor-pointer ${
                       isSelected ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'
                     } ${isForeigner ? 'opacity-50' : ''}`}
-                    onClick={(e) => {
-                      if (!isForeigner) {
-                        e.preventDefault();
-                        const newSet = new Set(selectedEmployeeIds);
-                        if (isSelected) {
-                          newSet.delete(row.id);
-                        } else {
-                          newSet.add(row.id);
-                        }
-                        console.log('라벨 클릭:', row.id, !isSelected, Array.from(newSet));
-                        setSelectedEmployeeIds(new Set(newSet));
-                      }
-                    }}
                   >
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={(e) => {
-                        e.preventDefault();
                         e.stopPropagation();
                         const newSet = new Set(selectedEmployeeIds);
                         if (e.target.checked) {
