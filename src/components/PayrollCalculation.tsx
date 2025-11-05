@@ -659,12 +659,35 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       const primaryBranchId: string | undefined = empDoc?.primaryBranchId || (empDoc?.branches && empDoc.branches[0]);
       const primaryBranchName: string | undefined = empDoc?.primaryBranchName || '';
 
+      // calculations 배열에서 undefined 값 제거 및 정리
+      const cleanedCalculations = payrollResults.map((result: any) => {
+        const cleaned: any = {};
+        Object.keys(result).forEach(key => {
+          const value = result[key];
+          if (value !== undefined && value !== null) {
+            // 객체인 경우 재귀적으로 정리
+            if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+              const cleanedObj: any = {};
+              Object.keys(value).forEach(objKey => {
+                if (value[objKey] !== undefined && value[objKey] !== null) {
+                  cleanedObj[objKey] = value[objKey];
+                }
+              });
+              cleaned[key] = cleanedObj;
+            } else {
+              cleaned[key] = value;
+            }
+          }
+        });
+        return cleaned;
+      });
+
       // undefined 값 제거를 위한 필터링
       const confirmedPayrollData: any = {
         month: selectedMonth,
         employeeId: selectedEmployeeId,
         employeeName: payrollResults[0]?.employeeName || '',
-        calculations: payrollResults,
+        calculations: cleanedCalculations,
         grossPay: totalGrossPay || 0,
         netPay: totalNetPay || 0,
         // 대표지점 기준 저장 (지점별 집계/필터에서 사용)
@@ -674,14 +697,25 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         confirmedBy: 'admin'
       };
 
-      // undefined 값 제거
-      Object.keys(confirmedPayrollData).forEach(key => {
-        if (confirmedPayrollData[key] === undefined) {
-          delete confirmedPayrollData[key];
+      // undefined 값 제거 (재귀적으로)
+      const removeUndefined = (obj: any): any => {
+        if (Array.isArray(obj)) {
+          return obj.map(item => removeUndefined(item));
+        } else if (obj !== null && typeof obj === 'object' && !(obj instanceof Date)) {
+          const cleaned: any = {};
+          Object.keys(obj).forEach(key => {
+            if (obj[key] !== undefined) {
+              cleaned[key] = removeUndefined(obj[key]);
+            }
+          });
+          return cleaned;
         }
-      });
+        return obj;
+      };
+
+      const finalData = removeUndefined(confirmedPayrollData);
       
-      await addDoc(collection(db, 'confirmedPayrolls'), confirmedPayrollData);
+      await addDoc(collection(db, 'confirmedPayrolls'), finalData);
       
       // 2. 급여확정 상태 업데이트
       setIsPayrollConfirmed(true);
