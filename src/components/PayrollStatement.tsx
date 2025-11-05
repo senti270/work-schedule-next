@@ -233,7 +233,14 @@ const PayrollStatement: React.FC = () => {
         const calculations = payroll.calculations || [];
         
         const totalGrossPay = calculations.reduce((sum, calc) => sum + (calc.grossPay || 0), 0);
-        const totalDeductions = calculations.reduce((sum, calc) => sum + (calc.deductions || 0), 0);
+        // deductions가 객체인 경우 total 필드를 사용
+        const totalDeductions = calculations.reduce((sum, calc) => {
+          const deductions = (calc as any).deductions;
+          if (typeof deductions === 'object' && deductions !== null && 'total' in deductions) {
+            return sum + (deductions.total || 0);
+          }
+          return sum + (typeof deductions === 'number' ? deductions : 0);
+        }, 0);
         const totalNetPay = calculations.reduce((sum, calc) => sum + (calc.netPay || 0), 0);
         const totalWorkHours = calculations.reduce((sum, calc) => sum + (calc.workHours || 0), 0);
         
@@ -1089,7 +1096,11 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                       const regularPay = (calc as any).regularPay || 0;
                       const weeklyHolidayPay = (calc as any).weeklyHolidayPay || 0;
                       const weeklyHolidayHours = (calc as any).weeklyHolidayHours || 0;
-                      const hourlyWage = (calc as any).hourlyWage || 0;
+                      // 시급 계산: calc에 hourlyWage가 있으면 사용, 없으면 regularPay와 regularHours로 역산
+                      let hourlyWage = (calc as any).hourlyWage || (calc as any).salaryAmount || 0;
+                      if (!hourlyWage && regularHours > 0 && regularPay > 0) {
+                        hourlyWage = Math.round(regularPay / regularHours);
+                      }
                       
                       return (
                         <div key={idx} className="border border-gray-200 p-3 bg-gray-50">
