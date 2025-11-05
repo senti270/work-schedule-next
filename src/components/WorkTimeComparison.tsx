@@ -610,41 +610,51 @@ export default function WorkTimeComparison({
       }
       
       // 선택된 직원이 있으면 해당 직원의 지점별로 상태 확인 및 생성
-      if (selectedEmployeeId && employeeBranches.length > 0) {
-        const branchesSnapshot = await getDocs(collection(db, 'branches'));
-        const branchesMap = new Map(branchesSnapshot.docs.map(d => [d.id, d.data()]));
-        const selectedEmployee = employeesList.find(emp => emp.id === selectedEmployeeId);
+      if (selectedEmployeeId) {
+        // 직원의 지점 정보를 DB에서 직접 가져오기
+        const employeeBranchesQuery = query(
+          collection(db, 'employeeBranches'),
+          where('employeeId', '==', selectedEmployeeId)
+        );
+        const employeeBranchesSnapshot = await getDocs(employeeBranchesQuery);
+        const employeeBranchIds = employeeBranchesSnapshot.docs.map(doc => doc.data().branchId).filter(Boolean);
         
-        for (const branchId of employeeBranches) {
-          const fixedId = `${selectedEmployeeId}_${branchId}_${selectedMonth}`;
-          const existingStatus = savedReviewStatuses.find(s => 
-            s.employeeId === selectedEmployeeId && s.branchId === branchId
-          );
+        if (employeeBranchIds.length > 0) {
+          const branchesSnapshot = await getDocs(collection(db, 'branches'));
+          const branchesMap = new Map(branchesSnapshot.docs.map(d => [d.id, d.data()]));
+          const selectedEmployee = employeesList.find(emp => emp.id === selectedEmployeeId);
           
-          // 상태가 없으면 "검토전"으로 insert
-          if (!existingStatus) {
-            const branchData = branchesMap.get(branchId);
-            const branchName = branchData?.name || '';
+          for (const branchId of employeeBranchIds) {
+            const fixedId = `${selectedEmployeeId}_${branchId}_${selectedMonth}`;
+            const existingStatus = savedReviewStatuses.find(s => 
+              s.employeeId === selectedEmployeeId && s.branchId === branchId
+            );
             
-            await setDoc(doc(db, 'employeeReviewStatus', fixedId), {
-              employeeId: selectedEmployeeId,
-              employeeName: selectedEmployee?.name || '알 수 없음',
-              month: selectedMonth,
-              branchId: branchId,
-              branchName: branchName,
-              status: '검토전',
-              createdAt: new Date(),
-              updatedAt: new Date()
-            });
-            
-            console.log('✅ 검토전 상태 생성:', fixedId);
-            
-            // savedReviewStatuses에 추가
-            savedReviewStatuses.push({
-              employeeId: selectedEmployeeId,
-              branchId: branchId,
-              status: '검토전'
-            });
+            // 상태가 없으면 "검토전"으로 insert
+            if (!existingStatus) {
+              const branchData = branchesMap.get(branchId);
+              const branchName = branchData?.name || '';
+              
+              await setDoc(doc(db, 'employeeReviewStatus', fixedId), {
+                employeeId: selectedEmployeeId,
+                employeeName: selectedEmployee?.name || '알 수 없음',
+                month: selectedMonth,
+                branchId: branchId,
+                branchName: branchName,
+                status: '검토전',
+                createdAt: new Date(),
+                updatedAt: new Date()
+              });
+              
+              console.log('✅ 검토전 상태 생성:', fixedId);
+              
+              // savedReviewStatuses에 추가
+              savedReviewStatuses.push({
+                employeeId: selectedEmployeeId,
+                branchId: branchId,
+                status: '검토전'
+              });
+            }
           }
         }
       }
@@ -655,15 +665,15 @@ export default function WorkTimeComparison({
     } catch (error) {
       console.error('검토 상태 로드 실패:', error);
     }
-  }, [selectedMonth, selectedEmployeeId, employeeBranches]);
+  }, [selectedMonth, selectedEmployeeId]);
 
-  // 직원 목록이 로드되면 검토 상태 로드
+  // 직원 목록이 로드되면 검토 상태 로드 (직원 변경 시에만, 지점 변경 시에는 호출하지 않음)
   useEffect(() => {
-    if (employees.length > 0 && selectedMonth) {
+    if (employees.length > 0 && selectedMonth && selectedEmployeeId) {
       loadReviewStatus(employees);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employees, selectedMonth]);
+  }, [employees, selectedMonth, selectedEmployeeId]);
 
   const loadSchedules = async (month: string) => {
     console.log('🔥🔥🔥 loadSchedules 함수 호출됨, 월:', month);
@@ -1765,7 +1775,7 @@ export default function WorkTimeComparison({
       console.error('기존 비교 데이터 로드 실패:', error);
       setComparisonResults([]);
     }
-  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch, employeeReviewStatus, comparisonResults]);
+  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch, comparisonResults]);
 
   // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드
   useEffect(() => {
