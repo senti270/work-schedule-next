@@ -680,40 +680,56 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       
       // 3. 해당 직원의 모든 지점 상태를 "급여확정완료"로 업데이트
       const employee = employees.find(emp => emp.id === selectedEmployeeId);
-      if (employee) {
-        // employeeBranches 컬렉션에서 해당 직원의 모든 지점 가져오기
-        const employeeBranchesQuery = query(
-          collection(db, 'employeeBranches'),
-          where('employeeId', '==', selectedEmployeeId)
-        );
-        const employeeBranchesSnapshot = await getDocs(employeeBranchesQuery);
-        const employeeBranchIds = employeeBranchesSnapshot.docs.map(doc => doc.data().branchId).filter(Boolean);
-        
-        if (employeeBranchIds.length > 0) {
-          // 지점 정보 가져오기
-          const branchesSnapshot = await getDocs(collection(db, 'branches'));
-          const branchesMap = new Map(branchesSnapshot.docs.map(d => [d.id, d.data().name || '']));
-          
-          for (const branchId of employeeBranchIds) {
-            // 결정적 문서 ID 사용 (WorkTimeComparison과 동일한 방식)
-            const fixedId = `${selectedEmployeeId}_${branchId}_${selectedMonth}`;
-            const branchName = branchesMap.get(branchId) || '';
-            
-            // 🔥 merge: false로 설정하여 기존 상태를 완전히 덮어쓰기
-            await setDoc(doc(db, 'employeeReviewStatus', fixedId), {
-              employeeId: selectedEmployeeId,
-              employeeName: employee.name,
-              month: selectedMonth,
-              branchId: branchId,
-              branchName: branchName,
-              status: '급여확정완료',
-              updatedAt: new Date(),
-              createdAt: new Date()
-            });
-            
-            console.log('✅ 급여확정완료 상태 업데이트:', fixedId);
-          }
+      if (!employee) {
+        throw new Error(`직원을 찾을 수 없습니다: ${selectedEmployeeId}`);
+      }
+      
+      // employeeBranches 컬렉션에서 해당 직원의 모든 지점 가져오기
+      const employeeBranchesQuery = query(
+        collection(db, 'employeeBranches'),
+        where('employeeId', '==', selectedEmployeeId)
+      );
+      const employeeBranchesSnapshot = await getDocs(employeeBranchesQuery);
+      const employeeBranchIds = employeeBranchesSnapshot.docs.map(doc => doc.data().branchId).filter(Boolean);
+      
+      console.log('✅ 직원 지점 목록:', employeeBranchIds);
+      
+      // 지점 정보가 없으면 대표지점만 사용
+      if (employeeBranchIds.length === 0) {
+        console.warn('⚠️ 직원의 지점 정보가 없습니다. 대표지점만 사용합니다.');
+        if (primaryBranchId) {
+          employeeBranchIds.push(primaryBranchId);
         }
+      }
+      
+      if (employeeBranchIds.length > 0) {
+        // 지점 정보 가져오기
+        const branchesSnapshot = await getDocs(collection(db, 'branches'));
+        const branchesMap = new Map(branchesSnapshot.docs.map(d => [d.id, d.data().name || '']));
+        
+        for (const branchId of employeeBranchIds) {
+          // 결정적 문서 ID 사용 (WorkTimeComparison과 동일한 방식)
+          const fixedId = `${selectedEmployeeId}_${branchId}_${selectedMonth}`;
+          const branchName = branchesMap.get(branchId) || '';
+          
+          console.log(`✅ 급여확정완료 상태 업데이트 시작: ${fixedId}, 지점명: ${branchName}`);
+          
+          // 🔥 merge: false로 설정하여 기존 상태를 완전히 덮어쓰기
+          await setDoc(doc(db, 'employeeReviewStatus', fixedId), {
+            employeeId: selectedEmployeeId,
+            employeeName: employee.name,
+            month: selectedMonth,
+            branchId: branchId,
+            branchName: branchName,
+            status: '급여확정완료',
+            updatedAt: new Date(),
+            createdAt: new Date()
+          });
+          
+          console.log('✅ 급여확정완료 상태 업데이트 완료:', fixedId);
+        }
+      } else {
+        console.warn('⚠️ 업데이트할 지점이 없습니다.');
       }
       
       // 3. workTimeComparisonResults의 status를 "review_completed"로 업데이트
