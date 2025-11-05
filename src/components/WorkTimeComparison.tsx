@@ -609,8 +609,9 @@ export default function WorkTimeComparison({
         return;
       }
       
-      // 선택된 직원이 있으면 해당 직원의 지점별로 상태 확인 및 생성
-      // 🔥 단, 이미 DB에 상태가 있으면 추가로 생성하지 않음 (급여확정 취소 후 상태가 덮어쓰이지 않도록)
+      // 🔥 선택된 직원이 있으면 해당 직원의 지점별로 상태 확인 및 생성
+      // 단, 이미 DB에 상태가 있으면 추가로 생성하지 않음 (급여확정 취소 후 상태가 덮어쓰이지 않도록)
+      // selectedEmployeeId가 없어도 DB에서 로드한 상태는 그대로 사용
       if (selectedEmployeeId) {
         // 해당 직원의 모든 지점에 대해 DB에 상태가 있는지 확인
         const employeeBranchesQuery = query(
@@ -680,8 +681,9 @@ export default function WorkTimeComparison({
   }, [selectedMonth, selectedEmployeeId]);
 
   // 직원 목록이 로드되면 검토 상태 로드 (직원 변경 시에만, 지점 변경 시에는 호출하지 않음)
+  // 🔥 selectedEmployeeId가 없어도 월별 상태를 먼저 로드해야 함
   useEffect(() => {
-    if (employees.length > 0 && selectedMonth && selectedEmployeeId) {
+    if (employees.length > 0 && selectedMonth) {
       loadReviewStatus(employees);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
