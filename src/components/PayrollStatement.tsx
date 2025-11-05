@@ -115,11 +115,6 @@ const PayrollStatement: React.FC = () => {
   };
 
   // 현재 월 설정
-  useEffect(() => {
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    setSelectedMonth(currentMonth);
-  }, []);
 
   // 직원 목록 로드
   const loadEmployees = async () => {
