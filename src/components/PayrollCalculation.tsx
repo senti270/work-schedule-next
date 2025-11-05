@@ -743,7 +743,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       }
     } catch (error) {
       console.error('급여 확정 실패:', error);
-      alert('급여 확정에 실패했습니다.');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('에러 상세:', errorMessage);
+      alert(`급여 확정에 실패했습니다.\n에러: ${errorMessage}`);
     }
   }, [selectedMonth, selectedEmployeeId, payrollResults, employees, onPayrollStatusChange]);
 
