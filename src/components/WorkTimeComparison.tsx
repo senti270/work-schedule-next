@@ -2089,19 +2089,18 @@ export default function WorkTimeComparison({
                   <div className="space-y-4">
                     {/* 급여확정 상태 */}
                     {isPayrollConfirmed && (
-                      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg mb-4">
                         <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                           급여확정완료
                         </span>
                       </div>
                     )}
                     
-                    {/* 지점별 검토 상태 */}
-                    {!isPayrollConfirmed && (
-                      <div className="space-y-3">
-                        <h4 className="text-sm font-medium text-gray-700">지점별 검토 상태</h4>
-                        {employeeBranches.length > 0 ? (
-                          employeeBranches.map(branchId => {
+                    {/* 지점별 검토 상태 - 급여확정완료 상태여도 표시 */}
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-gray-700">지점별 검토 상태</h4>
+                      {employeeBranches.length > 0 ? (
+                        employeeBranches.map(branchId => {
                             const branch = branches.find(b => b.id === branchId);
                             const branchStatus = employeeStatuses.find(status => status.branchId === branchId);
                             const status = branchStatus?.status || '검토전';
@@ -2279,7 +2278,6 @@ export default function WorkTimeComparison({
                           <div className="text-sm text-gray-500">지점 정보가 없습니다.</div>
                         )}
                       </div>
-                    )}
                   </div>
                 );
               })()}
