@@ -511,20 +511,33 @@ export default function WorkTimeComparison({
   // 검토 상태를 DB에 저장 (지점별로 분리)
   const saveReviewStatus = async (employeeId: string, status: '검토전' | '검토중' | '근무시간검토완료' | '급여확정완료', branchIdParam?: string) => {
     try {
-      // 🔒 급여확정 시 상태 변경 차단 (확정완료만 허용)
-      if (status !== '급여확정완료' && payrollConfirmedEmployees.includes(employeeId)) {
-        alert('급여확정완료 상태에서는 검토상태를 변경할 수 없습니다.');
-        return;
-      }
       // branchId 파라미터가 있으면 사용, 없으면 selectedBranchId 사용
       const targetBranchId = branchIdParam || selectedBranchId;
-      console.log('🔵 검토 상태 저장 시작:', { employeeId, status, selectedMonth, targetBranchId, branchIdParam, selectedBranchId });
       
       if (!targetBranchId) {
         console.error('❌ branchId가 없습니다. 상태 저장을 취소합니다.');
         alert('지점이 선택되지 않았습니다. 지점을 먼저 선택해주세요.');
         return;
       }
+      
+      // 🔒 급여확정완료 상태인지 확인 (해당 지점의 상태 확인)
+      const existingStatus = employeeReviewStatus.find(s => 
+        s.employeeId === employeeId && s.branchId === targetBranchId
+      );
+      
+      // 급여확정완료 상태에서는 변경 불가 (급여확정취소 전까지)
+      if (existingStatus?.status === '급여확정완료' && status !== '급여확정완료') {
+        alert('급여확정완료 상태에서는 검토상태를 변경할 수 없습니다. 급여확정취소 후 다시 시도해주세요.');
+        return;
+      }
+      
+      // 🔒 급여확정 시 상태 변경 차단 (확정완료만 허용)
+      if (status !== '급여확정완료' && payrollConfirmedEmployees.includes(employeeId)) {
+        alert('급여확정완료 상태에서는 검토상태를 변경할 수 없습니다.');
+        return;
+      }
+      
+      console.log('🔵 검토 상태 저장 시작:', { employeeId, status, selectedMonth, targetBranchId, branchIdParam, selectedBranchId });
       
       // 현재 선택된 지점에 대한 상태 저장
       const reviewStatusRecord = {
@@ -2611,17 +2624,26 @@ export default function WorkTimeComparison({
       )}
 
 
-      {/* 비교 결과 */}
-      <div className="flex justify-end mb-2">
-        <button
-          onClick={addManualComparisonRow}
-          disabled={!selectedEmployeeId || !selectedMonth}
-          className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
-        >
-          + 행 추가
-        </button>
-      </div>
-      {(() => {
+      {/* 비교 결과 - 급여확정완료 상태가 아닐 때만 표시 */}
+      {!isPayrollConfirmed(selectedEmployeeId) && (() => {
+        const employeeStatuses = employeeReviewStatus.filter(status => 
+          status.employeeId === selectedEmployeeId
+        );
+        const allConfirmed = employeeStatuses.length > 0 && 
+          employeeStatuses.every(status => status.status === '급여확정완료');
+        return !allConfirmed;
+      })() && (
+        <>
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={addManualComparisonRow}
+              disabled={!selectedEmployeeId || !selectedMonth}
+              className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
+            >
+              + 행 추가
+            </button>
+          </div>
+          {(() => {
         // 🔥 통일된 편집 가능 여부 조건
         const currentBranchStatus = employeeReviewStatus.find(status => 
           status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
@@ -3263,6 +3285,8 @@ export default function WorkTimeComparison({
       </div>
         );
       })()}
+        </>
+      )}
 
       {/* 급여메모 편집 - 항상 표시 */}
       {selectedEmployeeId && (

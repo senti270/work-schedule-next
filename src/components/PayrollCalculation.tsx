@@ -1,7 +1,7 @@
 // 급여 계산 컴포넌트 - PayrollCalculator 클래스 사용
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { PayrollCalculator, PayrollResult } from '@/utils/PayrollCalculator';
 
 interface Employee {
@@ -681,41 +681,28 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       // 3. 해당 직원의 모든 지점 상태를 "급여확정완료"로 업데이트
       const employee = employees.find(emp => emp.id === selectedEmployeeId);
       if (employee && employee.branches) {
-        const batch = [];
+        // 지점 정보 가져오기
+        const branchesSnapshot = await getDocs(collection(db, 'branches'));
+        const branchesMap = new Map(branchesSnapshot.docs.map(d => [d.id, d.data().name || '']));
         
         for (const branchId of employee.branches) {
-          // 기존 상태 문서 찾기
-          const statusQuery = query(
-            collection(db, 'employeeReviewStatus'),
-            where('employeeId', '==', selectedEmployeeId),
-            where('month', '==', selectedMonth),
-            where('branchId', '==', branchId)
-          );
-          const statusSnapshot = await getDocs(statusQuery);
+          // 결정적 문서 ID 사용 (WorkTimeComparison과 동일한 방식)
+          const fixedId = `${selectedEmployeeId}_${branchId}_${selectedMonth}`;
+          const branchName = branchesMap.get(branchId) || '';
           
-          if (statusSnapshot.docs.length > 0) {
-            // 기존 문서 업데이트
-            const statusDoc = statusSnapshot.docs[0];
-            batch.push(updateDoc(doc(db, 'employeeReviewStatus', statusDoc.id), {
-              status: '급여확정완료',
-              updatedAt: new Date()
-            }));
-          } else {
-            // 새 문서 생성
-            batch.push(addDoc(collection(db, 'employeeReviewStatus'), {
-              employeeId: selectedEmployeeId,
-              employeeName: employee.name,
-              month: selectedMonth,
-              branchId: branchId,
-              status: '급여확정완료',
-              createdAt: new Date(),
-              updatedAt: new Date()
-            }));
-          }
+          await setDoc(doc(db, 'employeeReviewStatus', fixedId), {
+            employeeId: selectedEmployeeId,
+            employeeName: employee.name,
+            month: selectedMonth,
+            branchId: branchId,
+            branchName: branchName,
+            status: '급여확정완료',
+            updatedAt: new Date(),
+            createdAt: new Date() // merge 시 createdAt이 없으면 생성
+          }, { merge: true });
+          
+          console.log('✅ 급여확정완료 상태 업데이트:', fixedId);
         }
-        
-        // 모든 업데이트를 배치로 실행
-        await Promise.all(batch);
       }
       
       // 3. workTimeComparisonResults의 status를 "review_completed"로 업데이트
@@ -774,33 +761,31 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       // 2. 급여확정 상태 업데이트
       setIsPayrollConfirmed(false);
       
-      // 3. 해당 직원의 모든 지점 상태를 "검토완료"로 되돌리기
+      // 3. 해당 직원의 모든 지점 상태를 "근무시간검토완료"로 되돌리기
       const employee = employees.find(emp => emp.id === selectedEmployeeId);
       if (employee && employee.branches) {
-        const batch = [];
+        // 지점 정보 가져오기
+        const branchesSnapshot = await getDocs(collection(db, 'branches'));
+        const branchesMap = new Map(branchesSnapshot.docs.map(d => [d.id, d.data().name || '']));
         
         for (const branchId of employee.branches) {
-          // 기존 상태 문서 찾기
-          const statusQuery = query(
-            collection(db, 'employeeReviewStatus'),
-            where('employeeId', '==', selectedEmployeeId),
-            where('month', '==', selectedMonth),
-            where('branchId', '==', branchId)
-          );
-          const statusSnapshot = await getDocs(statusQuery);
+          // 결정적 문서 ID 사용 (WorkTimeComparison과 동일한 방식)
+          const fixedId = `${selectedEmployeeId}_${branchId}_${selectedMonth}`;
+          const branchName = branchesMap.get(branchId) || '';
           
-          if (statusSnapshot.docs.length > 0) {
-            // 기존 문서 업데이트
-            const statusDoc = statusSnapshot.docs[0];
-            batch.push(updateDoc(doc(db, 'employeeReviewStatus', statusDoc.id), {
-              status: '근무시간검토완료',
-              updatedAt: new Date()
-            }));
-          }
+          await setDoc(doc(db, 'employeeReviewStatus', fixedId), {
+            employeeId: selectedEmployeeId,
+            employeeName: employee.name,
+            month: selectedMonth,
+            branchId: branchId,
+            branchName: branchName,
+            status: '근무시간검토완료',
+            updatedAt: new Date(),
+            createdAt: new Date() // merge 시 createdAt이 없으면 생성
+          }, { merge: true });
+          
+          console.log('✅ 급여확정취소 - 상태 되돌리기:', fixedId);
         }
-        
-        // 모든 업데이트를 배치로 실행
-        await Promise.all(batch);
       }
       
       // 3. workTimeComparisonResults의 status를 원래대로 되돌리기
