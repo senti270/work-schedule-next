@@ -2616,31 +2616,35 @@ export default function WorkTimeComparison({
       )}
 
 
-      {/* 비교 결과 - 급여확정완료 상태가 아닐 때만 표시 */}
-      {!isPayrollConfirmed(selectedEmployeeId) && (() => {
-        const employeeStatuses = employeeReviewStatus.filter(status => 
-          status.employeeId === selectedEmployeeId
-        );
-        const allConfirmed = employeeStatuses.length > 0 && 
-          employeeStatuses.every(status => status.status === '급여확정완료');
-        return !allConfirmed;
-      })() && (
-        <>
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={addManualComparisonRow}
-              disabled={!selectedEmployeeId || !selectedMonth}
-              className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
-            >
-              + 행 추가
-            </button>
-          </div>
-          {(() => {
+      {/* 비교 결과 - 급여확정완료 상태여도 표시 (조회만 가능) */}
+      {(() => {
         // 🔥 통일된 편집 가능 여부 조건
         const currentBranchStatus = employeeReviewStatus.find(status => 
           status.employeeId === selectedEmployeeId && status.branchId === selectedBranchId
         );
-        const isEditable = currentBranchStatus?.status !== '근무시간검토완료';
+        // 급여확정완료 상태이거나 근무시간검토완료 상태면 편집 불가
+        const isEditable = currentBranchStatus?.status !== '근무시간검토완료' && 
+                          currentBranchStatus?.status !== '급여확정완료' &&
+                          !isPayrollConfirmed(selectedEmployeeId);
+        
+        // 급여확정완료 상태가 아닐 때만 행 추가 버튼 표시
+        const showAddButton = !isPayrollConfirmed(selectedEmployeeId) && 
+                             currentBranchStatus?.status !== '급여확정완료';
+        
+        return (
+          <>
+            {showAddButton && (
+              <div className="flex justify-end mb-2">
+                <button
+                  onClick={addManualComparisonRow}
+                  disabled={!selectedEmployeeId || !selectedMonth}
+                  className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50"
+                >
+                  + 행 추가
+                </button>
+              </div>
+            )}
+            {(() => {
         
         return (
       <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -3217,8 +3221,9 @@ export default function WorkTimeComparison({
       </div>
         );
       })()}
-        </>
-      )}
+          </>
+        );
+      })()}
 
       {/* 급여메모 편집 - 항상 표시 */}
       {selectedEmployeeId && (
