@@ -506,24 +506,7 @@ const EmployeePayrollProcessing: React.FC<EmployeePayrollProcessingProps> = ({
     }
   }, []);
 
-  // 월 초기화 (매월 5일까지는 전달 급여)
-  useEffect(() => {
-    const now = new Date();
-    const currentDay = now.getDate();
-    
-    // 매월 5일까지는 전달 급여
-    let targetMonth: Date;
-    if (currentDay <= 5) {
-      // 전달로 설정
-      targetMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    } else {
-      // 이번 달
-      targetMonth = now;
-    }
-    
-    const currentMonth = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, '0')}`;
-    setSelectedMonth(currentMonth);
-  }, []);
+  // selectedMonth 기본값은 getPayrollMonth()로 처리
 
   // 🔥 최적화: 지점 목록은 컴포넌트 마운트 시 한 번만
   useEffect(() => {

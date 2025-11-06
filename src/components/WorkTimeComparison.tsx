@@ -3096,6 +3096,27 @@ export default function WorkTimeComparison({
                                 스케줄시간복사
                               </button>
                             )}
+                            <button
+                              onClick={async () => {
+                                if (!confirm('해당 비교 결과 행을 삭제하시겠습니까?')) {
+                                  return;
+                                }
+                                const updatedResults = sortComparisonResults(
+                                  comparisonResults.filter((_, i) => i !== index)
+                                );
+                                setComparisonResults(updatedResults);
+                                try {
+                                  await saveComparisonResults(updatedResults);
+                                } catch (error) {
+                                  console.error('비교결과 행 삭제 실패:', error);
+                                  alert('행 삭제 중 오류가 발생했습니다. 다시 시도해주세요.');
+                                  await loadExistingComparisonData();
+                                }
+                              }}
+                              className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700"
+                            >
+                              삭제
+                            </button>
                           </div>
                         )}
                         
