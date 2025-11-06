@@ -233,11 +233,40 @@ export class PayrollCalculator {
     // 1. 근무시간 계산
     const { totalWorkHours, totalBreakTime, actualWorkHours } = this.calculateWorkHours();
     
-    // 2. 월급 계산 (수습기간 90% 적용)
-    const salaryAmount = this.contract.salaryAmount;
-    const isMonthInProbation = this.isMonthInProbation();
-    const grossPay = isMonthInProbation ? Math.round(salaryAmount * 0.9) : salaryAmount;
-    
+    const salaryAmount = this.contract.salaryAmount || 0;
+    const { probationHours, regularHours } = this.separateProbationHours();
+    const totalHours = probationHours + regularHours;
+
+    let probationPay = 0;
+    let regularPay = 0;
+    let grossPay = salaryAmount;
+
+    if (salaryAmount > 0) {
+      if (totalHours > 0) {
+        const probationRatio = probationHours / totalHours;
+        const regularRatio = regularHours / totalHours;
+
+        probationPay = Math.round(salaryAmount * probationRatio * 0.9);
+        regularPay = Math.round(salaryAmount * regularRatio);
+        grossPay = probationPay + regularPay;
+
+        // 라운딩 오차 조정 (정규급여에 반영)
+        const roundingGap = Math.round(salaryAmount * (probationRatio * 0.9 + regularRatio)) - grossPay;
+        if (roundingGap !== 0) {
+          regularPay += roundingGap;
+          grossPay += roundingGap;
+        }
+      } else {
+        const isMonthInProbation = this.isMonthInProbation();
+        grossPay = isMonthInProbation ? Math.round(salaryAmount * 0.9) : salaryAmount;
+        if (isMonthInProbation) {
+          probationPay = grossPay;
+        } else {
+          regularPay = grossPay;
+        }
+      }
+    }
+ 
     // 3. 4대보험 및 소득세 공제
     const deductions = this.calculateLaborIncomeDeductions(grossPay);
     
@@ -270,6 +299,14 @@ export class PayrollCalculator {
       deductions,
       netPay,
       branches,
+      probationHours,
+      regularHours,
+      probationPay,
+      regularPay,
+      weeklyHolidayPay: 0,
+      weeklyHolidayHours: 0,
+      includesWeeklyHolidayInWage: this.employee.includesWeeklyHolidayInWage,
+      weeklyHolidayDetails: [],
       unpaidLeaveDays: 0,
       unpaidLeaveDeduction: 0
     };
@@ -296,8 +333,29 @@ export class PayrollCalculator {
       regularPay = Math.round(regularHours * salaryAmount);
       basePay = probationPay + regularPay;
     } else {
-      const salaryAmount = this.contract.salaryAmount;
-      basePay = this.isMonthInProbation() ? Math.round(salaryAmount * 0.9) : salaryAmount;
+      const salaryAmount = this.contract.salaryAmount || 0;
+      const totalHours = probationHours + regularHours;
+      if (salaryAmount > 0 && totalHours > 0) {
+        const probationRatio = probationHours / totalHours;
+        const regularRatio = regularHours / totalHours;
+
+        probationPay = Math.round(salaryAmount * probationRatio * 0.9);
+        regularPay = Math.round(salaryAmount * regularRatio);
+        basePay = probationPay + regularPay;
+
+        const roundingGap = Math.round(salaryAmount * (probationRatio * 0.9 + regularRatio)) - basePay;
+        if (roundingGap !== 0) {
+          regularPay += roundingGap;
+          basePay += roundingGap;
+        }
+      } else {
+        basePay = this.isMonthInProbation() ? Math.round(salaryAmount * 0.9) : salaryAmount;
+        if (this.isMonthInProbation()) {
+          probationPay = basePay;
+        } else {
+          regularPay = basePay;
+        }
+      }
     }
     
     // 4. 주휴수당 계산 (시급제만)
