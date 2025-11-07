@@ -50,6 +50,7 @@ interface WorkTimeComparison {
   isNew?: boolean; // 수동 추가된 행 여부
   branchId?: string;
   branchName?: string;
+  isManual?: boolean;
 }
 
 interface WorkTimeComparisonProps {
@@ -403,7 +404,8 @@ export default function WorkTimeComparison({
       posTimeRange: '',
       branchId: selectedBranchId || '',
       branchName: branchName,
-      isNew: true
+      isNew: true,
+      isManual: true
     };
     const updated = [...comparisonResults, newRow];
     setComparisonResults(updated);
@@ -1144,7 +1146,10 @@ export default function WorkTimeComparison({
             isModified: false,
             breakTime: breakTime,
             actualBreakTime: actualBreakTime, // 스케줄 휴게시간으로 설정
-            actualWorkHours: 0
+            actualWorkHours: 0,
+            branchId: schedule.branchId,
+            branchName,
+            isManual: false
           });
         });
       });
@@ -1264,7 +1269,10 @@ export default function WorkTimeComparison({
             isModified: false,
             breakTime: breakTime,
             actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
-            actualWorkHours: actualWorkHours
+            actualWorkHours: actualWorkHours,
+            branchId: day.branchId,
+            branchName,
+            isManual: false
           });
 
         processedDates.add(scheduleDate);
@@ -1629,29 +1637,21 @@ export default function WorkTimeComparison({
         // branchId가 없어도 저장은 계속 진행 (기존 데이터와 일치하도록)
       }
       
-      // 기존 비교결과 데이터 삭제
-      let existingQuery;
+      // 기존 비교결과 데이터 삭제 (자동 생성된 row만)
       if (branchId) {
-        existingQuery = query(
+        const existingQuery = query(
           collection(db, 'workTimeComparisonResults'),
           where('employeeId', '==', selectedEmployeeId),
           where('month', '==', selectedMonth),
-          where('branchId', '==', branchId)
+          where('branchId', '==', branchId),
+          where('isManual', '==', false)
         );
-      } else {
-        existingQuery = query(
-          collection(db, 'workTimeComparisonResults'),
-          where('employeeId', '==', selectedEmployeeId),
-          where('month', '==', selectedMonth)
-        );
-      }
-      
-      const existingSnapshot = await getDocs(existingQuery);
-      console.log('기존 비교결과 데이터 삭제:', existingSnapshot.docs.length, '건');
-      
-      // 기존 데이터 삭제
-      for (const doc of existingSnapshot.docs) {
-        await deleteDoc(doc.ref);
+
+        const existingSnapshot = await getDocs(existingQuery);
+        console.log('기존 비교결과 데이터(자동 생성) 삭제:', existingSnapshot.docs.length, '건');
+        for (const docSnap of existingSnapshot.docs) {
+          await deleteDoc(docSnap.ref);
+        }
       }
       
       // 새 데이터 저장
@@ -1702,6 +1702,7 @@ export default function WorkTimeComparison({
           actualBreakTime: result.actualBreakTime || 0, // 신규 필드 추가
           actualWorkHours: result.actualWorkHours || 0,
           posTimeRange: result.posTimeRange || '', // 신규 필드 추가
+          isManual: result.isManual === true || result.isNew === true,
           createdAt: new Date()
         });
       }
@@ -1776,7 +1777,11 @@ export default function WorkTimeComparison({
             breakTime: data.breakTime || 0,
             actualBreakTime: data.actualBreakTime || 0, // 신규 필드 추가
             actualWorkHours: data.actualWorkHours || 0,
-            posTimeRange: data.posTimeRange || '' // 신규 필드 추가
+            posTimeRange: data.posTimeRange || '', // 신규 필드 추가
+            branchId: data.branchId,
+            branchName: data.branchName,
+            isManual: data.isManual || false,
+            isNew: data.isManual || data.isNew || false
           };
         });
         
