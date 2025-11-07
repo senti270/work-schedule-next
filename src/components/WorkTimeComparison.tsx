@@ -1677,17 +1677,18 @@ export default function WorkTimeComparison({
       
       for (const result of results) {
         // employeeName이 "직원"이면 DB에서 조회한 이름 사용, 아니면 result.employeeName 사용
-        const finalEmployeeName = formatEmployeeNameWithBranch(
-          result.employeeName === '직원' ? employeeNameSnapshot || '알 수 없음' : result.employeeName,
-          result.branchName || branchNameSnapshot || (result as any).branchName
-        );
+        const fallbackEmployeeName = result.employeeName && result.employeeName !== '직원'
+          ? result.employeeName
+          : employeeNameSnapshot || employees.find(emp => emp.id === selectedEmployeeId)?.name || '알 수 없음';
+        const fallbackBranchName = result.branchName || branchNameSnapshot || (result as any).branchName || branches.find(b => b.id === selectedBranchId)?.name || '';
+        const finalEmployeeName = formatEmployeeNameWithBranch(fallbackEmployeeName, fallbackBranchName);
         
         await addDoc(collection(db, 'workTimeComparisonResults'), {
           employeeId: selectedEmployeeId,
           employeeName: finalEmployeeName,
           month: selectedMonth,
           branchId: branchId,
-          branchName: branchNameSnapshot || (result as any).branchName || '',
+          branchName: fallbackBranchName,
           date: result.date,
           scheduledHours: result.scheduledHours,
           actualHours: result.actualHours,
