@@ -1681,13 +1681,14 @@ export default function WorkTimeComparison({
           ? result.employeeName
           : employeeNameSnapshot || employees.find(emp => emp.id === selectedEmployeeId)?.name || '알 수 없음';
         const fallbackBranchName = result.branchName || branchNameSnapshot || (result as any).branchName || branches.find(b => b.id === selectedBranchId)?.name || '';
+        const effectiveBranchId = branchId || result.branchId || selectedBranchId || '';
         const finalEmployeeName = formatEmployeeNameWithBranch(fallbackEmployeeName, fallbackBranchName);
         
         await addDoc(collection(db, 'workTimeComparisonResults'), {
           employeeId: selectedEmployeeId,
           employeeName: finalEmployeeName,
           month: selectedMonth,
-          branchId: branchId,
+          branchId: effectiveBranchId,
           branchName: fallbackBranchName,
           date: result.date,
           scheduledHours: result.scheduledHours,
