@@ -386,7 +386,7 @@ export default function WorkTimeComparison({
     const branchName = branches.find(b => b.id === selectedBranchId)?.name || '';
     const defaultDate = `${selectedMonth}-01`;
     const newRow: WorkTimeComparison = {
-      employeeName: employee ? `${employee.name}${branchName ? ` (${branchName})` : ''}` : '직원',
+      employeeName: formatEmployeeNameWithBranch(employee?.name || '알 수 없음', branchName),
       date: defaultDate,
       scheduledHours: 0,
       actualHours: 0,
@@ -399,6 +399,8 @@ export default function WorkTimeComparison({
       actualBreakTime: 0,
       actualWorkHours: 0,
       posTimeRange: '',
+      branchId: selectedBranchId || '',
+      branchName: branchName,
       isNew: true
     };
     const updated = [...comparisonResults, newRow];
@@ -1129,7 +1131,7 @@ export default function WorkTimeComparison({
           const actualBreakTime = breakTime; // 최초 스케줄 휴게시간으로 설정
           
           scheduleOnlyComparisons.push({
-            employeeName: `${schedule.employeeName} (${branchName})`,
+            employeeName: formatEmployeeNameWithBranch(schedule.employeeName, branchName),
             date: scheduleDate,
             scheduledHours: schedule.totalHours,
             actualHours: 0, // 실제근무 데이터 없음
@@ -1247,7 +1249,7 @@ export default function WorkTimeComparison({
           }
           
           comparisons.push({
-            employeeName: `${day.employeeName} (${branchName})`,
+            employeeName: formatEmployeeNameWithBranch(day.employeeName, branchName),
             date: scheduleDate,
             scheduledHours: Number(day.totalHours) || 0,
             actualHours: actualRecord.totalHours,
@@ -1273,7 +1275,7 @@ export default function WorkTimeComparison({
         const actualWorkHours = 0; // 실제근무 데이터가 없으므로 0
         
         comparisons.push({
-          employeeName: `${day.employeeName} (${branchName})`,
+          employeeName: formatEmployeeNameWithBranch(day.employeeName, branchName),
           date: scheduleDate,
           scheduledHours: Number(day.totalHours) || 0,
           actualHours: 0,
@@ -1310,7 +1312,7 @@ export default function WorkTimeComparison({
         const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
         
         comparisons.push({
-          employeeName: `${employeeName} (스케줄없음)`,
+          employeeName: formatEmployeeNameWithBranch(employeeName, branches.find(b => b.id === selectedBranchId)?.name),
           date: actualRecord.date,
           scheduledHours: 0,
           actualHours: actualRecord.totalHours,
@@ -1673,9 +1675,10 @@ export default function WorkTimeComparison({
       
       for (const result of results) {
         // employeeName이 "직원"이면 DB에서 조회한 이름 사용, 아니면 result.employeeName 사용
-        const finalEmployeeName = result.employeeName === '직원' && employeeNameSnapshot
-          ? `${employeeNameSnapshot}${branchNameSnapshot ? ` (${branchNameSnapshot})` : ''}`
-          : result.employeeName;
+        const finalEmployeeName = formatEmployeeNameWithBranch(
+          result.employeeName === '직원' ? employeeNameSnapshot || '알 수 없음' : result.employeeName,
+          result.branchName || branchNameSnapshot || (result as any).branchName
+        );
         
         await addDoc(collection(db, 'workTimeComparisonResults'), {
           employeeId: selectedEmployeeId,
@@ -2021,6 +2024,24 @@ export default function WorkTimeComparison({
     }
 
     return 0;
+  };
+
+  const generateLocalDateString = (date: Date) => {
+    return toLocalDateString(date);
+  };
+
+  const formatEmployeeNameWithBranch = (
+    employeeName: string,
+    branchName?: string
+  ) => {
+    const cleanBranch = branchName?.trim();
+    if (!employeeName) return cleanBranch ? `알 수 없음 (${cleanBranch})` : '알 수 없음';
+    if (!cleanBranch) return employeeName;
+    const suffixPattern = new RegExp(`\\(${cleanBranch.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\)$`);
+    if (suffixPattern.test(employeeName)) {
+      return employeeName;
+    }
+    return `${employeeName} (${cleanBranch})`;
   };
 
   return (
