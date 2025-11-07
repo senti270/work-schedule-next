@@ -26,6 +26,183 @@ interface Schedule {
   breakTime: number;
 }
 
+type PayrollLineItemType = 'earning' | 'deduction';
+
+type PayrollLineItemFieldKey =
+  | 'basePay'
+  | 'weeklyHolidayPay'
+  | 'nationalPension'
+  | 'healthInsurance'
+  | 'longTermCare'
+  | 'employmentInsurance'
+  | 'incomeTax'
+  | 'localIncomeTax'
+  | 'withholdingTax';
+
+interface PayrollLineItem {
+  id: string;
+  type: PayrollLineItemType;
+  label: string;
+  amount: number;
+  note: string;
+  fieldKey?: PayrollLineItemFieldKey;
+}
+
+type PayrollResultWithItems = PayrollResult & { lineItems?: PayrollLineItem[] };
+
+const generateLineItemId = () => `pli_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+const formatCurrency = (value: number) => `${(value || 0).toLocaleString()}원`;
+
+const sanitizeLineItem = (item: PayrollLineItem): PayrollLineItem => {
+  const safeAmount = typeof item.amount === 'number' && Number.isFinite(item.amount) ? item.amount : 0;
+  return {
+    id: item.id || generateLineItemId(),
+    type: item.type === 'deduction' ? 'deduction' : 'earning',
+    label: item.label ?? '',
+    amount: safeAmount,
+    note: item.note ?? '',
+    fieldKey: item.fieldKey,
+  };
+};
+
+const createLineItem = (overrides: Partial<PayrollLineItem>): PayrollLineItem =>
+  sanitizeLineItem({
+    id: generateLineItemId(),
+    type: 'earning',
+    label: '',
+    amount: 0,
+    note: '',
+    ...overrides,
+  });
+
+const generateDefaultLineItems = (calc: PayrollResult): PayrollLineItem[] => {
+  const items: PayrollLineItem[] = [];
+
+  const totalBasePay = Math.round((calc.grossPay || 0) - (calc.weeklyHolidayPay || 0));
+  const noteParts: string[] = [];
+  if ((calc.probationPay || 0) > 0) {
+    noteParts.push(
+      `수습급여: ${(calc.probationPay || 0).toLocaleString()}원 (${(calc.probationHours || 0).toFixed(1)}시간, 90%)`
+    );
+  }
+  if ((calc.regularPay || 0) > 0) {
+    noteParts.push(
+      `정규급여: ${(calc.regularPay || 0).toLocaleString()}원 (${(calc.regularHours || 0).toFixed(1)}시간, 100%)`
+    );
+  }
+  if (totalBasePay > 0) {
+    items.push(
+      createLineItem({
+        type: 'earning',
+        label: '기본급',
+        amount: totalBasePay,
+        note: noteParts.join('\n'),
+        fieldKey: 'basePay',
+      })
+    );
+  }
+
+  if ((calc.weeklyHolidayPay || 0) > 0) {
+    items.push(
+      createLineItem({
+        type: 'earning',
+        label: '주휴수당',
+        amount: calc.weeklyHolidayPay || 0,
+        note: '',
+        fieldKey: 'weeklyHolidayPay',
+      })
+    );
+  }
+
+  const insuranceDetails = {
+    nationalPension: calc.deductions?.insuranceDetails?.nationalPension || 0,
+    healthInsurance: calc.deductions?.insuranceDetails?.healthInsurance || 0,
+    longTermCare: calc.deductions?.insuranceDetails?.longTermCare || 0,
+    employmentInsurance: calc.deductions?.insuranceDetails?.employmentInsurance || 0,
+  };
+  if (insuranceDetails.nationalPension > 0) {
+    items.push(
+      createLineItem({
+        type: 'deduction',
+        label: '국민연금',
+        amount: insuranceDetails.nationalPension,
+        fieldKey: 'nationalPension',
+      })
+    );
+  }
+  if (insuranceDetails.healthInsurance > 0) {
+    items.push(
+      createLineItem({
+        type: 'deduction',
+        label: '건강보험',
+        amount: insuranceDetails.healthInsurance,
+        fieldKey: 'healthInsurance',
+      })
+    );
+  }
+  if (insuranceDetails.longTermCare > 0) {
+    items.push(
+      createLineItem({
+        type: 'deduction',
+        label: '장기요양보험',
+        amount: insuranceDetails.longTermCare,
+        fieldKey: 'longTermCare',
+      })
+    );
+  }
+  if (insuranceDetails.employmentInsurance > 0) {
+    items.push(
+      createLineItem({
+        type: 'deduction',
+        label: '고용보험',
+        amount: insuranceDetails.employmentInsurance,
+        fieldKey: 'employmentInsurance',
+      })
+    );
+  }
+
+  const taxDetails = {
+    incomeTax: calc.deductions?.taxDetails?.incomeTax || 0,
+    localIncomeTax: calc.deductions?.taxDetails?.localIncomeTax || 0,
+  };
+  if (taxDetails.incomeTax > 0) {
+    items.push(
+      createLineItem({
+        type: 'deduction',
+        label: '소득세',
+        amount: taxDetails.incomeTax,
+        fieldKey: 'incomeTax',
+      })
+    );
+  }
+  if (taxDetails.localIncomeTax > 0) {
+    items.push(
+      createLineItem({
+        type: 'deduction',
+        label: '지방소득세',
+        amount: taxDetails.localIncomeTax,
+        fieldKey: 'localIncomeTax',
+      })
+    );
+  }
+
+  const knownTax = taxDetails.incomeTax + taxDetails.localIncomeTax;
+  const remainingTax = (calc.deductions?.tax || 0) - knownTax;
+  if (remainingTax > 0) {
+    items.push(
+      createLineItem({
+        type: 'deduction',
+        label: '기타 공제',
+        amount: remainingTax,
+        fieldKey: 'withholdingTax',
+      })
+    );
+  }
+
+  return items;
+};
+
 interface PayrollCalculationProps {
   selectedMonth: string;
   selectedEmployeeId: string;
@@ -41,12 +218,188 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [noScheduleData, setNoScheduleData] = useState(false);
-  const [payrollResults, setPayrollResults] = useState<PayrollResult[]>([]);
+  const [payrollResults, setPayrollResults] = useState<PayrollResultWithItems[]>([]);
   const [weeklySchedules, setWeeklySchedules] = useState<Schedule[]>([]);
   const [adminMemo, setAdminMemo] = useState(''); // 관리자용 메모
   const [employeeMemo, setEmployeeMemo] = useState(''); // 해당직원조회용 메모
   const [isPayrollConfirmed, setIsPayrollConfirmed] = useState(false);
-  const [editableDeductions, setEditableDeductions] = useState<{[key: string]: number}>({});
+
+  const applyLineItemTotals = useCallback((calc: PayrollResultWithItems): PayrollResultWithItems => {
+    const sanitizedItems = (calc.lineItems || []).map(sanitizeLineItem);
+
+    let totalEarnings = 0;
+    let totalDeductions = 0;
+    let weeklyHolidayAmount = calc.weeklyHolidayPay || 0;
+
+    const insuranceDetails: {
+      nationalPension: number;
+      healthInsurance: number;
+      longTermCare: number;
+      employmentInsurance: number;
+    } = {
+      nationalPension: 0,
+      healthInsurance: 0,
+      longTermCare: 0,
+      employmentInsurance: 0,
+    };
+
+    const taxDetails: {
+      incomeTax: number;
+      localIncomeTax: number;
+    } = {
+      incomeTax: 0,
+      localIncomeTax: 0,
+    };
+
+    let otherTax = 0;
+
+    sanitizedItems.forEach((item) => {
+      if (item.type === 'earning') {
+        totalEarnings += item.amount;
+        if (item.fieldKey === 'weeklyHolidayPay') {
+          weeklyHolidayAmount = item.amount;
+        }
+      } else {
+        totalDeductions += item.amount;
+        switch (item.fieldKey) {
+          case 'nationalPension':
+            insuranceDetails.nationalPension = item.amount;
+            break;
+          case 'healthInsurance':
+            insuranceDetails.healthInsurance = item.amount;
+            break;
+          case 'longTermCare':
+            insuranceDetails.longTermCare = item.amount;
+            break;
+          case 'employmentInsurance':
+            insuranceDetails.employmentInsurance = item.amount;
+            break;
+          case 'incomeTax':
+            taxDetails.incomeTax = item.amount;
+            break;
+          case 'localIncomeTax':
+            taxDetails.localIncomeTax = item.amount;
+            break;
+          case 'withholdingTax':
+            otherTax += item.amount;
+            break;
+          default:
+            otherTax += item.amount;
+            break;
+        }
+      }
+    });
+
+    const insuranceTotal = Object.values(insuranceDetails).reduce((sum, value) => sum + (value || 0), 0);
+    const taxTotalFromDetails = Object.values(taxDetails).reduce((sum, value) => sum + (value || 0), 0);
+    const taxTotal = taxTotalFromDetails + otherTax;
+
+    const baseDeductions = calc.deductions || { insurance: 0, tax: 0, total: 0 };
+
+    const updatedCalc: PayrollResultWithItems = {
+      ...calc,
+      lineItems: sanitizedItems,
+      grossPay: totalEarnings,
+      netPay: totalEarnings - totalDeductions,
+      weeklyHolidayPay: weeklyHolidayAmount,
+      deductions: {
+        ...baseDeductions,
+        insurance: insuranceTotal,
+        tax: taxTotal,
+        total: totalDeductions,
+        insuranceDetails,
+        taxDetails,
+        editableDeductions: {
+          nationalPension: insuranceDetails.nationalPension,
+          healthInsurance: insuranceDetails.healthInsurance,
+          longTermCare: insuranceDetails.longTermCare,
+          employmentInsurance: insuranceDetails.employmentInsurance,
+          incomeTax: taxDetails.incomeTax,
+          localIncomeTax: taxDetails.localIncomeTax,
+        },
+      },
+    };
+
+    return updatedCalc;
+  }, []);
+
+  const preparePayrollResults = useCallback(
+    (results: PayrollResult[]): PayrollResultWithItems[] =>
+      results.map((result) => {
+        const existingItems = (result as PayrollResultWithItems).lineItems;
+        const lineItems = existingItems && existingItems.length > 0
+          ? existingItems.map(sanitizeLineItem)
+          : generateDefaultLineItems(result);
+        return applyLineItemTotals({ ...result, lineItems });
+      }),
+    [applyLineItemTotals]
+  );
+
+  const updateLineItems = useCallback(
+    (calcIndex: number, updater: (items: PayrollLineItem[]) => PayrollLineItem[]) => {
+      setPayrollResults((prev) =>
+        prev.map((calc, idx) => {
+          if (idx !== calcIndex) return calc;
+          const currentItems = calc.lineItems || [];
+          const updatedItems = updater(currentItems).map(sanitizeLineItem);
+          return applyLineItemTotals({ ...calc, lineItems: updatedItems });
+        })
+      );
+    },
+    [applyLineItemTotals]
+  );
+
+  const handleLineItemTypeChange = useCallback(
+    (calcIndex: number, itemId: string, type: PayrollLineItemType) => {
+      updateLineItems(calcIndex, (items) =>
+        items.map((item) => (item.id === itemId ? { ...item, type } : item))
+      );
+    },
+    [updateLineItems]
+  );
+
+  const handleLineItemLabelChange = useCallback(
+    (calcIndex: number, itemId: string, label: string) => {
+      updateLineItems(calcIndex, (items) =>
+        items.map((item) => (item.id === itemId ? { ...item, label } : item))
+      );
+    },
+    [updateLineItems]
+  );
+
+  const handleLineItemAmountChange = useCallback(
+    (calcIndex: number, itemId: string, value: string) => {
+      const parsed = Number(value);
+      const amount = Number.isFinite(parsed) ? parsed : 0;
+      updateLineItems(calcIndex, (items) =>
+        items.map((item) => (item.id === itemId ? { ...item, amount } : item))
+      );
+    },
+    [updateLineItems]
+  );
+
+  const handleLineItemNoteChange = useCallback(
+    (calcIndex: number, itemId: string, note: string) => {
+      updateLineItems(calcIndex, (items) =>
+        items.map((item) => (item.id === itemId ? { ...item, note } : item))
+      );
+    },
+    [updateLineItems]
+  );
+
+  const handleAddLineItem = useCallback(
+    (calcIndex: number, type: PayrollLineItemType = 'earning') => {
+      updateLineItems(calcIndex, (items) => [...items, createLineItem({ type })]);
+    },
+    [updateLineItems]
+  );
+
+  const handleDeleteLineItem = useCallback(
+    (calcIndex: number, itemId: string) => {
+      updateLineItems(calcIndex, (items) => items.filter((item) => item.id !== itemId));
+    },
+    [updateLineItems]
+  );
 
   // 스케줄 데이터 로드
   const loadSchedules = useCallback(async (retryCount = 0) => {
@@ -138,7 +491,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
   }, [selectedMonth, selectedEmployeeId]);
 
   // 기존 급여 데이터 로드
-  const loadExistingPayroll = useCallback(async () => {
+  const loadExistingPayroll = useCallback(async (): Promise<PayrollResultWithItems[] | null> => {
     if (!selectedMonth || !selectedEmployeeId) {
       return null;
     }
@@ -154,24 +507,19 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       if (!payrollSnapshot.empty) {
         const payrollData = payrollSnapshot.docs[0].data();
         console.log('🔥 기존 급여 데이터 로드됨:', payrollData);
-        
-        // editableDeductions 설정
-        if (payrollData.editableDeductions) {
-          setEditableDeductions(payrollData.editableDeductions);
-        }
-        
+
         const calculations = payrollData.calculations || [];
         console.log('🔥 calculations 배열:', calculations);
         console.log('🔥 calculations 길이:', calculations.length);
-        return calculations;
+        return preparePayrollResults(calculations as PayrollResult[]);
       }
-      
+
       return null;
     } catch (error) {
       console.error('기존 급여 데이터 로드 실패:', error);
       return null;
     }
-  }, [selectedMonth, selectedEmployeeId]);
+  }, [selectedMonth, selectedEmployeeId, preparePayrollResults]);
 
   // 급여 계산
   const calculatePayroll = useCallback(async () => {
@@ -202,14 +550,6 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     }
     
     // 🔥 클릭 시마다 모든 데이터를 새로 계산
-    // 기존 공제 데이터만 보존
-    const existingPayroll = await loadExistingPayroll();
-    let preservedDeductions = {};
-    
-    if (existingPayroll && existingPayroll.length > 0) {
-      console.log('🔥 기존 공제 데이터 보존:', existingPayroll.editableDeductions);
-      preservedDeductions = existingPayroll.editableDeductions || {};
-    }
     
     // 선택된 직원 찾기
     const employee = employees.find(emp => emp.id === selectedEmployeeId);
@@ -412,26 +752,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           return acc;
         }, results[0]);
 
-        // 🔥 보존된 공제 데이터가 있으면 적용
-        if (Object.keys(preservedDeductions).length > 0) {
-          console.log('🔥 보존된 공제 데이터 적용:', preservedDeductions);
-          setEditableDeductions(preservedDeductions);
-          if (combinedResult.deductions && combinedResult.deductions.editableDeductions) {
-            combinedResult.deductions.editableDeductions = preservedDeductions as {
-              nationalPension: number;
-              healthInsurance: number;
-              longTermCare: number;
-              employmentInsurance: number;
-              incomeTax: number;
-              localIncomeTax: number;
-            };
-            const totalDeductions = Object.values(preservedDeductions).reduce((sum: number, val: unknown) => sum + ((val as number) || 0), 0);
-            combinedResult.deductions.total = totalDeductions;
-            combinedResult.netPay = combinedResult.grossPay - totalDeductions;
-          }
-        }
-
-        setPayrollResults([combinedResult]);
+        setPayrollResults(preparePayrollResults([combinedResult]));
         return;
       }
 
@@ -469,37 +790,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       console.log('🔥 PayrollCalculator 계산 결과:', result);
       console.log('🔥 branches 정보:', result.branches);
 
-      // 🔥 보존된 공제 데이터가 있으면 적용
-      if (Object.keys(preservedDeductions).length > 0) {
-        console.log('🔥 보존된 공제 데이터 적용:', preservedDeductions);
-        setEditableDeductions(preservedDeductions);
-        
-        // 계산 결과의 공제 부분을 보존된 값으로 업데이트
-        if (result.deductions && result.deductions.editableDeductions) {
-          result.deductions.editableDeductions = preservedDeductions as {
-            nationalPension: number;
-            healthInsurance: number;
-            longTermCare: number;
-            employmentInsurance: number;
-            incomeTax: number;
-            localIncomeTax: number;
-          };
-          
-          // 총 공제액 재계산
-          const totalDeductions = Object.values(preservedDeductions).reduce((sum: number, val: unknown) => sum + ((val as number) || 0), 0);
-          result.deductions.total = totalDeductions;
-          result.netPay = result.grossPay - totalDeductions;
-        }
-      }
-
-      setPayrollResults([result]);
+      setPayrollResults(preparePayrollResults([result]));
       console.log('🔥 setPayrollResults 호출됨, 결과 개수:', [result].length);
     } catch (error) {
       console.error('급여 계산 실패:', error);
       alert('급여 계산 중 오류가 발생했습니다.');
       setPayrollResults([]);
     }
-  }, [employees, selectedEmployeeId, weeklySchedules, loadExistingPayroll, isPayrollConfirmed, selectedMonth]);
+  }, [employees, selectedEmployeeId, weeklySchedules, loadExistingPayroll, isPayrollConfirmed, selectedMonth, preparePayrollResults]);
 
   // 메모 로드
   const loadMemos = useCallback(async () => {
@@ -650,17 +948,19 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     if (!selectedMonth || !selectedEmployeeId || payrollResults.length === 0) return;
     
     try {
+      const normalizedResults = payrollResults.map(applyLineItemTotals);
+      setPayrollResults(normalizedResults);
       // 1. confirmedPayrolls에 급여 확정 데이터 추가
       // 총액 계산 (세무사 전송파일/이체파일에서 사용)
-      const totalGrossPay = payrollResults.reduce((sum, r) => sum + (r.grossPay || 0), 0);
-      const totalNetPay = payrollResults.reduce((sum, r) => sum + (r.netPay || 0), 0);
+      const totalGrossPay = normalizedResults.reduce((sum, r) => sum + (r.grossPay || 0), 0);
+      const totalNetPay = normalizedResults.reduce((sum, r) => sum + (r.netPay || 0), 0);
       // 대표지점(Primary) 기준 branch 정보 결정
       const empDoc = employees.find(emp => emp.id === selectedEmployeeId) as any;
       const primaryBranchId: string | undefined = empDoc?.primaryBranchId || (empDoc?.branches && empDoc.branches[0]);
       const primaryBranchName: string | undefined = empDoc?.primaryBranchName || '';
 
       // calculations 배열에서 undefined 값 제거 및 정리
-      const cleanedCalculations = payrollResults.map((result: any) => {
+      const cleanedCalculations = normalizedResults.map((result: any) => {
         const cleaned: any = {};
         Object.keys(result).forEach(key => {
           const value = result[key];
@@ -686,7 +986,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       const confirmedPayrollData: any = {
         month: selectedMonth,
         employeeId: selectedEmployeeId,
-        employeeName: payrollResults[0]?.employeeName || '',
+        employeeName: normalizedResults[0]?.employeeName || '',
         calculations: cleanedCalculations,
         grossPay: totalGrossPay || 0,
         netPay: totalNetPay || 0,
@@ -805,7 +1105,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       console.error('에러 상세:', errorMessage);
       alert(`급여 확정에 실패했습니다.\n에러: ${errorMessage}`);
     }
-  }, [selectedMonth, selectedEmployeeId, payrollResults, employees, onPayrollStatusChange]);
+  }, [selectedMonth, selectedEmployeeId, payrollResults, employees, onPayrollStatusChange, applyLineItemTotals]);
 
 
   // 급여 확정 취소
@@ -951,8 +1251,19 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
 
   return (
     <div className="space-y-6">
-      {payrollResults.map((calc, index) => (
-        <div key={index} className="bg-white rounded-lg shadow p-6">
+      {payrollResults.map((calc, index) => {
+        const lineItems = calc.lineItems || [];
+        const totalEarnings = lineItems
+          .filter((item) => item.type === 'earning')
+          .reduce((sum, item) => sum + (item.amount || 0), 0);
+        const totalDeductions = lineItems
+          .filter((item) => item.type === 'deduction')
+          .reduce((sum, item) => sum + (item.amount || 0), 0);
+        const netAmount = totalEarnings - totalDeductions;
+        const isReadOnly = isPayrollConfirmed;
+
+        return (
+        <div key={calc.employeeId ?? index} className="bg-white rounded-lg shadow p-6">
           <div className="mb-4">
             <h3 className="text-lg font-semibold mb-2">{calc.employeeName} 급여 계산</h3>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -1055,123 +1366,150 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
               <h4 className="font-medium text-green-800 text-sm">총 지급액</h4>
-              <p className="text-2xl font-bold text-green-900">{calc.grossPay.toLocaleString()}원</p>
+              <p className="text-2xl font-bold text-green-900">{formatCurrency(totalEarnings)}</p>
             </div>
             <div className="bg-purple-50 p-4 rounded-lg">
               <h4 className="font-medium text-purple-800 text-sm">실수령액</h4>
-              <p className="text-2xl font-bold text-purple-900">{calc.netPay.toLocaleString()}원</p>
+              <p className="text-2xl font-bold text-purple-900">{formatCurrency(netAmount)}</p>
             </div>
           </div>
           
-          {/* 급여 상세 테이블 */}
-          <div className="overflow-x-auto mb-4">
-            <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+          {/* 급여 상세 표 */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="text-sm font-medium text-gray-800">지급/공제 내역</h4>
+              {!isReadOnly && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleAddLineItem(index, 'earning')}
+                    className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    + 지급 행 추가
+                  </button>
+                  <button
+                    onClick={() => handleAddLineItem(index, 'deduction')}
+                    className="px-3 py-1 text-xs font-medium bg-rose-500 text-white rounded hover:bg-rose-600"
+                  >
+                    + 공제 행 추가
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left w-2/5">항목</th>
+                    <th className="px-4 py-2 text-right w-1/5">지급</th>
+                    <th className="px-4 py-2 text-right w-1/5">공제</th>
+                    <th className="px-4 py-2 text-left w-2/5">산식 · 수정근거 · 참고사항</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineItems.length === 0 && (
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">기본급</th>
-                      {(calc.salaryType === 'hourly' || calc.salaryType === '시급') && (
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">주휴수당</th>
-                      )}
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">총 공제액</th>
-                      <th className="px-4 py-2 text-sm font-bold text-blue-700 bg-blue-50">실수령액</th>
+                      <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
+                        행이 없습니다. 행 추가 버튼을 눌러 입력을 시작하세요.
+                      </td>
                     </tr>
-                  </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                <tr>
-                  <td className="px-4 py-2 text-sm text-gray-900">
-                    {(calc.salaryType === 'hourly' || calc.salaryType === '시급')
-                      ? (calc.grossPay - (calc.weeklyHolidayPay || 0)).toLocaleString() + '원'
-                      : calc.grossPay.toLocaleString() + '원'
-                    }
-                  </td>
-                  {(calc.salaryType === 'hourly' || calc.salaryType === '시급') && (
-                    <td className="px-4 py-2 text-sm text-gray-900">
-                      {calc.weeklyHolidayPay ? calc.weeklyHolidayPay.toLocaleString() + '원' : '-'}
-                    </td>
                   )}
-                  <td className="px-4 py-2 text-sm text-gray-900">
-                    {calc.employmentType === '근로소득' && calc.deductions.insuranceDetails ? (
-                      <div className="text-xs space-y-1">
-                        <div className="flex justify-between items-center">
-                          <span>국민연금:</span>
-                          <input
-                            type="number"
-                            value={editableDeductions.nationalPension ?? calc.deductions.insuranceDetails.nationalPension}
-                            onChange={(e) => setEditableDeductions(prev => ({...prev, nationalPension: parseInt(e.target.value) || 0}))}
-                            disabled={isPayrollConfirmed}
-                            className={`w-20 px-1 py-0.5 border rounded text-xs text-right ${isPayrollConfirmed ? 'bg-gray-100 border-gray-200 text-gray-500' : 'border-gray-300'}`}
-                          />
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>건강보험:</span>
-                          <input
-                            type="number"
-                            value={editableDeductions.healthInsurance ?? calc.deductions.insuranceDetails.healthInsurance}
-                            onChange={(e) => setEditableDeductions(prev => ({...prev, healthInsurance: parseInt(e.target.value) || 0}))}
-                            disabled={isPayrollConfirmed}
-                            className={`w-20 px-1 py-0.5 border rounded text-xs text-right ${isPayrollConfirmed ? 'bg-gray-100 border-gray-200 text-gray-500' : 'border-gray-300'}`}
-                          />
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>장기요양:</span>
-                          <input
-                            type="number"
-                            value={editableDeductions.longTermCare ?? calc.deductions.insuranceDetails.longTermCare}
-                            onChange={(e) => setEditableDeductions(prev => ({...prev, longTermCare: parseInt(e.target.value) || 0}))}
-                            disabled={isPayrollConfirmed}
-                            className={`w-20 px-1 py-0.5 border rounded text-xs text-right ${isPayrollConfirmed ? 'bg-gray-100 border-gray-200 text-gray-500' : 'border-gray-300'}`}
-                          />
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>고용보험:</span>
-                          <input
-                            type="number"
-                            value={editableDeductions.employmentInsurance ?? calc.deductions.insuranceDetails.employmentInsurance}
-                            onChange={(e) => setEditableDeductions(prev => ({...prev, employmentInsurance: parseInt(e.target.value) || 0}))}
-                            disabled={isPayrollConfirmed}
-                            className={`w-20 px-1 py-0.5 border rounded text-xs text-right ${isPayrollConfirmed ? 'bg-gray-100 border-gray-200 text-gray-500' : 'border-gray-300'}`}
-                          />
-                        </div>
-                        {/* 소득세 표시 */}
-                        {calc.deductions.taxDetails && (
-                          <>
-                            <div className="flex justify-between items-center pt-1">
-                              <span>소득세:</span>
+                  {lineItems.map((item) => (
+                    <tr key={item.id} className="border-t">
+                      <td className="px-4 py-2 align-top">
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-4 text-xs text-gray-600">
+                            <label className="flex items-center space-x-1">
                               <input
-                                type="number"
-                                value={editableDeductions.incomeTax ?? calc.deductions.taxDetails.incomeTax}
-                                onChange={(e) => setEditableDeductions(prev => ({...prev, incomeTax: parseInt(e.target.value) || 0}))}
-                                disabled={isPayrollConfirmed}
-                                className={`w-20 px-1 py-0.5 border rounded text-xs text-right ${isPayrollConfirmed ? 'bg-gray-100 border-gray-200 text-gray-500' : 'border-gray-300'}`}
+                                type="radio"
+                                name={`line-type-${index}-${item.id}`}
+                                checked={item.type === 'earning'}
+                                onChange={() => handleLineItemTypeChange(index, item.id, 'earning')}
+                                disabled={isReadOnly}
                               />
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>지방소득세:</span>
+                              <span>지급</span>
+                            </label>
+                            <label className="flex items-center space-x-1">
                               <input
-                                type="number"
-                                value={editableDeductions.localIncomeTax ?? calc.deductions.taxDetails.localIncomeTax}
-                                onChange={(e) => setEditableDeductions(prev => ({...prev, localIncomeTax: parseInt(e.target.value) || 0}))}
-                                disabled={isPayrollConfirmed}
-                                className={`w-20 px-1 py-0.5 border rounded text-xs text-right ${isPayrollConfirmed ? 'bg-gray-100 border-gray-200 text-gray-500' : 'border-gray-300'}`}
+                                type="radio"
+                                name={`line-type-${index}-${item.id}`}
+                                checked={item.type === 'deduction'}
+                                onChange={() => handleLineItemTypeChange(index, item.id, 'deduction')}
+                                disabled={isReadOnly}
                               />
-                            </div>
-                            <div className="flex justify-between pt-1 border-t font-bold text-red-600">
-                              <span>총 공제액:</span>
-                              <span>{(Object.values(editableDeductions).reduce((sum, val) => sum + (val || 0), 0) || calc.deductions.total).toLocaleString()}원</span>
-                            </div>
-                          </>
+                              <span>공제</span>
+                            </label>
+                          </div>
+                          <input
+                            type="text"
+                            value={item.label}
+                            onChange={(e) => handleLineItemLabelChange(index, item.id, e.target.value)}
+                            disabled={isReadOnly}
+                            className={`w-full border rounded px-3 py-2 text-sm ${isReadOnly ? 'bg-gray-100 text-gray-500 border-gray-200' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'}`}
+                            placeholder="항목명을 입력하세요"
+                          />
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 align-top">
+                        {item.type === 'earning' ? (
+                          <input
+                            type="number"
+                            value={item.amount}
+                            onChange={(e) => handleLineItemAmountChange(index, item.id, e.target.value)}
+                            disabled={isReadOnly}
+                            className={`w-full border rounded px-3 py-2 text-right ${isReadOnly ? 'bg-gray-100 text-gray-500 border-gray-200' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'}`}
+                          />
+                        ) : (
+                          <div className="text-gray-400 text-right">-</div>
                         )}
-                      </div>
-                    ) : calc.employmentType === '근로소득' ? (
-                      calc.deductions.insurance > 0 ? calc.deductions.insurance.toLocaleString() + '원' : '-'
-                    ) : (
-                      calc.deductions.tax > 0 ? calc.deductions.tax.toLocaleString() + '원' : '-'
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-sm font-bold text-blue-700 bg-blue-50">{calc.netPay.toLocaleString()}원</td>
-                </tr>
-              </tbody>
-            </table>
+                      </td>
+                      <td className="px-4 py-2 align-top">
+                        {item.type === 'deduction' ? (
+                          <input
+                            type="number"
+                            value={item.amount}
+                            onChange={(e) => handleLineItemAmountChange(index, item.id, e.target.value)}
+                            disabled={isReadOnly}
+                            className={`w-full border rounded px-3 py-2 text-right ${isReadOnly ? 'bg-gray-100 text-gray-500 border-gray-200' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'}`}
+                          />
+                        ) : (
+                          <div className="text-gray-400 text-right">-</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 align-top">
+                        <div className="space-y-2">
+                          <textarea
+                            value={item.note}
+                            onChange={(e) => handleLineItemNoteChange(index, item.id, e.target.value)}
+                            disabled={isReadOnly}
+                            rows={Math.max(2, (item.note?.split('\n').length || 1))}
+                            className={`w-full border rounded px-3 py-2 text-sm leading-relaxed ${isReadOnly ? 'bg-gray-100 text-gray-500 border-gray-200' : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'}`}
+                            placeholder="산식 또는 참고사항을 입력하세요"
+                          />
+                          {!isReadOnly && (
+                            <div className="flex justify-end">
+                              <button
+                                onClick={() => handleDeleteLineItem(index, item.id)}
+                                className="text-xs text-rose-600 hover:underline"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50">
+                  <tr className="font-semibold">
+                    <td className="px-4 py-2 text-right">합계</td>
+                    <td className="px-4 py-2 text-right">{formatCurrency(totalEarnings)}</td>
+                    <td className="px-4 py-2 text-right">{formatCurrency(totalDeductions)}</td>
+                    <td className="px-4 py-2 text-right text-blue-700">실수령액 {formatCurrency(netAmount)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
 
           {/* 주휴수당 상세 */}
@@ -1257,7 +1595,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
             )}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
