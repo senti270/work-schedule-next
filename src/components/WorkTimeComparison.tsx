@@ -1106,7 +1106,6 @@ export default function WorkTimeComparison({
       
       const scheduleOnlyComparisons: WorkTimeComparison[] = [];
       
-      // 각 지점별로 비교 결과 생성 (자동 행)
       const branchGroups = schedules
         .filter(schedule => schedule.employeeId === selectedEmployeeId)
         .reduce((acc, schedule) => {
@@ -1156,39 +1155,8 @@ export default function WorkTimeComparison({
           });
         });
       });
-      
-      // 기존 DB에 저장된 수동 행 로드 후 유지
-      const manualQuery = query(
-        collection(db, 'workTimeComparisonResults'),
-        where('employeeId', '==', selectedEmployeeId),
-        where('month', '==', selectedMonth),
-        where('branchId', '==', selectedBranchId),
-        where('isManual', '==', true)
-      );
-      const manualSnapshot = await getDocs(manualQuery);
-      const manualRecords: WorkTimeComparison[] = manualSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          employeeName: data.employeeName,
-          date: data.date,
-          scheduledHours: data.scheduledHours || 0,
-          actualHours: data.actualHours,
-          difference: data.difference,
-          status: data.status,
-          scheduledTimeRange: data.scheduledTimeRange || '-',
-          actualTimeRange: data.actualTimeRange || '-',
-          isModified: data.isModified || false,
-          breakTime: data.breakTime || 0,
-          actualBreakTime: data.actualBreakTime || 0,
-          actualWorkHours: data.actualWorkHours || 0,
-          posTimeRange: data.posTimeRange || '',
-          branchId: data.branchId,
-          branchName: data.branchName,
-          isManual: true,
-          isNew: false,
-          docId: doc.id
-        };
-      });
+
+      const manualRecords = await loadManualRecords(selectedEmployeeId, selectedMonth, selectedBranchId);
 
       const mergedResults = [...scheduleOnlyComparisons, ...manualRecords]
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -2106,6 +2074,48 @@ export default function WorkTimeComparison({
     }
     return `${employeeName} (${cleanBranch})`;
   };
+
+  const loadManualRecords = useCallback(
+    async (employeeId?: string, month?: string, branchId?: string | null): Promise<WorkTimeComparison[]> => {
+      if (!employeeId || !month) return [];
+
+      const constraints: any[] = [
+        where('employeeId', '==', employeeId),
+        where('month', '==', month),
+        where('isManual', '==', true),
+      ];
+
+      if (branchId) {
+        constraints.push(where('branchId', '==', branchId));
+      }
+
+      const manualQuery = query(collection(db, 'workTimeComparisonResults'), ...constraints);
+      const manualSnapshot = await getDocs(manualQuery);
+
+      return manualSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          employeeName: data.employeeName,
+          date: data.date,
+          scheduledHours: data.scheduledHours || 0,
+          actualHours: data.actualHours,
+          difference: data.difference,
+          status: data.status,
+          scheduledTimeRange: data.scheduledTimeRange || '-',
+          actualTimeRange: data.actualTimeRange || '-',
+          isModified: data.isModified || false,
+          breakTime: data.breakTime || 0,
+          actualBreakTime: data.actualBreakTime || 0,
+          actualWorkHours: data.actualWorkHours || 0,
+          posTimeRange: data.posTimeRange || '',
+          branchId: data.branchId,
+          branchName: data.branchName,
+          isManual: true,
+          isNew: false,
+          docId: doc.id
+        } as WorkTimeComparison;
+      });
+    }, []);
 
   return (
     <div className="bg-white shadow rounded-lg">
