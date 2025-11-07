@@ -51,6 +51,7 @@ interface WorkTimeComparison {
   branchId?: string;
   branchName?: string;
   isManual?: boolean;
+  docId?: string;
 }
 
 interface WorkTimeComparisonProps {
@@ -405,7 +406,8 @@ export default function WorkTimeComparison({
       branchId: selectedBranchId || '',
       branchName: branchName,
       isNew: true,
-      isManual: true
+      isManual: true,
+      docId: undefined
     };
     const updated = [...comparisonResults, newRow];
     setComparisonResults(updated);
@@ -1104,7 +1106,7 @@ export default function WorkTimeComparison({
       
       const scheduleOnlyComparisons: WorkTimeComparison[] = [];
       
-      // 지점별로 그룹화하여 표시
+      // 각 지점별로 비교 결과 생성 (자동 행)
       const branchGroups = schedules
         .filter(schedule => schedule.employeeId === selectedEmployeeId)
         .reduce((acc, schedule) => {
@@ -1126,8 +1128,8 @@ export default function WorkTimeComparison({
         branchName: branchGroups[branchId].branchName,
         scheduleCount: branchGroups[branchId].schedules.length
       })));
-
-      // 각 지점별로 비교 결과 생성
+      
+      // 각 지점별로 비교 결과 생성 (자동 행)
       Object.values(branchGroups).forEach(({ branchId, branchName, schedules: branchSchedules }) => {
         branchSchedules.forEach(schedule => {
           const scheduleDate = toLocalDateString(schedule.date);
@@ -1149,16 +1151,52 @@ export default function WorkTimeComparison({
             actualWorkHours: 0,
             branchId: schedule.branchId,
             branchName,
-            isManual: false
+            isManual: false,
+            isNew: false
           });
         });
       });
       
-      // console.log('스케줄만으로 생성된 비교 결과:', scheduleOnlyComparisons);
-      setComparisonResults(scheduleOnlyComparisons);
+      // 기존 DB에 저장된 수동 행 로드 후 유지
+      const manualQuery = query(
+        collection(db, 'workTimeComparisonResults'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('month', '==', selectedMonth),
+        where('branchId', '==', selectedBranchId),
+        where('isManual', '==', true)
+      );
+      const manualSnapshot = await getDocs(manualQuery);
+      const manualRecords: WorkTimeComparison[] = manualSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          employeeName: data.employeeName,
+          date: data.date,
+          scheduledHours: data.scheduledHours || 0,
+          actualHours: data.actualHours,
+          difference: data.difference,
+          status: data.status,
+          scheduledTimeRange: data.scheduledTimeRange || '-',
+          actualTimeRange: data.actualTimeRange || '-',
+          isModified: data.isModified || false,
+          breakTime: data.breakTime || 0,
+          actualBreakTime: data.actualBreakTime || 0,
+          actualWorkHours: data.actualWorkHours || 0,
+          posTimeRange: data.posTimeRange || '',
+          branchId: data.branchId,
+          branchName: data.branchName,
+          isManual: true,
+          isNew: false,
+          docId: doc.id
+        };
+      });
+
+      const mergedResults = [...scheduleOnlyComparisons, ...manualRecords]
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      setComparisonResults(mergedResults);
       
-      // 스케줄만으로 생성된 비교결과도 DB에 저장
-      await saveComparisonResults(scheduleOnlyComparisons);
+      // 스케줄만으로 생성된 비교결과도 DB에 저장 (수동 행 포함)
+      await saveComparisonResults(mergedResults);
       return;
     }
 
@@ -1683,8 +1721,9 @@ export default function WorkTimeComparison({
         const fallbackBranchName = result.branchName || branchNameSnapshot || (result as any).branchName || branches.find(b => b.id === selectedBranchId)?.name || '';
         const effectiveBranchId = branchId || result.branchId || selectedBranchId || '';
         const finalEmployeeName = formatEmployeeNameWithBranch(fallbackEmployeeName, fallbackBranchName);
+        const isManual = result.isManual === true || result.isNew === true;
         
-        await addDoc(collection(db, 'workTimeComparisonResults'), {
+        const comparisonPayload = {
           employeeId: selectedEmployeeId,
           employeeName: finalEmployeeName,
           month: selectedMonth,
@@ -1699,12 +1738,26 @@ export default function WorkTimeComparison({
           actualTimeRange: result.actualTimeRange,
           isModified: result.isModified || false,
           breakTime: result.breakTime || 0,
-          actualBreakTime: result.actualBreakTime || 0, // 신규 필드 추가
+          actualBreakTime: result.actualBreakTime || 0,
           actualWorkHours: result.actualWorkHours || 0,
-          posTimeRange: result.posTimeRange || '', // 신규 필드 추가
-          isManual: result.isManual === true || result.isNew === true,
-          createdAt: new Date()
-        });
+          posTimeRange: result.posTimeRange || '',
+          isManual,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+
+        if (isManual) {
+          if (result.docId) {
+            await updateDoc(doc(db, 'workTimeComparisonResults', result.docId), comparisonPayload);
+          } else {
+            const docRef = await addDoc(collection(db, 'workTimeComparisonResults'), comparisonPayload);
+            result.docId = docRef.id;
+          }
+          result.isManual = true;
+          result.isNew = false;
+        } else {
+          await addDoc(collection(db, 'workTimeComparisonResults'), comparisonPayload);
+        }
       }
       
       console.log('비교결과 저장 완료');
@@ -1781,7 +1834,8 @@ export default function WorkTimeComparison({
             branchId: data.branchId,
             branchName: data.branchName,
             isManual: data.isManual || false,
-            isNew: data.isManual || data.isNew || false
+            isNew: data.isManual || data.isNew || false,
+            docId: doc.id
           };
         });
         
