@@ -48,6 +48,8 @@ interface WorkTimeComparison {
   actualWorkHours?: number; // 실근무시간 (actualTimeRange시간 - actualBreakTime)
   posTimeRange?: string; // POS 원본 시간 범위
   isNew?: boolean; // 수동 추가된 행 여부
+  branchId?: string;
+  branchName?: string;
 }
 
 interface WorkTimeComparisonProps {
