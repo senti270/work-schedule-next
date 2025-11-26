@@ -123,6 +123,7 @@ export default function ScheduleInputNew({ selectedBranchId, onWeekChange }: Sch
     const shortNames: {[key: string]: string} = {
       '청담장어마켓 송파점': '장어송파',
       '청담장어마켓 동탄점': '장어동탄',
+      '청담장어마켓 분당점': '장어분당',
       '카페드로잉 석촌호수점': '카페송파',
       '카페드로잉 분당점': '카페분당',
       '카페드로잉 동탄점': '카페동탄'
