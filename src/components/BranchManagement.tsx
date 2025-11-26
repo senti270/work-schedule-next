@@ -12,6 +12,7 @@ interface Branch {
   ceoName?: string; // 대표자명
   businessNumber?: string; // 사업자등록번호
   companyName?: string; // 회사명
+  closureDate?: Date; // 폐업일
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,7 +28,8 @@ export default function BranchManagement() {
     phone: '',
     ceoName: '',
     businessNumber: '',
-    companyName: ''
+    companyName: '',
+    closureDate: ''
   });
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export default function BranchManagement() {
           ceoName: data.ceoName || '',
           businessNumber: data.businessNumber || '',
           companyName: data.companyName || '',
+          closureDate: data.closureDate?.toDate ? data.closureDate.toDate() : undefined,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date()
         };
@@ -106,11 +109,23 @@ export default function BranchManagement() {
         const branchRef = doc(db, 'branches', editingBranch.id);
         console.log('문서 참조:', branchRef);
         
-        const updateData = {
-          ...formData,
+        const updateData: any = {
+          address: formData.address || '',
+          phone: formData.phone || '',
+          ceoName: formData.ceoName || '',
+          businessNumber: formData.businessNumber || '',
+          companyName: formData.companyName || '',
           updatedAt: new Date()
         };
         
+        // 폐업일 처리
+        if (formData.closureDate) {
+          updateData.closureDate = new Date(formData.closureDate);
+        } else {
+          updateData.closureDate = null;
+        }
+        
+        // 지점명은 변경하지 않음 (데이터 일관성 유지)
         console.log('업데이트할 데이터:', updateData);
         
         await updateDoc(branchRef, updateData);
@@ -120,7 +135,7 @@ export default function BranchManagement() {
         console.log('새 지점 추가 시도');
         console.log('formData:', formData);
         
-        const branchData = {
+        const branchData: any = {
           name: formData.name,
           address: formData.address || '',
           phone: formData.phone || '',
@@ -130,6 +145,11 @@ export default function BranchManagement() {
           createdAt: new Date(),
           updatedAt: new Date()
         };
+        
+        // 폐업일 처리
+        if (formData.closureDate) {
+          branchData.closureDate = new Date(formData.closureDate);
+        }
         
         console.log('저장할 데이터:', branchData);
         
@@ -144,7 +164,8 @@ export default function BranchManagement() {
         phone: '',
         ceoName: '',
         businessNumber: '',
-        companyName: ''
+        companyName: '',
+        closureDate: ''
       });
       setShowForm(false);
       setEditingBranch(null);
@@ -175,7 +196,8 @@ export default function BranchManagement() {
       phone: branch.phone || '',
       ceoName: branch.ceoName || '',
       businessNumber: branch.businessNumber || '',
-      companyName: branch.companyName || ''
+      companyName: branch.companyName || '',
+      closureDate: branch.closureDate ? branch.closureDate.toISOString().split('T')[0] : ''
     });
     setShowForm(true);
   };
@@ -220,7 +242,8 @@ export default function BranchManagement() {
       phone: '',
       ceoName: '',
       businessNumber: '',
-      companyName: ''
+      companyName: '',
+      closureDate: ''
     });
     setEditingBranch(null);
     setShowForm(false);
@@ -253,11 +276,20 @@ export default function BranchManagement() {
                 <input
                   type="text"
                   required
+                  disabled={!!editingBranch}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    editingBranch ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
                   placeholder="지점명"
+                  title={editingBranch ? '지점명은 변경할 수 없습니다. 새 지점을 추가해주세요.' : ''}
                 />
+                {editingBranch && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    지점명은 변경할 수 없습니다. 새 지점을 추가해주세요.
+                  </p>
+                )}
               </div>
               
               <div>
@@ -325,6 +357,21 @@ export default function BranchManagement() {
                   placeholder="사업자등록번호"
                 />
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  폐업일
+                </label>
+                <input
+                  type="date"
+                  value={formData.closureDate}
+                  onChange={(e) => setFormData({ ...formData, closureDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  폐업일을 입력하면 해당 지점이 폐업된 것으로 표시됩니다.
+                </p>
+              </div>
             </div>
             
             <div className="flex gap-2 pt-4">
@@ -370,26 +417,42 @@ export default function BranchManagement() {
                   전화번호
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  폐업일
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   작업
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {branches.map((branch) => (
-                <tr key={branch.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {branch.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {branch.businessNumber || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {branch.address || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {branch.phone || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              {branches.map((branch) => {
+                const isClosed = branch.closureDate && branch.closureDate <= new Date();
+                return (
+                  <tr key={branch.id} className={`hover:bg-gray-50 ${isClosed ? 'bg-red-50 opacity-75' : ''}`}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {branch.name}
+                      {isClosed && (
+                        <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-800 rounded">
+                          폐업
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {branch.businessNumber || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {branch.address || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {branch.phone || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {branch.closureDate 
+                        ? branch.closureDate.toLocaleDateString('ko-KR')
+                        : '-'
+                      }
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
                       onClick={() => handleEdit(branch)}
                       className="text-blue-600 hover:text-blue-900 mr-3"
@@ -414,7 +477,8 @@ export default function BranchManagement() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
