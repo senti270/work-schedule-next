@@ -33,6 +33,7 @@ interface Employee {
 interface Branch {
   id: string;
   name: string;
+  closureDate?: Date;
 }
 
 interface ScheduleManagementProps {
@@ -61,15 +62,39 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
   const loadBranches = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
-      const branchesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name
-      })) as Branch[];
+      const allBranchesData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          closureDate: data.closureDate?.toDate ? data.closureDate.toDate() : undefined
+        };
+      }) as Branch[];
+      
+      // 현재 주의 마지막 날(일요일) 계산
+      const today = new Date();
+      const dayOfWeek = today.getDay(); // 0=일요일, 1=월요일, ..., 6=토요일
+      const sundayOffset = dayOfWeek === 0 ? 0 : 7 - dayOfWeek; // 이번 주 일요일까지의 일수
+      const currentWeekEnd = new Date(today);
+      currentWeekEnd.setDate(today.getDate() + sundayOffset);
+      currentWeekEnd.setHours(23, 59, 59, 999); // 일요일 끝까지
+      
+      // 폐업일 이후인 지점 필터링 (폐업일이 있고, 현재 주의 마지막 날이 폐업일 이후면 제외)
+      const branchesData = allBranchesData.filter(branch => {
+        if (!branch.closureDate) return true; // 폐업일이 없으면 포함
+        return currentWeekEnd <= branch.closureDate; // 현재 주의 마지막 날이 폐업일 이전이면 포함
+      });
+      
       setBranches(branchesData);
       
       // 첫 번째 지점을 기본 선택
       if (branchesData.length > 0 && !selectedBranchId) {
         setSelectedBranchId(branchesData[0].id);
+      }
+      
+      // 현재 선택된 지점이 필터링 후 목록에 없으면 선택 해제
+      if (selectedBranchId && !branchesData.find(b => b.id === selectedBranchId)) {
+        setSelectedBranchId('');
       }
     } catch (error) {
       console.error('지점 목록을 불러올 수 없습니다:', error);

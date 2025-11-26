@@ -58,6 +58,7 @@ interface EmployeeBranch {
 interface Branch {
   id: string;
   name: string;
+  closureDate?: Date;
 }
 
 interface PayrollLock {
@@ -302,18 +303,45 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     }
   }, [selectedBranchId, getWeekDates]);
 
+  const [allBranches, setAllBranches] = useState<Branch[]>([]);
+
   const loadBranches = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'branches'));
-      const branchesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name
-      })) as Branch[];
-      setBranches(branchesData);
+      const branchesData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          closureDate: data.closureDate?.toDate ? data.closureDate.toDate() : undefined
+        };
+      }) as Branch[];
+      setAllBranches(branchesData);
     } catch (error) {
       console.error('지점 목록을 불러올 수 없습니다:', error);
     }
   }, []);
+
+  // currentWeekStart가 변경될 때마다 폐업일 이후 지점 필터링
+  useEffect(() => {
+    if (!currentWeekStart || allBranches.length === 0) {
+      setBranches(allBranches);
+      return;
+    }
+
+    // 현재 주의 마지막 날(일요일) 계산
+    const weekEnd = new Date(currentWeekStart);
+    weekEnd.setDate(currentWeekStart.getDate() + 6); // 일요일
+    weekEnd.setHours(23, 59, 59, 999);
+
+    // 폐업일 이후인 지점 필터링
+    const filteredBranches = allBranches.filter(branch => {
+      if (!branch.closureDate) return true; // 폐업일이 없으면 포함
+      return weekEnd <= branch.closureDate; // 현재 주의 마지막 날이 폐업일 이전이면 포함
+    });
+
+    setBranches(filteredBranches);
+  }, [currentWeekStart, allBranches]);
 
   const loadSchedules = useCallback(async () => {
     try {
