@@ -50,6 +50,7 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [activeTab, setActiveTab] = useState<'schedule-input' | 'schedule-input-old' | 'weekly-view' | 'calendar'>('schedule-input');
   const [selectedBranchId, setSelectedBranchId] = useState<string>(isManager && userBranch ? userBranch.id : '');
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date | null>(null);
   const [formData, setFormData] = useState({
     employeeId: '',
     branchId: isManager && userBranch ? userBranch.id : '',
@@ -71,18 +72,26 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
         };
       }) as Branch[];
       
-      // 현재 주의 마지막 날(일요일) 계산
-      const today = new Date();
-      const dayOfWeek = today.getDay(); // 0=일요일, 1=월요일, ..., 6=토요일
-      const sundayOffset = dayOfWeek === 0 ? 0 : 7 - dayOfWeek; // 이번 주 일요일까지의 일수
-      const currentWeekEnd = new Date(today);
-      currentWeekEnd.setDate(today.getDate() + sundayOffset);
-      currentWeekEnd.setHours(23, 59, 59, 999); // 일요일 끝까지
+      // currentWeekStart가 있으면 그 주의 마지막 날 사용, 없으면 현재 주의 마지막 날 사용
+      let weekEnd: Date;
+      if (currentWeekStart) {
+        weekEnd = new Date(currentWeekStart);
+        weekEnd.setDate(currentWeekStart.getDate() + 6); // 일요일
+        weekEnd.setHours(23, 59, 59, 999);
+      } else {
+        // currentWeekStart가 없으면 오늘 날짜 기준으로 계산
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0=일요일, 1=월요일, ..., 6=토요일
+        const sundayOffset = dayOfWeek === 0 ? 0 : 7 - dayOfWeek; // 이번 주 일요일까지의 일수
+        weekEnd = new Date(today);
+        weekEnd.setDate(today.getDate() + sundayOffset);
+        weekEnd.setHours(23, 59, 59, 999); // 일요일 끝까지
+      }
       
       // 폐업일 이후인 지점 필터링 (폐업일이 있고, 현재 주의 마지막 날이 폐업일 이후면 제외)
       const branchesData = allBranchesData.filter(branch => {
         if (!branch.closureDate) return true; // 폐업일이 없으면 포함
-        return currentWeekEnd <= branch.closureDate; // 현재 주의 마지막 날이 폐업일 이전이면 포함
+        return weekEnd <= branch.closureDate; // 현재 주의 마지막 날이 폐업일 이전이면 포함
       });
       
       setBranches(branchesData);
@@ -99,7 +108,7 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
     } catch (error) {
       console.error('지점 목록을 불러올 수 없습니다:', error);
     }
-  }, [selectedBranchId]);
+  }, [selectedBranchId, currentWeekStart]);
 
   useEffect(() => {
     console.log('ScheduleManagement 컴포넌트가 마운트되었습니다.');
@@ -107,6 +116,11 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
     loadEmployees();
     loadBranches();
   }, [loadBranches]);
+
+  // currentWeekStart가 변경될 때마다 지점 목록 다시 로드
+  useEffect(() => {
+    loadBranches();
+  }, [currentWeekStart, loadBranches]);
 
   // 선택된 월이 변경될 때마다 스케줄 다시 로드
   useEffect(() => {
@@ -415,7 +429,12 @@ export default function ScheduleManagement({ userBranch, isManager }: ScheduleMa
           
       {/* 탭 내용 */}
       {activeTab === 'schedule-input' && (
-        <ScheduleInputNew selectedBranchId={selectedBranchId} />
+        <ScheduleInputNew 
+          selectedBranchId={selectedBranchId} 
+          onWeekChange={(weekStart) => {
+            setCurrentWeekStart(weekStart);
+          }}
+        />
       )}
 
       {activeTab === 'calendar' && (

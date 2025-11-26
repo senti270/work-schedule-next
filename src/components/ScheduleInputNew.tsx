@@ -74,10 +74,11 @@ interface PayrollLock {
 
 interface ScheduleInputNewProps {
   selectedBranchId?: string;
+  onWeekChange?: (weekStart: Date) => void;
 }
 
 
-export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewProps) {
+export default function ScheduleInputNew({ selectedBranchId, onWeekChange }: ScheduleInputNewProps) {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -951,12 +952,14 @@ export default function ScheduleInputNew({ selectedBranchId }: ScheduleInputNewP
     const newWeekStart = new Date(currentWeekStart);
     newWeekStart.setDate(newWeekStart.getDate() - 7); // 1주 전
     setCurrentWeekStart(newWeekStart);
+    onWeekChange?.(newWeekStart);
   };
 
   const goToNextWeek = () => {
     const newWeekStart = new Date(currentWeekStart);
     newWeekStart.setDate(newWeekStart.getDate() + 7); // 1주 후
     setCurrentWeekStart(newWeekStart);
+    onWeekChange?.(newWeekStart);
   };
 
 
