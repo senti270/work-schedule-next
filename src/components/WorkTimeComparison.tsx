@@ -709,6 +709,16 @@ export default function WorkTimeComparison({
       const schedulesData = querySnapshot.docs.map(doc => {
         const data = doc.data();
         const totalHours = computeScheduleHours(data);
+        if (totalHours === 0 && data.startTime && data.endTime) {
+          console.warn('⚠️ 스케줄 totalHours가 0:', {
+            id: doc.id,
+            date: data.date,
+            startTime: data.startTime,
+            endTime: data.endTime,
+            breakTime: data.breakTime,
+            totalHours: data.totalHours
+          });
+        }
         return {
           id: doc.id,
           employeeId: data.employeeId,
@@ -1272,9 +1282,32 @@ export default function WorkTimeComparison({
               });
               const hours = computeScheduleHours(origSchedule);
               console.log(`🔥 계산된 시간: ${hours}시간`);
+              if (hours === 0) {
+                console.error('❌❌❌ 스케줄 시간 계산 결과가 0입니다!', {
+                  scheduleDate,
+                  startTime: origSchedule.startTime,
+                  endTime: origSchedule.endTime,
+                  breakTime: origSchedule.breakTime,
+                  totalHours: origSchedule.totalHours
+                });
+              }
               scheduledTotalHours += hours;
             }
             console.log(`🔥🔥🔥 스케줄 총시간 계산 완료: ${scheduleDate}, ${scheduledTotalHours}시간 (원본 스케줄 ${day.originalSchedules.length}개)`);
+            
+            // 계산 결과가 0이면 timeRanges로 재시도
+            if (scheduledTotalHours === 0 && day.timeRanges && day.timeRanges.length > 0) {
+              console.warn('⚠️ scheduledTotalHours가 0이어서 timeRanges로 재시도:', day.timeRanges);
+              try {
+                const timeRangesHours = computeScheduleHours({ timeRanges: day.timeRanges.join(',') });
+                if (timeRangesHours > 0) {
+                  scheduledTotalHours = timeRangesHours;
+                  console.log(`✅ timeRanges 기준 계산 성공: ${scheduleDate}, ${scheduledTotalHours}시간`);
+                }
+              } catch (e2) {
+                console.error('❌ timeRanges 기준 계산도 실패:', e2);
+              }
+            }
           } catch (e) {
             console.error('❌ 스케줄 총시간 계산 실패:', e, day);
             // 재계산 실패 시 기존 합산값 사용
@@ -2209,27 +2242,46 @@ export default function WorkTimeComparison({
     // 케이스 B: 단일 구간(startTime-endTime), breakTime(분) 고려
     if (startStr && endStr) {
       // 시간만 추출 (날짜+시간 형식이면 시간만)
-      let startTimeOnly = startStr;
-      let endTimeOnly = endStr;
+      let startTimeOnly = startStr.trim();
+      let endTimeOnly = endStr.trim();
+      
+      // 날짜+시간 형식이면 시간만 추출
       if (startTimeOnly.includes(' ')) {
         startTimeOnly = startTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || startTimeOnly;
       }
       if (endTimeOnly.includes(' ')) {
         endTimeOnly = endTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || endTimeOnly;
       }
+      
       // "14" 같은 형식이면 "14:00"으로 변환
       if (!startTimeOnly.includes(':')) {
-        startTimeOnly = `${startTimeOnly.padStart(2, '0')}:00`;
+        const hour = parseInt(startTimeOnly, 10);
+        if (!isNaN(hour)) {
+          startTimeOnly = `${String(hour).padStart(2, '0')}:00`;
+        }
       }
       if (!endTimeOnly.includes(':')) {
-        endTimeOnly = `${endTimeOnly.padStart(2, '0')}:00`;
+        const hour = parseInt(endTimeOnly, 10);
+        if (!isNaN(hour)) {
+          endTimeOnly = `${String(hour).padStart(2, '0')}:00`;
+        }
       }
       
-      const baseHours = calcSegmentHours(`${startTimeOnly}-${endTimeOnly}`);
-      const breakMin = Number(data?.breakTime || 0);
-      const breakH = isFinite(breakMin) ? breakMin / 60 : 0;
-      const v = baseHours - breakH;
-      if (v > 0) return v;
+      // 최종 검증: 시간 형식이 맞는지 확인
+      if (startTimeOnly.match(/^\d{1,2}:\d{2}$/) && endTimeOnly.match(/^\d{1,2}:\d{2}$/)) {
+        const baseHours = calcSegmentHours(`${startTimeOnly}-${endTimeOnly}`);
+        const breakMin = Number(data?.breakTime || 0);
+        const breakH = isFinite(breakMin) ? breakMin / 60 : 0;
+        const v = baseHours - breakH;
+        if (v > 0) {
+          console.log(`✅ computeScheduleHours 성공: ${startTimeOnly}-${endTimeOnly} (break: ${breakH}h) = ${v}시간`);
+          return v;
+        } else {
+          console.warn(`⚠️ computeScheduleHours 결과가 0 이하: ${startTimeOnly}-${endTimeOnly} (break: ${breakH}h) = ${v}시간`);
+        }
+      } else {
+        console.error(`❌ computeScheduleHours 시간 형식 오류: startTime="${startTimeOnly}", endTime="${endTimeOnly}"`);
+      }
     }
 
     return 0;
@@ -3444,7 +3496,12 @@ export default function WorkTimeComparison({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                     {(() => {
                       // 실근무시간 (D=B-C) 합계 - actualWorkHours 사용
-                      const totalActualWork = comparisonResults.reduce((sum, result) => sum + (result.actualWorkHours || 0), 0);
+                      const totalActualWork = comparisonResults.reduce((sum, result) => {
+                        const hours = result.actualWorkHours || 0;
+                        console.log(`🔥 합계 계산: ${result.date} = ${hours}시간 (actualWorkHours: ${result.actualWorkHours}, branchId: ${result.branchId})`);
+                        return sum + hours;
+                      }, 0);
+                      console.log(`🔥🔥🔥 근무시간 비교 합계: ${totalActualWork}시간 (${comparisonResults.length}건)`);
                       const hours = Math.floor(totalActualWork);
                       const minutes = Math.round((totalActualWork - hours) * 60);
                       return `${hours}:${minutes.toString().padStart(2, '0')}`;

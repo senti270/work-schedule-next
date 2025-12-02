@@ -473,7 +473,13 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
             breakTime: d.breakTime || 0
           })) as Schedule[];
           if (prevData.length > 0) {
-            console.log('🔧 전월 보정 데이터 추가 (첫 주 일요일부터):', prevData.length, '건');
+            const prevTotalHours = prevData.reduce((sum, d) => sum + (d.actualWorkHours || 0), 0);
+            console.log('🔧 전월 보정 데이터 추가 (첫 주 일요일부터):', prevData.length, '건, 총', prevTotalHours, '시간');
+            console.log('🔧 전월 보정 데이터 상세:', prevData.map(d => ({
+              date: d.date,
+              actualWorkHours: d.actualWorkHours,
+              branchName: d.branchName
+            })));
             schedulesData = schedulesData.concat(prevData);
           }
         }
