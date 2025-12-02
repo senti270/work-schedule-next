@@ -1219,12 +1219,33 @@ export default function WorkTimeComparison({
             employeeName: s.employeeName,
             totalHours: 0,
             timeRanges: [] as string[],
-            breakTimeSum: 0
+            breakTimeSum: 0,
+            originalSchedules: [] as any[] // 원본 스케줄 저장 (시간 계산용)
           };
         }
         acc[d].totalHours += Number(s.totalHours) || 0;
-        if (s.startTime && s.endTime) acc[d].timeRanges.push(`${s.startTime}-${s.endTime}`);
+        // 시간만 추출해서 "HH:MM-HH:MM" 형식으로 저장
+        if (s.startTime && s.endTime) {
+          let startTimeOnly = s.startTime;
+          let endTimeOnly = s.endTime;
+          // 날짜+시간 형식이면 시간만 추출
+          if (startTimeOnly.includes(' ')) {
+            startTimeOnly = startTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || startTimeOnly;
+          }
+          if (endTimeOnly.includes(' ')) {
+            endTimeOnly = endTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || endTimeOnly;
+          }
+          // "14" 같은 형식이면 "14:00"으로 변환
+          if (!startTimeOnly.includes(':')) {
+            startTimeOnly = `${startTimeOnly.padStart(2, '0')}:00`;
+          }
+          if (!endTimeOnly.includes(':')) {
+            endTimeOnly = `${endTimeOnly.padStart(2, '0')}:00`;
+          }
+          acc[d].timeRanges.push(`${startTimeOnly}-${endTimeOnly}`);
+        }
         acc[d].breakTimeSum += parseFloat(s.breakTime) || 0;
+        acc[d].originalSchedules.push(s); // 원본 스케줄 저장
         return acc;
       }, {} as Record<string, any>);
 
@@ -1235,13 +1256,30 @@ export default function WorkTimeComparison({
         console.log(`스케줄(합침): ${day.employeeName} ${scheduleDate} (${branchName})`, day);
         console.log(`실제근무 데이터 찾기:`, actualRecord);
 
-        // 스케줄 총시간이 0이거나 비어 있으면 timeRanges 기준으로 다시 계산
+        // 스케줄 총시간이 0이거나 비어 있으면 원본 스케줄 기준으로 다시 계산
         let scheduledTotalHours = Number(day.totalHours) || 0;
-        if (!scheduledTotalHours && day.timeRanges && day.timeRanges.length > 0) {
+        if (!scheduledTotalHours && day.originalSchedules && day.originalSchedules.length > 0) {
           try {
-            scheduledTotalHours = computeScheduleHours({ timeRanges: day.timeRanges.join(',') });
+            // 원본 스케줄들의 시간을 합산
+            let recalculated = 0;
+            for (const origSchedule of day.originalSchedules) {
+              const hours = computeScheduleHours(origSchedule);
+              recalculated += hours;
+            }
+            if (recalculated > 0) {
+              scheduledTotalHours = recalculated;
+              console.log(`🔥 스케줄 총시간 재계산: ${scheduleDate}, ${scheduledTotalHours}시간`);
+            }
           } catch (e) {
             console.warn('스케줄 총시간 재계산 실패:', e, day);
+            // 재계산 실패 시 timeRanges로 시도
+            if (day.timeRanges && day.timeRanges.length > 0) {
+              try {
+                scheduledTotalHours = computeScheduleHours({ timeRanges: day.timeRanges.join(',') });
+              } catch (e2) {
+                console.warn('timeRanges 기준 재계산도 실패:', e2);
+              }
+            }
           }
         }
 
