@@ -1258,32 +1258,44 @@ export default function WorkTimeComparison({
 
         // 스케줄 총시간 계산: 원본 스케줄로 직접 계산 (POS 데이터 있든 없든 동일하게)
         let scheduledTotalHours = 0;
+        console.log(`🔥🔥🔥 스케줄 시간 계산 시작: ${scheduleDate}, originalSchedules 개수: ${day.originalSchedules?.length || 0}`);
         if (day.originalSchedules && day.originalSchedules.length > 0) {
           try {
             // 원본 스케줄들의 시간을 합산
             for (const origSchedule of day.originalSchedules) {
+              console.log(`🔥 원본 스케줄 데이터:`, {
+                startTime: origSchedule.startTime,
+                endTime: origSchedule.endTime,
+                breakTime: origSchedule.breakTime,
+                totalHours: origSchedule.totalHours,
+                timeRanges: origSchedule.timeRanges
+              });
               const hours = computeScheduleHours(origSchedule);
+              console.log(`🔥 계산된 시간: ${hours}시간`);
               scheduledTotalHours += hours;
             }
-            console.log(`🔥 스케줄 총시간 계산: ${scheduleDate}, ${scheduledTotalHours}시간 (원본 스케줄 ${day.originalSchedules.length}개)`);
+            console.log(`🔥🔥🔥 스케줄 총시간 계산 완료: ${scheduleDate}, ${scheduledTotalHours}시간 (원본 스케줄 ${day.originalSchedules.length}개)`);
           } catch (e) {
-            console.warn('스케줄 총시간 계산 실패, day.totalHours 사용:', e, day);
+            console.error('❌ 스케줄 총시간 계산 실패:', e, day);
             // 재계산 실패 시 기존 합산값 사용
             scheduledTotalHours = Number(day.totalHours) || 0;
+            console.log(`🔥 day.totalHours 사용: ${scheduledTotalHours}시간`);
             // 그래도 안 되면 timeRanges로 시도
             if (!scheduledTotalHours && day.timeRanges && day.timeRanges.length > 0) {
               try {
                 scheduledTotalHours = computeScheduleHours({ timeRanges: day.timeRanges.join(',') });
                 console.log(`🔥 timeRanges 기준 계산: ${scheduleDate}, ${scheduledTotalHours}시간`);
               } catch (e2) {
-                console.warn('timeRanges 기준 계산도 실패:', e2);
+                console.error('❌ timeRanges 기준 계산도 실패:', e2);
               }
             }
           }
         } else {
           // 원본 스케줄이 없으면 기존 합산값 사용
           scheduledTotalHours = Number(day.totalHours) || 0;
+          console.log(`🔥 원본 스케줄 없음, day.totalHours 사용: ${scheduledTotalHours}시간`);
         }
+        console.log(`🔥🔥🔥 최종 scheduledTotalHours: ${scheduleDate} = ${scheduledTotalHours}시간`);
 
         if (actualRecord) {
           // 휴게시간과 실근무시간 계산
@@ -2167,13 +2179,17 @@ export default function WorkTimeComparison({
 
   // 스케줄 객체에서 totalHours 산출 (다중 구간 지원: "10-12,15-22(0.5)")
   const computeScheduleHours = (data: any): number => {
-    // 1) 명시적 totalHours 존재시 우선 사용
-    if (data && (data.totalHours || data.totalHours === 0)) return Number(data.totalHours) || 0;
+    // 1) 명시적 totalHours가 있고 0이 아닌 경우에만 우선 사용
+    // totalHours가 0이면 startTime/endTime으로 재계산 시도
+    if (data && data.totalHours !== undefined && data.totalHours !== null && Number(data.totalHours) > 0) {
+      return Number(data.totalHours);
+    }
 
     // 2) timeRanges 형태가 있는 경우
     const ranges: string | undefined = data?.timeRanges || data?.ranges || undefined;
     if (typeof ranges === 'string' && ranges.trim().length > 0) {
-      return ranges.split(',').map(s => calcSegmentHours(s)).reduce((a, b) => a + b, 0);
+      const calculated = ranges.split(',').map(s => calcSegmentHours(s)).reduce((a, b) => a + b, 0);
+      if (calculated > 0) return calculated;
     }
 
     // 3) startTime/endTime 에 다중 구간 문자열이 들어있는 경우 처리
@@ -2182,19 +2198,38 @@ export default function WorkTimeComparison({
 
     // 케이스 A: startTime 또는 endTime 중 하나에 콤마로 구간들이 들어있는 경우
     if (startStr && startStr.includes(',')) {
-      return startStr.split(',').map(s => calcSegmentHours(s)).reduce((a, b) => a + b, 0);
+      const calculated = startStr.split(',').map(s => calcSegmentHours(s)).reduce((a, b) => a + b, 0);
+      if (calculated > 0) return calculated;
     }
     if (endStr && endStr.includes(',')) {
-      return endStr.split(',').map(s => calcSegmentHours(s)).reduce((a, b) => a + b, 0);
+      const calculated = endStr.split(',').map(s => calcSegmentHours(s)).reduce((a, b) => a + b, 0);
+      if (calculated > 0) return calculated;
     }
 
     // 케이스 B: 단일 구간(startTime-endTime), breakTime(분) 고려
     if (startStr && endStr) {
-      const baseHours = calcSegmentHours(`${startStr}-${endStr}`);
+      // 시간만 추출 (날짜+시간 형식이면 시간만)
+      let startTimeOnly = startStr;
+      let endTimeOnly = endStr;
+      if (startTimeOnly.includes(' ')) {
+        startTimeOnly = startTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || startTimeOnly;
+      }
+      if (endTimeOnly.includes(' ')) {
+        endTimeOnly = endTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || endTimeOnly;
+      }
+      // "14" 같은 형식이면 "14:00"으로 변환
+      if (!startTimeOnly.includes(':')) {
+        startTimeOnly = `${startTimeOnly.padStart(2, '0')}:00`;
+      }
+      if (!endTimeOnly.includes(':')) {
+        endTimeOnly = `${endTimeOnly.padStart(2, '0')}:00`;
+      }
+      
+      const baseHours = calcSegmentHours(`${startTimeOnly}-${endTimeOnly}`);
       const breakMin = Number(data?.breakTime || 0);
       const breakH = isFinite(breakMin) ? breakMin / 60 : 0;
       const v = baseHours - breakH;
-      return v > 0 ? v : 0;
+      if (v > 0) return v;
     }
 
     return 0;
