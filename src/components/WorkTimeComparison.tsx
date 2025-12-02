@@ -1330,6 +1330,38 @@ export default function WorkTimeComparison({
         }
         console.log(`🔥🔥🔥 최종 scheduledTotalHours: ${scheduleDate} = ${scheduledTotalHours}시간`);
 
+        // 🔥 scheduledTimeRange 생성: timeRanges가 비어있으면 원본 스케줄에서 다시 생성
+        let finalScheduledTimeRange = day.timeRanges.length > 0 ? day.timeRanges.join(',') : '-';
+        if (finalScheduledTimeRange === '-' && day.originalSchedules && day.originalSchedules.length > 0) {
+          const timeRangesFromOriginal: string[] = [];
+          for (const origSchedule of day.originalSchedules) {
+            if (origSchedule.startTime && origSchedule.endTime) {
+              let startTimeOnly = origSchedule.startTime;
+              let endTimeOnly = origSchedule.endTime;
+              // 날짜+시간 형식이면 시간만 추출
+              if (startTimeOnly.includes(' ')) {
+                startTimeOnly = startTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || startTimeOnly;
+              }
+              if (endTimeOnly.includes(' ')) {
+                endTimeOnly = endTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || endTimeOnly;
+              }
+              // "14" 같은 형식이면 "14:00"으로 변환
+              if (!startTimeOnly.includes(':')) {
+                startTimeOnly = `${startTimeOnly.padStart(2, '0')}:00`;
+              }
+              if (!endTimeOnly.includes(':')) {
+                endTimeOnly = `${endTimeOnly.padStart(2, '0')}:00`;
+              }
+              const breakTimeStr = origSchedule.breakTime ? `(${origSchedule.breakTime})` : '';
+              timeRangesFromOriginal.push(`${startTimeOnly}-${endTimeOnly}${breakTimeStr}`);
+            }
+          }
+          if (timeRangesFromOriginal.length > 0) {
+            finalScheduledTimeRange = timeRangesFromOriginal.join(',');
+            console.log(`✅ scheduledTimeRange 복구: ${scheduleDate}, ${finalScheduledTimeRange}`);
+          }
+        }
+
         if (actualRecord) {
           // 휴게시간과 실근무시간 계산
           const breakTime = day.breakTimeSum || 0; // 합쳐진 스케줄 휴게시간 합
@@ -1363,7 +1395,7 @@ export default function WorkTimeComparison({
             actualHours: actualRecord.totalHours,
             difference,
             status,
-            scheduledTimeRange: day.timeRanges.length > 0 ? day.timeRanges.join(',') : '-',
+            scheduledTimeRange: finalScheduledTimeRange,
             actualTimeRange: actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime),
             // POS 근무시각 컬럼 표시용 (파싱된 원본 시간 유지)
             posTimeRange: actualRecord.posTimeRange || '',
@@ -1392,7 +1424,7 @@ export default function WorkTimeComparison({
           actualHours: 0,
           difference: -scheduledTotalHours, // 계산된 scheduledTotalHours 사용
           status: 'review_required',
-          scheduledTimeRange: day.timeRanges.length > 0 ? day.timeRanges.join(',') : '-',
+          scheduledTimeRange: finalScheduledTimeRange,
           actualTimeRange: '-',
           isModified: false,
           breakTime: breakTime,
