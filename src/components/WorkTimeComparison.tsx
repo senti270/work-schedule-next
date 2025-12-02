@@ -1938,22 +1938,88 @@ export default function WorkTimeComparison({
       console.log('현재 employeeReviewStatus:', employeeReviewStatus);
       
       if (!querySnapshot.empty) {
+        // 🔥 스케줄 데이터를 다시 조회해서 scheduledTimeRange 채우기
+        const [year, monthNum] = selectedMonth.split('-').map(Number);
+        const monthStart = new Date(year, monthNum - 1, 1);
+        const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
+        
+        const schedulesQuery = query(
+          collection(db, 'schedules'),
+          where('employeeId', '==', selectedEmployeeId),
+          where('branchId', '==', branchId)
+        );
+        const schedulesSnapshot = await getDocs(schedulesQuery);
+        const schedulesMap = new Map<string, any[]>();
+        
+        schedulesSnapshot.docs.forEach(doc => {
+          const s = doc.data();
+          const sDate = toLocalDate(s.date);
+          const dateStr = toLocalDateString(sDate);
+          if (!schedulesMap.has(dateStr)) {
+            schedulesMap.set(dateStr, []);
+          }
+          schedulesMap.get(dateStr)!.push({
+            ...s,
+            date: sDate,
+            id: doc.id
+          });
+        });
+        
         const existingData = querySnapshot.docs.map(docSnap => {
           const data = docSnap.data();
+          const dateStr = data.date;
+          
+          // 🔥 scheduledTimeRange가 없거나 '-'이면 스케줄 데이터에서 다시 조회
+          let scheduledTimeRange = data.scheduledTimeRange || '-';
+          let scheduledHours = data.scheduledHours || 0;
+          
+          if ((!scheduledTimeRange || scheduledTimeRange === '-') && schedulesMap.has(dateStr)) {
+            const daySchedules = schedulesMap.get(dateStr)!;
+            const timeRanges: string[] = [];
+            let totalHours = 0;
+            
+            daySchedules.forEach(s => {
+              if (s.startTime && s.endTime) {
+                let startTimeOnly = s.startTime;
+                let endTimeOnly = s.endTime;
+                if (startTimeOnly.includes(' ')) {
+                  startTimeOnly = startTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || startTimeOnly;
+                }
+                if (endTimeOnly.includes(' ')) {
+                  endTimeOnly = endTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || endTimeOnly;
+                }
+                if (!startTimeOnly.includes(':')) {
+                  startTimeOnly = `${startTimeOnly.padStart(2, '0')}:00`;
+                }
+                if (!endTimeOnly.includes(':')) {
+                  endTimeOnly = `${endTimeOnly.padStart(2, '0')}:00`;
+                }
+                timeRanges.push(`${startTimeOnly}-${endTimeOnly}`);
+              }
+              totalHours += computeScheduleHours(s);
+            });
+            
+            if (timeRanges.length > 0) {
+              scheduledTimeRange = timeRanges.join(',');
+              scheduledHours = totalHours;
+              console.log(`✅ 스케줄 정보 복구: ${dateStr}, scheduledTimeRange: ${scheduledTimeRange}, scheduledHours: ${scheduledHours}`);
+            }
+          }
+          
           return {
             employeeName: data.employeeName,
-            date: data.date,
-            scheduledHours: data.scheduledHours || 0,
+            date: dateStr,
+            scheduledHours: scheduledHours,
             actualHours: data.actualHours,
             difference: data.difference,
             status: data.status,
-            scheduledTimeRange: data.scheduledTimeRange || '-',
+            scheduledTimeRange: scheduledTimeRange,
             actualTimeRange: data.actualTimeRange || '-',
             isModified: data.isModified || false,
             breakTime: data.breakTime || 0,
-            actualBreakTime: data.actualBreakTime || 0, // 신규 필드 추가
+            actualBreakTime: data.actualBreakTime || 0,
             actualWorkHours: data.actualWorkHours || 0,
-            posTimeRange: data.posTimeRange || '', // 신규 필드 추가
+            posTimeRange: data.posTimeRange || '',
             branchId: data.branchId,
             branchName: data.branchName,
             isManual: data.isManual || false,
