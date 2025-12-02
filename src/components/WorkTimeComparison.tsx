@@ -1183,7 +1183,7 @@ export default function WorkTimeComparison({
     // console.log('파싱된 실제근무 데이터:', actualRecords);
 
     const comparisons: WorkTimeComparison[] = [];
-    const processedDates = new Set<string>();
+    // const processedDates = new Set<string>(); // 날짜 단위 중복 체크는 아래 uniqueMap에서 처리
 
     // 1. 스케줄이 있는 경우: 스케줄과 실제근무 데이터 비교 (선택된 직원만, 지점별로 분리)
     const branchGroups = schedules
@@ -1280,8 +1280,8 @@ export default function WorkTimeComparison({
             branchName,
             isManual: false
           });
-
-        processedDates.add(scheduleDate);
+        // 동일 날짜 중복 처리는 아래 uniqueMap 단계에서 수행하므로,
+        // 여기서는 날짜를 별도 Set에 기록하지 않는다.
       } else {
         // 스케줄은 있지만 실제근무 데이터가 없는 경우
         // 휴게시간과 실근무시간 계산 (실제근무 데이터가 없는 경우)
@@ -1311,38 +1311,36 @@ export default function WorkTimeComparison({
 
     // 2. 실제근무 데이터는 있지만 스케줄이 없는 경우
     actualRecords.forEach(actualRecord => {
-      if (!processedDates.has(actualRecord.date)) {
-        // 선택된 직원의 이름을 사용 (실제근무 데이터에는 직원명이 없으므로)
-        const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
-        const employeeName = selectedEmployee ? selectedEmployee.name : '알 수 없음';
+      // 선택된 직원의 이름을 사용 (실제근무 데이터에는 직원명이 없으므로)
+      const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+      const employeeName = selectedEmployee ? selectedEmployee.name : '알 수 없음';
 
-        // 스케줄이 없는 경우 휴게시간은 0으로 가정하되, POS 데이터가 여러 건이면 계산된 휴게시간 사용
-        const breakTime = 0; // 스케줄이 없으므로 휴게시간 정보 없음
-        const actualBreakTime = actualRecord.calculatedBreakTime !== undefined 
-          ? actualRecord.calculatedBreakTime 
-          : 0; // POS 데이터가 여러 건이면 계산된 휴게시간, 아니면 0
-        console.log(`🔥 실제근무만 있음: ${actualRecord.date}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}, isMultipleRecords: ${actualRecord.isMultipleRecords}`);
-        // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
-        const actualTimeRange = actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime);
-        const actualTimeRangeHours = parseTimeRangeToHours(actualTimeRange);
-        const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
-        
-        comparisons.push({
-          employeeName: formatEmployeeNameWithBranch(employeeName, branches.find(b => b.id === selectedBranchId)?.name),
-          date: actualRecord.date,
-          scheduledHours: 0,
-          actualHours: actualRecord.totalHours,
-          difference: actualRecord.totalHours,
-          status: 'review_required', // 스케줄 없이 근무한 경우 검토필요
-          scheduledTimeRange: '-',
-          actualTimeRange: actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime),
-          isModified: false,
-          breakTime: breakTime,
-          actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
-          actualWorkHours: actualWorkHours,
-          posTimeRange: actualRecord.posTimeRange || '' // POS 원본 시간 범위
-        });
-      }
+      // 스케줄이 없는 경우 휴게시간은 0으로 가정하되, POS 데이터가 여러 건이면 계산된 휴게시간 사용
+      const breakTime = 0; // 스케줄이 없으므로 휴게시간 정보 없음
+      const actualBreakTime = actualRecord.calculatedBreakTime !== undefined 
+        ? actualRecord.calculatedBreakTime 
+        : 0; // POS 데이터가 여러 건이면 계산된 휴게시간, 아니면 0
+      console.log(`🔥 실제근무만 있음: ${actualRecord.date}, breakTime: ${breakTime}, actualBreakTime: ${actualBreakTime}, isMultipleRecords: ${actualRecord.isMultipleRecords}`);
+      // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
+      const actualTimeRange = actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime);
+      const actualTimeRangeHours = parseTimeRangeToHours(actualTimeRange);
+      const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
+      
+      comparisons.push({
+        employeeName: formatEmployeeNameWithBranch(employeeName, branches.find(b => b.id === selectedBranchId)?.name),
+        date: actualRecord.date,
+        scheduledHours: 0,
+        actualHours: actualRecord.totalHours,
+        difference: actualRecord.totalHours,
+        status: 'review_required', // 스케줄 없이 근무한 경우 검토필요
+        scheduledTimeRange: '-',
+        actualTimeRange: actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime),
+        isModified: false,
+        breakTime: breakTime,
+        actualBreakTime: actualBreakTime, // 계산된 actualBreakTime 사용
+        actualWorkHours: actualWorkHours,
+        posTimeRange: actualRecord.posTimeRange || '' // POS 원본 시간 범위
+      });
     });
 
     // 중복 제거: 같은 직원/같은 지점/같은 날짜 키로 유일화
@@ -1658,6 +1656,35 @@ export default function WorkTimeComparison({
         for (const docSnap of existingSnapshot.docs) {
           await deleteDoc(docSnap.ref);
         }
+
+        // 수동 입력(isManual=true) 행 중, 화면에서 제거된 행은 실제 DB에서도 삭제
+        try {
+          const manualQuery = query(
+            collection(db, 'workTimeComparisonResults'),
+            where('employeeId', '==', selectedEmployeeId),
+            where('month', '==', selectedMonth),
+            where('branchId', '==', branchId),
+            where('isManual', '==', true)
+          );
+          const manualSnapshot = await getDocs(manualQuery);
+
+          const manualIdsToKeep = new Set(
+            results
+              .filter(r => r.isManual || r.isNew)
+              .map(r => r.docId)
+              .filter((id): id is string => !!id)
+          );
+
+          const manualToDelete = manualSnapshot.docs.filter(d => !manualIdsToKeep.has(d.id));
+          if (manualToDelete.length > 0) {
+            console.log('화면에서 제거된 수동 입력 비교결과 삭제:', manualToDelete.length, '건');
+            for (const docSnap of manualToDelete) {
+              await deleteDoc(docSnap.ref);
+            }
+          }
+        } catch (e) {
+          console.warn('수동 입력 비교결과 정리 중 오류(무시 가능):', e);
+        }
       }
       
       // 새 데이터 저장
@@ -1783,8 +1810,8 @@ export default function WorkTimeComparison({
       console.log('현재 employeeReviewStatus:', employeeReviewStatus);
       
       if (!querySnapshot.empty) {
-        const existingData = querySnapshot.docs.map(doc => {
-          const data = doc.data();
+        const existingData = querySnapshot.docs.map(docSnap => {
+          const data = docSnap.data();
           return {
             employeeName: data.employeeName,
             date: data.date,
@@ -1803,14 +1830,40 @@ export default function WorkTimeComparison({
             branchName: data.branchName,
             isManual: data.isManual || false,
             isNew: data.isManual || data.isNew || false,
-            docId: doc.id
+            docId: docSnap.id
           };
         });
-        
+
+        // 🔧 같은 날짜(및 POS 시각) 기준 중복 행 정리
+        const dedupMap = new Map<string, typeof existingData[number]>();
+        for (const row of existingData) {
+          const key = `${row.date}|${row.posTimeRange || ''}`;
+          const prev = dedupMap.get(key);
+          if (!prev) {
+            dedupMap.set(key, row);
+          } else {
+            // 1순위: 수동 입력(isManual) 우선
+            if (row.isManual && !prev.isManual) {
+              dedupMap.set(key, row);
+              continue;
+            }
+            if (!row.isManual && prev.isManual) {
+              continue;
+            }
+            // 2순위: 실제 근무시각/근무시간이 더 잘 채워진 쪽 우선
+            const rowHasActual = !!row.actualTimeRange && row.actualTimeRange !== '-';
+            const prevHasActual = !!prev.actualTimeRange && prev.actualTimeRange !== '-';
+            if (rowHasActual && !prevHasActual) {
+              dedupMap.set(key, row);
+            }
+          }
+        }
+
+        const deduped = Array.from(dedupMap.values());
         // 날짜순으로 정렬
-        existingData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        setComparisonResults(existingData);
-        console.log('기존 비교 데이터 로드됨:', existingData);
+        deduped.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        setComparisonResults(deduped);
+        console.log('기존 비교 데이터 로드됨(중복 정리 후):', deduped);
         
         // 🔥 상태는 DB에 저장된 실제 상태를 유지하므로, 비교 데이터 로드 시 상태를 변경하지 않음
         // 상태 변경은 사용자가 명시적으로 버튼을 클릭했을 때만 이루어져야 함
