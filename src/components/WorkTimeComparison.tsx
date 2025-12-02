@@ -1903,13 +1903,6 @@ export default function WorkTimeComparison({
     }
     // 🔒 급여확정 시: DB 로드는 허용하되 편집은 상위에서 차단됨
     
-    // 🔥 현재 비교 결과에 수정된 항목이 있으면 로드하지 않음 (사용자가 수정 중인 데이터 보호)
-    const hasModifiedResults = comparisonResults.some(result => result.isModified);
-    if (hasModifiedResults) {
-      console.log('수정된 항목이 있어서 DB에서 로드하지 않음');
-      return;
-    }
-    
     try {
       console.log('기존 비교 데이터 로드 시작:', selectedEmployeeId, selectedMonth);
       
@@ -2011,7 +2004,7 @@ export default function WorkTimeComparison({
       console.error('기존 비교 데이터 로드 실패:', error);
       setComparisonResults([]);
     }
-  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch, comparisonResults]);
+  }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch]);
 
   // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드
   useEffect(() => {
