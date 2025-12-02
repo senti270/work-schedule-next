@@ -1235,6 +1235,16 @@ export default function WorkTimeComparison({
         console.log(`스케줄(합침): ${day.employeeName} ${scheduleDate} (${branchName})`, day);
         console.log(`실제근무 데이터 찾기:`, actualRecord);
 
+        // 스케줄 총시간이 0이거나 비어 있으면 timeRanges 기준으로 다시 계산
+        let scheduledTotalHours = Number(day.totalHours) || 0;
+        if (!scheduledTotalHours && day.timeRanges && day.timeRanges.length > 0) {
+          try {
+            scheduledTotalHours = computeScheduleHours({ timeRanges: day.timeRanges.join(',') });
+          } catch (e) {
+            console.warn('스케줄 총시간 재계산 실패:', e, day);
+          }
+        }
+
         if (actualRecord) {
           // 휴게시간과 실근무시간 계산
           const breakTime = day.breakTimeSum || 0; // 합쳐진 스케줄 휴게시간 합
@@ -1251,7 +1261,7 @@ export default function WorkTimeComparison({
           const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
           
           // 차이 계산: 실제순근무시간 - 스케줄시간 (많이 하면 +, 적게 하면 -)
-          const difference = actualWorkHours - (Number(day.totalHours) || 0);
+          const difference = actualWorkHours - scheduledTotalHours;
           let status: 'time_match' | 'review_required' | 'review_completed' = 'time_match';
           
           // 10분(0.17시간) 이상 차이나면 확인필요, 이내면 시간일치
@@ -1264,7 +1274,7 @@ export default function WorkTimeComparison({
           comparisons.push({
             employeeName: formatEmployeeNameWithBranch(day.employeeName, branchName),
             date: scheduleDate,
-            scheduledHours: Number(day.totalHours) || 0,
+            scheduledHours: scheduledTotalHours,
             actualHours: actualRecord.totalHours,
             difference,
             status,
@@ -1293,7 +1303,7 @@ export default function WorkTimeComparison({
         comparisons.push({
           employeeName: formatEmployeeNameWithBranch(day.employeeName, branchName),
           date: scheduleDate,
-          scheduledHours: Number(day.totalHours) || 0,
+          scheduledHours: scheduledTotalHours,
           actualHours: 0,
           difference: -(Number(day.totalHours) || 0),
           status: 'review_required',
@@ -1641,23 +1651,28 @@ export default function WorkTimeComparison({
         // branchId가 없어도 저장은 계속 진행 (기존 데이터와 일치하도록)
       }
       
-      // 기존 비교결과 데이터 삭제 (자동 생성된 row만)
+      // 기존 비교결과 데이터 삭제 (자동 생성된 row 및 화면에서 제거된 수동 row 정리)
       if (branchId) {
-        const existingQuery = query(
-          collection(db, 'workTimeComparisonResults'),
-          where('employeeId', '==', selectedEmployeeId),
-          where('month', '==', selectedMonth),
-          where('branchId', '==', branchId),
-          where('isManual', '==', false)
-        );
+        // 1) 자동 생성된 행(isManual == false) 삭제
+        try {
+          const existingQuery = query(
+            collection(db, 'workTimeComparisonResults'),
+            where('employeeId', '==', selectedEmployeeId),
+            where('month', '==', selectedMonth),
+            where('branchId', '==', branchId),
+            where('isManual', '==', false)
+          );
 
-        const existingSnapshot = await getDocs(existingQuery);
-        console.log('기존 비교결과 데이터(자동 생성) 삭제:', existingSnapshot.docs.length, '건');
-        for (const docSnap of existingSnapshot.docs) {
-          await deleteDoc(docSnap.ref);
+          const existingSnapshot = await getDocs(existingQuery);
+          console.log('기존 비교결과 데이터(자동 생성) 삭제:', existingSnapshot.docs.length, '건');
+          for (const docSnap of existingSnapshot.docs) {
+            await deleteDoc(docSnap.ref);
+          }
+        } catch (e) {
+          console.warn('자동 생성 비교결과 정리 중 오류(무시 가능):', e);
         }
 
-        // 수동 입력(isManual=true) 행 중, 화면에서 제거된 행은 실제 DB에서도 삭제
+        // 2) 수동 입력(isManual == true) 중 화면에서 제거된 행 삭제
         try {
           const manualQuery = query(
             collection(db, 'workTimeComparisonResults'),
@@ -1684,6 +1699,41 @@ export default function WorkTimeComparison({
           }
         } catch (e) {
           console.warn('수동 입력 비교결과 정리 중 오류(무시 가능):', e);
+        }
+
+        // 3) 예전 데이터( isManual 필드가 없던 시절 )까지 포함해서,
+        //    현재 results 배열에 존재하지 않는 날짜/지점/posTimeRange 조합은 모두 삭제
+        try {
+          const allQuery = query(
+            collection(db, 'workTimeComparisonResults'),
+            where('employeeId', '==', selectedEmployeeId),
+            where('month', '==', selectedMonth),
+            where('branchId', '==', branchId)
+          );
+          const allSnapshot = await getDocs(allQuery);
+
+          const keysToKeep = new Set(
+            results.map(r => {
+              const suffix = r.posTimeRange || '';
+              return `${r.date}|${suffix}`;
+            })
+          );
+
+          const legacyToDelete = allSnapshot.docs.filter(d => {
+            const data = d.data();
+            const suffix = (data.posTimeRange as string) || '';
+            const key = `${data.date}|${suffix}`;
+            return !keysToKeep.has(key);
+          });
+
+          if (legacyToDelete.length > 0) {
+            console.log('화면에 없는 예전 비교결과 데이터 삭제:', legacyToDelete.length, '건');
+            for (const docSnap of legacyToDelete) {
+              await deleteDoc(docSnap.ref);
+            }
+          }
+        } catch (e) {
+          console.warn('예전 비교결과 정리 중 오류(무시 가능):', e);
         }
       }
       
