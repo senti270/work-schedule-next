@@ -1256,31 +1256,33 @@ export default function WorkTimeComparison({
         console.log(`스케줄(합침): ${day.employeeName} ${scheduleDate} (${branchName})`, day);
         console.log(`실제근무 데이터 찾기:`, actualRecord);
 
-        // 스케줄 총시간이 0이거나 비어 있으면 원본 스케줄 기준으로 다시 계산
-        let scheduledTotalHours = Number(day.totalHours) || 0;
-        if (!scheduledTotalHours && day.originalSchedules && day.originalSchedules.length > 0) {
+        // 스케줄 총시간 계산: 원본 스케줄로 직접 계산 (POS 데이터 있든 없든 동일하게)
+        let scheduledTotalHours = 0;
+        if (day.originalSchedules && day.originalSchedules.length > 0) {
           try {
             // 원본 스케줄들의 시간을 합산
-            let recalculated = 0;
             for (const origSchedule of day.originalSchedules) {
               const hours = computeScheduleHours(origSchedule);
-              recalculated += hours;
+              scheduledTotalHours += hours;
             }
-            if (recalculated > 0) {
-              scheduledTotalHours = recalculated;
-              console.log(`🔥 스케줄 총시간 재계산: ${scheduleDate}, ${scheduledTotalHours}시간`);
-            }
+            console.log(`🔥 스케줄 총시간 계산: ${scheduleDate}, ${scheduledTotalHours}시간 (원본 스케줄 ${day.originalSchedules.length}개)`);
           } catch (e) {
-            console.warn('스케줄 총시간 재계산 실패:', e, day);
-            // 재계산 실패 시 timeRanges로 시도
-            if (day.timeRanges && day.timeRanges.length > 0) {
+            console.warn('스케줄 총시간 계산 실패, day.totalHours 사용:', e, day);
+            // 재계산 실패 시 기존 합산값 사용
+            scheduledTotalHours = Number(day.totalHours) || 0;
+            // 그래도 안 되면 timeRanges로 시도
+            if (!scheduledTotalHours && day.timeRanges && day.timeRanges.length > 0) {
               try {
                 scheduledTotalHours = computeScheduleHours({ timeRanges: day.timeRanges.join(',') });
+                console.log(`🔥 timeRanges 기준 계산: ${scheduleDate}, ${scheduledTotalHours}시간`);
               } catch (e2) {
-                console.warn('timeRanges 기준 재계산도 실패:', e2);
+                console.warn('timeRanges 기준 계산도 실패:', e2);
               }
             }
           }
+        } else {
+          // 원본 스케줄이 없으면 기존 합산값 사용
+          scheduledTotalHours = Number(day.totalHours) || 0;
         }
 
         if (actualRecord) {
@@ -1343,7 +1345,7 @@ export default function WorkTimeComparison({
           date: scheduleDate,
           scheduledHours: scheduledTotalHours,
           actualHours: 0,
-          difference: -(Number(day.totalHours) || 0),
+          difference: -scheduledTotalHours, // 계산된 scheduledTotalHours 사용
           status: 'review_required',
           scheduledTimeRange: day.timeRanges.length > 0 ? day.timeRanges.join(',') : '-',
           actualTimeRange: '-',
