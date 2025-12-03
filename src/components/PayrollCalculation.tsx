@@ -773,6 +773,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         
         if (!overlaps) {
           console.log(`🔥 계약 제외: ${c.startDate.toISOString().split('T')[0]} ~ ${contractEnd.toISOString().split('T')[0]} (선택된 월: ${selectedMonth})`);
+        } else {
+          console.log(`✅ 계약 포함: ${c.startDate.toISOString().split('T')[0]} ~ ${contractEnd.toISOString().split('T')[0]} (선택된 월: ${selectedMonth})`);
         }
         
         return overlaps;

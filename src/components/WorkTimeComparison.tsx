@@ -1023,7 +1023,8 @@ export default function WorkTimeComparison({
         const totalStart = new Date(firstStart);
         const totalEnd = new Date(lastEnd);
         const totalMs = totalEnd.getTime() - totalStart.getTime();
-        const totalHoursFromRange = totalMs / (1000 * 60 * 60);
+        // 🔥 부동소수점 오차 방지: 계산 후 반올림 (소수점 4자리까지)
+        const totalHoursFromRange = Math.round((totalMs / (1000 * 60 * 60)) * 10000) / 10000;
         
         // posTimeRange 생성 (첫 시작 ~ 마지막 종료)
         let posTimeRange = '';
@@ -1404,7 +1405,8 @@ export default function WorkTimeComparison({
           // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
           const actualTimeRange = actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime);
           const actualTimeRangeHours = parseTimeRangeToHours(actualTimeRange);
-          const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
+          // 🔥 부동소수점 오차 방지: 계산 후 반올림 (소수점 4자리까지)
+          const actualWorkHours = Math.round((Math.max(0, actualTimeRangeHours - actualBreakTime)) * 10000) / 10000;
           
           // 🔥 scheduledTotalHours가 0이면 재계산 시도
           if (scheduledTotalHours === 0 && day.originalSchedules && day.originalSchedules.length > 0) {
@@ -1508,7 +1510,8 @@ export default function WorkTimeComparison({
       // 🔥 새로운 계산 방식: actualWorkHours = actualTimeRange시간 - actualBreakTime
       const actualTimeRange = actualRecord.posTimeRange || formatTimeRange(actualRecord.startTime, actualRecord.endTime);
       const actualTimeRangeHours = parseTimeRangeToHours(actualTimeRange);
-      const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
+      // 🔥 부동소수점 오차 방지: 계산 후 반올림 (소수점 4자리까지)
+      const actualWorkHours = Math.round((Math.max(0, actualTimeRangeHours - actualBreakTime)) * 10000) / 10000;
       
       comparisons.push({
         employeeName: formatEmployeeNameWithBranch(employeeName, branches.find(b => b.id === selectedBranchId)?.name),
@@ -1647,7 +1650,10 @@ export default function WorkTimeComparison({
         diffMinutes += 24 * 60; // 24시간 추가
       }
       
-      return diffMinutes / 60; // 시간으로 변환
+      // 🔥 부동소수점 오차 방지: 분 단위로 계산 후 시간으로 변환 시 반올림
+      // 예: 301분 = 5.016666... → 5.0167 (소수점 4자리 반올림)
+      const hours = diffMinutes / 60;
+      return Math.round(hours * 10000) / 10000; // 소수점 4자리까지 정확도 유지
     } catch (error) {
       console.error('시간 범위 파싱 오류:', error, 'timeRange:', timeRange);
       return 0;
@@ -3269,7 +3275,8 @@ export default function WorkTimeComparison({
                               const newActualTimeRange = editingActualTimeRangeValue;
                               const updatedResults = [...comparisonResults];
                               // actualWorkHours 재계산
-                              const newActualWorkHours = Math.max(0, parseTimeRangeToHours(newActualTimeRange) - (result.actualBreakTime || 0));
+                              // 🔥 부동소수점 오차 방지: 계산 후 반올림 (소수점 4자리까지)
+                              const newActualWorkHours = Math.round((Math.max(0, parseTimeRangeToHours(newActualTimeRange) - (result.actualBreakTime || 0))) * 10000) / 10000;
                               // difference 재계산: 실제순근무시간 - 스케줄시간
                               const newDifference = newActualWorkHours - result.scheduledHours;
                               // status 재계산: 10분(0.17시간) 이상 차이나면 확인필요
@@ -3345,7 +3352,8 @@ export default function WorkTimeComparison({
                               
                               const updatedResults = [...comparisonResults];
                               // actualWorkHours 재계산
-                              const newActualWorkHours = Math.max(0, parseTimeRangeToHours(result.actualTimeRange || '') - newActualBreakTime);
+                              // 🔥 부동소수점 오차 방지: 계산 후 반올림 (소수점 4자리까지)
+                              const newActualWorkHours = Math.round((Math.max(0, parseTimeRangeToHours(result.actualTimeRange || '') - newActualBreakTime)) * 10000) / 10000;
                               // difference 재계산: 실제순근무시간 - 스케줄시간
                               const newDifference = newActualWorkHours - result.scheduledHours;
                               // status 재계산: 10분(0.17시간) 이상 차이나면 확인필요
@@ -3497,7 +3505,8 @@ export default function WorkTimeComparison({
                                           actualHours: result.scheduledHours,
                                           actualTimeRange: result.scheduledTimeRange, // actualTimeRange = scheduledTimeRange
                                           actualBreakTime: scheduledBreakTime, // 🔥 스케줄 휴게시간 복사
-                                          actualWorkHours: Math.max(0, parseTimeRangeToHours(result.scheduledTimeRange || '') - scheduledBreakTime), // actualTimeRange에서 계산
+                                          // 🔥 부동소수점 오차 방지: 계산 후 반올림 (소수점 4자리까지)
+                                          actualWorkHours: Math.round((Math.max(0, parseTimeRangeToHours(result.scheduledTimeRange || '') - scheduledBreakTime)) * 10000) / 10000, // actualTimeRange에서 계산
                                           difference: 0, // 스케줄과 동일하므로 차이 0
                                           status: result.status === 'time_match' ? 'time_match' : 'review_completed', // 시간일치면 시간일치 유지, 아니면 확인완료
                                           isModified: true
