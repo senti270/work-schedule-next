@@ -1071,8 +1071,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     if (!selectedMonth || !selectedEmployeeId || payrollResults.length === 0) return;
     
     try {
-      const normalizedResults = payrollResults.map(applyLineItemTotals);
-      setPayrollResults(normalizedResults);
+      // 🔥 사용자가 수정한 내용을 그대로 저장하기 위해 applyLineItemTotals를 호출하지 않음
+      // 이미 updateLineItems에서 applyLineItemTotals가 호출되어 최신 상태로 유지됨
+      const normalizedResults = payrollResults;
       // 1. confirmedPayrolls에 급여 확정 데이터 추가
       // 총액 계산 (세무사 전송파일/이체파일에서 사용)
       const totalGrossPay = normalizedResults.reduce((sum, r) => sum + (r.grossPay || 0), 0);
@@ -1138,7 +1139,24 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
 
       const finalData = removeUndefined(confirmedPayrollData);
       
-      await addDoc(collection(db, 'confirmedPayrolls'), finalData);
+      // 기존 급여 확정 데이터가 있는지 확인하고 업데이트 또는 추가
+      const existingPayrollQuery = query(
+        collection(db, 'confirmedPayrolls'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('month', '==', selectedMonth)
+      );
+      const existingPayrollSnapshot = await getDocs(existingPayrollQuery);
+      
+      if (!existingPayrollSnapshot.empty) {
+        // 기존 데이터가 있으면 업데이트
+        const existingDocId = existingPayrollSnapshot.docs[0].id;
+        await updateDoc(doc(db, 'confirmedPayrolls', existingDocId), finalData);
+        console.log('🔥 기존 급여 확정 데이터 업데이트됨:', existingDocId);
+      } else {
+        // 기존 데이터가 없으면 새로 추가
+        await addDoc(collection(db, 'confirmedPayrolls'), finalData);
+        console.log('🔥 새로운 급여 확정 데이터 추가됨');
+      }
       
       // 2. 급여확정 상태 업데이트
       setIsPayrollConfirmed(true);

@@ -3117,15 +3117,24 @@ export default function WorkTimeComparison({
                                 if (rowToDelete.docId) {
                                   try {
                                     await deleteDoc(doc(db, 'workTimeComparisonResults', rowToDelete.docId));
-                                    console.log('DB에서 비교결과 삭제됨:', rowToDelete.docId);
+                                    console.log('🔥 DB에서 비교결과 삭제됨:', rowToDelete.docId, '날짜:', rowToDelete.date);
                                   } catch (error) {
                                     console.error('DB 삭제 실패:', error);
+                                    return;
                                   }
                                 }
                                 
+                                // 화면에서 제거
                                 const updated = comparisonResults.filter((_, i) => i !== index);
                                 setComparisonResults(updated);
-                                saveComparisonResults(updated).catch(err => console.error('행 삭제 실패:', err));
+                                
+                                // 삭제 후 데이터 다시 로드하여 최신 상태 확인
+                                try {
+                                  await loadExistingComparisonData();
+                                  console.log('🔥 삭제 후 데이터 다시 로드 완료');
+                                } catch (error) {
+                                  console.error('데이터 다시 로드 실패:', error);
+                                }
                               }}
                               className="ml-2 px-2 py-1 border border-red-300 text-red-600 rounded text-xs hover:bg-red-50"
                             >
@@ -3447,22 +3456,26 @@ export default function WorkTimeComparison({
                                 if (rowToDelete.docId) {
                                   try {
                                     await deleteDoc(doc(db, 'workTimeComparisonResults', rowToDelete.docId));
-                                    console.log('DB에서 비교결과 삭제됨:', rowToDelete.docId);
+                                    console.log('🔥 DB에서 비교결과 삭제됨:', rowToDelete.docId, '날짜:', rowToDelete.date);
                                   } catch (error) {
                                     console.error('DB 삭제 실패:', error);
+                                    alert('삭제 중 오류가 발생했습니다.');
+                                    return;
                                   }
                                 }
                                 
+                                // 화면에서 제거
                                 const updatedResults = sortComparisonResults(
                                   comparisonResults.filter((_, i) => i !== index)
                                 );
                                 setComparisonResults(updatedResults);
+                                
+                                // 삭제 후 데이터 다시 로드하여 최신 상태 확인
                                 try {
-                                  await saveComparisonResults(updatedResults);
-                                } catch (error) {
-                                  console.error('비교결과 행 삭제 실패:', error);
-                                  alert('행 삭제 중 오류가 발생했습니다. 다시 시도해주세요.');
                                   await loadExistingComparisonData();
+                                  console.log('🔥 삭제 후 데이터 다시 로드 완료');
+                                } catch (error) {
+                                  console.error('데이터 다시 로드 실패:', error);
                                 }
                               }}
                               className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700"
