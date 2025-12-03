@@ -2203,6 +2203,8 @@ export default function WorkTimeComparison({
         actualHours: result.actualHours,
         actualWorkHours: result.actualWorkHours,
         breakTime: result.breakTime,
+        // 🔥 실휴게시간도 함께 저장 (0도 유효값이므로 그대로 사용)
+        actualBreakTime: result.actualBreakTime ?? 0,
         scheduledHours: result.scheduledHours,
         difference: result.difference,
         status: result.status,
