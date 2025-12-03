@@ -1145,14 +1145,43 @@ export default function WorkTimeComparison({
           const breakTime = parseFloat(schedule.breakTime) || 0;
           const actualBreakTime = breakTime; // 최초 스케줄 휴게시간으로 설정
           
+          // 🔥 스케줄 시간 계산: totalHours가 0이거나 없으면 computeScheduleHours로 재계산
+          let scheduledHours = Number(schedule.totalHours) || 0;
+          if (scheduledHours === 0) {
+            scheduledHours = computeScheduleHours(schedule);
+            console.log(`✅ 스케줄 시간 재계산: ${scheduleDate}, ${scheduledHours}시간 (원본: ${schedule.totalHours})`);
+          }
+          
+          // scheduledTimeRange 생성
+          let scheduledTimeRange = '-';
+          if (schedule.startTime && schedule.endTime) {
+            let startTimeOnly = schedule.startTime;
+            let endTimeOnly = schedule.endTime;
+            // 날짜+시간 형식이면 시간만 추출
+            if (startTimeOnly.includes(' ')) {
+              startTimeOnly = startTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || startTimeOnly;
+            }
+            if (endTimeOnly.includes(' ')) {
+              endTimeOnly = endTimeOnly.split(' ')[1]?.split(':').slice(0, 2).join(':') || endTimeOnly;
+            }
+            // "14" 같은 형식이면 "14:00"으로 변환
+            if (!startTimeOnly.includes(':')) {
+              startTimeOnly = `${startTimeOnly.padStart(2, '0')}:00`;
+            }
+            if (!endTimeOnly.includes(':')) {
+              endTimeOnly = `${endTimeOnly.padStart(2, '0')}:00`;
+            }
+            scheduledTimeRange = `${startTimeOnly}-${endTimeOnly}`;
+          }
+          
           scheduleOnlyComparisons.push({
             employeeName: formatEmployeeNameWithBranch(schedule.employeeName, branchName),
             date: scheduleDate,
-            scheduledHours: schedule.totalHours,
+            scheduledHours: scheduledHours,
             actualHours: 0, // 실제근무 데이터 없음
-            difference: -schedule.totalHours, // 스케줄 시간만큼 마이너스
+            difference: -scheduledHours, // 스케줄 시간만큼 마이너스
             status: 'review_required',
-            scheduledTimeRange: `${schedule.startTime}-${schedule.endTime}`,
+            scheduledTimeRange: scheduledTimeRange,
             actualTimeRange: '데이터 없음',
             isModified: false,
             breakTime: breakTime,
@@ -1377,6 +1406,20 @@ export default function WorkTimeComparison({
           const actualTimeRangeHours = parseTimeRangeToHours(actualTimeRange);
           const actualWorkHours = Math.max(0, actualTimeRangeHours - actualBreakTime);
           
+          // 🔥 scheduledTotalHours가 0이면 재계산 시도
+          if (scheduledTotalHours === 0 && day.originalSchedules && day.originalSchedules.length > 0) {
+            console.warn(`⚠️ scheduledTotalHours가 0입니다. 재계산 시도: ${scheduleDate}`);
+            let recalculatedHours = 0;
+            for (const origSchedule of day.originalSchedules) {
+              const hours = computeScheduleHours(origSchedule);
+              recalculatedHours += hours;
+            }
+            if (recalculatedHours > 0) {
+              scheduledTotalHours = recalculatedHours;
+              console.log(`✅ scheduledTotalHours 재계산 성공: ${scheduleDate}, ${scheduledTotalHours}시간`);
+            }
+          }
+          
           // 차이 계산: 실제순근무시간 - 스케줄시간 (많이 하면 +, 적게 하면 -)
           const difference = actualWorkHours - scheduledTotalHours;
           let status: 'time_match' | 'review_required' | 'review_completed' = 'time_match';
@@ -1411,6 +1454,20 @@ export default function WorkTimeComparison({
         // 여기서는 날짜를 별도 Set에 기록하지 않는다.
       } else {
         // 스케줄은 있지만 실제근무 데이터가 없는 경우
+        // 🔥 scheduledTotalHours가 0이면 재계산 시도
+        if (scheduledTotalHours === 0 && day.originalSchedules && day.originalSchedules.length > 0) {
+          console.warn(`⚠️ scheduledTotalHours가 0입니다. 재계산 시도: ${scheduleDate}`);
+          let recalculatedHours = 0;
+          for (const origSchedule of day.originalSchedules) {
+            const hours = computeScheduleHours(origSchedule);
+            recalculatedHours += hours;
+          }
+          if (recalculatedHours > 0) {
+            scheduledTotalHours = recalculatedHours;
+            console.log(`✅ scheduledTotalHours 재계산 성공: ${scheduleDate}, ${scheduledTotalHours}시간`);
+          }
+        }
+        
         // 휴게시간과 실근무시간 계산 (실제근무 데이터가 없는 경우)
         const breakTime = day.breakTimeSum || 0;
         const actualBreakTime = breakTime; // 최초 스케줄 휴게시간 가져오기

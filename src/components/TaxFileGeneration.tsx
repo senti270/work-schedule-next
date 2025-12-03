@@ -228,7 +228,8 @@ const TaxFileGeneration: React.FC = () => {
       }
       
       tableDataMap.set(key, {
-        id: payroll.id,
+        id: payroll.employeeId, // 🔥 직원 ID로 변경 (payroll.id가 아닌 employeeId 사용)
+        payrollId: payroll.id, // payroll.id는 별도로 저장 (필요시 사용)
         residentNumber: employee?.residentNumber || '-',
         employeeName: payroll.employeeName,
         hireDate: hireDateStr,
@@ -515,14 +516,19 @@ const TaxFileGeneration: React.FC = () => {
                             className="flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                             placeholder="비고 입력"
                           />
-                          {editingMemo[row.id] !== undefined && editingMemo[row.id] !== row.memo && (
-                            <button
-                              onClick={() => saveMemo(row.id, editingMemo[row.id])}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium whitespace-nowrap"
-                            >
-                              저장
-                            </button>
-                          )}
+                          {editingMemo[row.id] !== undefined && editingMemo[row.id] !== row.memo && (() => {
+                            // 🔥 직원별로 그룹화되어 있으므로, 해당 직원의 첫 번째 payroll을 찾아서 사용
+                            const payroll = normalizedAllPayrolls.find(p => p.employeeId === row.id);
+                            const payrollId = payroll?.id || row.payrollId;
+                            return (
+                              <button
+                                onClick={() => payrollId && saveMemo(payrollId, editingMemo[row.id])}
+                                className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium whitespace-nowrap"
+                              >
+                                저장
+                              </button>
+                            );
+                          })()}
                         </div>
                       </td>
                     </tr>

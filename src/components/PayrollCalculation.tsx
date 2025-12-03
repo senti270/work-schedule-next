@@ -742,7 +742,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       const contractsSnapshot = await getDocs(
         query(collection(db, 'employmentContracts'), where('employeeId', '==', selectedEmployeeId))
       );
-      const contracts = contractsSnapshot.docs
+      
+      // 선택된 월의 시작일과 끝일 계산
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd = new Date(year, month, 0, 23, 59, 59);
+      
+      // 먼저 모든 계약을 로드하고 정렬
+      const allContracts = contractsSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter((c: any) => c.startDate) // startDate 필수
         .map((c: any) => ({
@@ -750,8 +757,28 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           startDate: c.startDate?.toDate ? c.startDate.toDate() : new Date(c.startDate)
         }))
         .sort((a: any, b: any) => a.startDate.getTime() - b.startDate.getTime()); // startDate 기준 정렬
+      
+      // 🔥 선택된 월에 유효한 계약만 필터링
+      // 계약이 선택된 월과 겹치는지 확인: 계약 시작일이 선택된 월의 끝일 이전이고, 계약 종료일(다음 계약 시작일 - 1일)이 선택된 월의 시작일 이후
+      const contracts = allContracts.filter((c: any, index: number) => {
+        const contractStart = c.startDate;
+        // 다음 계약이 있으면 그 시작일 - 1일이 종료일, 없으면 무한대(월의 끝일까지)
+        const contractEnd = index < allContracts.length - 1 
+          ? new Date(allContracts[index + 1].startDate.getTime() - 1)
+          : monthEnd;
+        
+        // 계약이 선택된 월과 겹치는지 확인
+        // 계약 시작일이 선택된 월의 끝일 이전이고, 계약 종료일이 선택된 월의 시작일 이후여야 함
+        const overlaps = contractStart <= monthEnd && contractEnd >= monthStart;
+        
+        if (!overlaps) {
+          console.log(`🔥 계약 제외: ${c.startDate.toISOString().split('T')[0]} ~ ${contractEnd.toISOString().split('T')[0]} (선택된 월: ${selectedMonth})`);
+        }
+        
+        return overlaps;
+      });
 
-      console.log('🔥 employmentContracts 로드:', contracts.length, '건');
+      console.log('🔥 employmentContracts 로드:', contracts.length, '건 (선택된 월:', selectedMonth, ')');
 
       // 스케줄 데이터 처리 (월급직의 경우 빈 배열)
       const scheduleData = schedulesToUse.length > 0 ? 
