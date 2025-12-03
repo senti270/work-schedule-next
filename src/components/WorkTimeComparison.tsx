@@ -3110,7 +3110,19 @@ export default function WorkTimeComparison({
                           />
                           {result.isNew && (
                             <button
-                              onClick={() => {
+                              onClick={async () => {
+                                const rowToDelete = comparisonResults[index];
+                                
+                                // DB에서도 삭제 (docId가 있는 경우)
+                                if (rowToDelete.docId) {
+                                  try {
+                                    await deleteDoc(doc(db, 'workTimeComparisonResults', rowToDelete.docId));
+                                    console.log('DB에서 비교결과 삭제됨:', rowToDelete.docId);
+                                  } catch (error) {
+                                    console.error('DB 삭제 실패:', error);
+                                  }
+                                }
+                                
                                 const updated = comparisonResults.filter((_, i) => i !== index);
                                 setComparisonResults(updated);
                                 saveComparisonResults(updated).catch(err => console.error('행 삭제 실패:', err));
@@ -3429,6 +3441,18 @@ export default function WorkTimeComparison({
                                 if (!confirm('해당 비교 결과 행을 삭제하시겠습니까?')) {
                                   return;
                                 }
+                                const rowToDelete = comparisonResults[index];
+                                
+                                // DB에서도 삭제 (docId가 있는 경우)
+                                if (rowToDelete.docId) {
+                                  try {
+                                    await deleteDoc(doc(db, 'workTimeComparisonResults', rowToDelete.docId));
+                                    console.log('DB에서 비교결과 삭제됨:', rowToDelete.docId);
+                                  } catch (error) {
+                                    console.error('DB 삭제 실패:', error);
+                                  }
+                                }
+                                
                                 const updatedResults = sortComparisonResults(
                                   comparisonResults.filter((_, i) => i !== index)
                                 );
