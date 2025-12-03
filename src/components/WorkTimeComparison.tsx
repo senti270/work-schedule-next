@@ -2121,7 +2121,8 @@ export default function WorkTimeComparison({
             actualTimeRange: data.actualTimeRange || '-',
             isModified: data.isModified || false,
             breakTime: breakTime, // 🔥 복구된 휴게시간 사용
-            actualBreakTime: data.actualBreakTime || breakTime || 0, // 🔥 actualBreakTime이 없으면 breakTime 사용
+            // 🔥 actualBreakTime이 0인 경우도 유효값이므로, nullish 병합 연산자로 처리 (0을 덮어쓰지 않도록)
+            actualBreakTime: (data.actualBreakTime ?? breakTime ?? 0),
             actualWorkHours: data.actualWorkHours || 0,
             posTimeRange: data.posTimeRange || '',
             branchId: data.branchId,
