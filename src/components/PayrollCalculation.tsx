@@ -428,7 +428,7 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         return;
       }
       
-      let schedulesData = schedulesSnapshot.docs.map(doc => {
+      const schedulesData = schedulesSnapshot.docs.map(doc => {
         const data = doc.data();
         console.log('🔥 스케줄 데이터:', data);
         return {
@@ -441,53 +441,8 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         };
       }) as Schedule[];
 
-      // 🔧 첫 주 보정: 해당 월의 첫 주(일~토)가 시작되는 일요일부터만 전월 데이터 추가
-      try {
-        const [year, monthNum] = selectedMonth.split('-').map(Number);
-        const monthStart = new Date(year, monthNum - 1, 1);
-        
-        // 해당 월의 첫 주의 일요일 계산 (월의 첫 날이 포함된 주의 시작)
-        const firstDayOfMonth = monthStart.getDay(); // 0=일요일, 6=토요일
-        const firstSunday = new Date(monthStart);
-        firstSunday.setDate(firstSunday.getDate() - firstDayOfMonth); // 첫 주의 일요일
-        
-        // 전월 데이터는 첫 주의 일요일부터만 가져오기 (9/28~9/30 같은 경우)
-        if (firstSunday < monthStart) {
-          const prevMonthStr = `${firstSunday.getFullYear()}-${String(firstSunday.getMonth() + 1).padStart(2, '0')}`;
-          
-          const prevQuery = query(
-            collection(db, 'workTimeComparisonResults'),
-            where('month', '==', prevMonthStr),
-            where('employeeId', '==', selectedEmployeeId)
-          );
-          const prevSnap = await getDocs(prevQuery);
-          const prevData = prevSnap.docs.map(doc => doc.data()).filter(d => {
-            const dDate: Date = d.date?.toDate ? d.date.toDate() : new Date(d.date);
-            return dDate >= firstSunday && dDate < monthStart; // 첫 주의 일요일~월 시작 전
-          }).map(d => ({
-            employeeId: d.employeeId,
-            date: d.date?.toDate ? d.date.toDate() : new Date(d.date),
-            actualWorkHours: d.actualWorkHours || 0,
-            branchId: d.branchId,
-            branchName: d.branchName || '지점명 없음',
-            breakTime: d.breakTime || 0
-          })) as Schedule[];
-          if (prevData.length > 0) {
-            const prevTotalHours = prevData.reduce((sum, d) => sum + (d.actualWorkHours || 0), 0);
-            console.log('🔧 전월 보정 데이터 추가 (첫 주 일요일부터):', prevData.length, '건, 총', prevTotalHours, '시간');
-            console.log('🔧 전월 보정 데이터 상세:', prevData.map(d => ({
-              date: d.date,
-              actualWorkHours: d.actualWorkHours,
-              branchName: d.branchName
-            })));
-            schedulesData = schedulesData.concat(prevData);
-          }
-        }
-      } catch (e) {
-        console.warn('전월 보정 로드 실패(무시 가능):', e);
-      }
-
-      console.log('🔥 변환된 스케줄 데이터:', schedulesData);
+      // 전월 보정 제거: 해당 월의 데이터만 사용 (주휴수당 계산은 별도 처리)
+      console.log('🔥 변환된 스케줄 데이터 (해당 월만):', schedulesData);
       setWeeklySchedules(schedulesData);
     } catch (error) {
       console.error('스케줄 로드 실패:', error);
