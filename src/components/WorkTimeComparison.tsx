@@ -2124,45 +2124,8 @@ export default function WorkTimeComparison({
       // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
       const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
       
-      // 기존 데이터 삭제
-      const existingQuery = query(
-        collection(db, 'actualWorkRecords'),
-        where('employeeId', '==', selectedEmployeeId),
-        where('month', '==', selectedMonth),
-        where('branchId', '==', branchId)
-      );
-      
-      const existingSnapshot = await getDocs(existingQuery);
-      console.log('기존 데이터 삭제:', existingSnapshot.docs.length, '건');
-      
-      const deletePromises = existingSnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-      
-      // 새로운 데이터 저장
-      const savePromises = results.map(result => {
-        const actualWorkRecord = {
-          employeeId: selectedEmployeeId,
-          employeeName: result.employeeName,
-          date: result.date,
-          month: selectedMonth,
-          branchId: branchId,
-          scheduledHours: result.scheduledHours,
-          actualHours: result.actualHours,
-          difference: result.difference,
-          status: result.status,
-          scheduledTimeRange: result.scheduledTimeRange,
-          actualTimeRange: result.actualTimeRange,
-          isModified: result.isModified,
-          breakTime: result.breakTime || 0,
-          actualWorkHours: result.actualWorkHours || 0,
-          createdAt: new Date()
-        };
-        
-        return addDoc(collection(db, 'actualWorkRecords'), actualWorkRecord);
-      });
-      
-      await Promise.all(savePromises);
-      console.log('모든 비교 결과가 DB에 저장되었습니다:', results.length, '건');
+      // actualWorkRecords 저장 로직 제거 (workTimeComparisonResults만 사용)
+      console.log('비교 결과 저장 시작:', results.length, '건');
     } catch (error) {
       console.error('비교 결과 저장 실패:', error);
     }
@@ -2192,44 +2155,8 @@ export default function WorkTimeComparison({
         actualTimeRange: result.actualTimeRange
       };
 
-      // 기존 데이터가 있는지 확인 (더 정확한 중복 확인)
-      const existingQuery = query(
-        collection(db, 'actualWorkRecords'),
-        where('employeeId', '==', selectedEmployeeId),
-        where('date', '==', result.date),
-        where('month', '==', selectedMonth)
-      );
-      
-      const existingDocs = await getDocs(existingQuery);
-      
-      if (existingDocs.empty) {
-        // 새로 추가
-        await addDoc(collection(db, 'actualWorkRecords'), actualWorkRecord);
-        console.log('새로운 실제근무 데이터 저장됨:', actualWorkRecord);
-      } else {
-        // 기존 데이터가 여러 개인 경우 첫 번째 것만 업데이트하고 나머지는 삭제
-        if (existingDocs.docs.length > 1) {
-          console.log(`중복 데이터 발견: ${existingDocs.docs.length}개, 첫 번째 것만 유지하고 나머지 삭제`);
-          
-          // 첫 번째 문서는 업데이트
-          const firstDocId = existingDocs.docs[0].id;
-          await updateDoc(doc(db, 'actualWorkRecords', firstDocId), actualWorkRecord);
-          console.log('첫 번째 실제근무 데이터 업데이트됨:', actualWorkRecord);
-          
-          // 나머지 문서들은 삭제
-          for (let i = 1; i < existingDocs.docs.length; i++) {
-            await deleteDoc(doc(db, 'actualWorkRecords', existingDocs.docs[i].id));
-            console.log(`중복 데이터 삭제됨: ${existingDocs.docs[i].id}`);
-          }
-        } else {
-          // 기존 데이터 업데이트
-          const docId = existingDocs.docs[0].id;
-          await updateDoc(doc(db, 'actualWorkRecords', docId), actualWorkRecord);
-          console.log('기존 실제근무 데이터 업데이트됨:', actualWorkRecord);
-        }
-      }
-
-      // workTimeComparisonResults 컬렉션에도 저장 (비교결과용)
+      // actualWorkRecords 저장 로직 제거 (workTimeComparisonResults만 사용)
+      // workTimeComparisonResults 컬렉션에 저장 (비교결과용)
       const comparisonQuery = query(
         collection(db, 'workTimeComparisonResults'),
         where('employeeId', '==', selectedEmployeeId),

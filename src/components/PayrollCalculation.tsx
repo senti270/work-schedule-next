@@ -428,12 +428,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         return;
       }
       
+      // employeeId와 month로 이미 필터링되었으므로 날짜 필터링 불필요
+      // actualWorkHours 합산
       const schedulesData = schedulesSnapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('🔥 스케줄 데이터:', data);
+        const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
         return {
           employeeId: data.employeeId,
-          date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
+          date: date,
           actualWorkHours: data.actualWorkHours || 0,
           branchId: data.branchId,
           branchName: data.branchName,
@@ -442,7 +444,9 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       }) as Schedule[];
 
       // 전월 보정 제거: 해당 월의 데이터만 사용 (주휴수당 계산은 별도 처리)
-      console.log('🔥 변환된 스케줄 데이터 (해당 월만):', schedulesData);
+      console.log('🔥 변환된 스케줄 데이터 (해당 월만):', schedulesData.length, '건');
+      const totalHours = schedulesData.reduce((sum, s) => sum + (s.actualWorkHours || 0), 0);
+      console.log('🔥 loadSchedules 총 근무시간:', totalHours, '시간');
       setWeeklySchedules(schedulesData);
     } catch (error) {
       console.error('스케줄 로드 실패:', error);
@@ -521,21 +525,13 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     const isMonthlySalary = employee.salaryType === 'monthly';
     
     // 스케줄 데이터 로드 (상태에 의존하지 않고 직접 로드)
-    // 해당 월의 시작일과 종료일 계산
-    const [year, monthNum] = selectedMonth.split('-').map(Number);
-    const monthStart = new Date(year, monthNum - 1, 1);
-    const monthEnd = new Date(year, monthNum, 0, 23, 59, 59);
-    
-    // weeklySchedules에서도 해당 월의 데이터만 필터링
-    let schedulesToUse = weeklySchedules.filter(schedule => {
-      const scheduleDate = new Date(schedule.date);
-      return scheduleDate >= monthStart && scheduleDate <= monthEnd;
-    });
+    let schedulesToUse = weeklySchedules;
     
     if (!schedulesToUse.length && !isMonthlySalary) {
       console.log('🔥 weeklySchedules가 비어있음 - workTimeComparisonResults에서 직접 로드');
       
       try {
+        // employeeId와 month로 필터링하여 actualWorkHours 합산
         const comparisonQuery = query(
           collection(db, 'workTimeComparisonResults'),
           where('month', '==', selectedMonth),
@@ -552,31 +548,22 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         } else {
           console.log('🔥 workTimeComparisonResults에서 직접 로드:', comparisonSnapshot.docs.length, '건');
           
-          // workTimeComparisonResults에서 직접 스케줄 데이터 생성 (해당 월의 날짜만 필터링)
-          schedulesToUse = comparisonSnapshot.docs
-            .map(doc => {
-              const data = doc.data();
-              const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
-              return {
-                employeeId: data.employeeId,
-                date: date,
-                actualWorkHours: data.actualWorkHours || 0,
-                branchId: data.branchId,
-                branchName: data.branchName,
-                breakTime: data.breakTime || 0
-              };
-            })
-            .filter(schedule => {
-              // 해당 월에 속하는 날짜만 포함
-              const scheduleDate = new Date(schedule.date);
-              const isInMonth = scheduleDate >= monthStart && scheduleDate <= monthEnd;
-              if (!isInMonth) {
-                console.log('🔥 전월 데이터 제외:', schedule.date, 'actualWorkHours:', schedule.actualWorkHours);
-              }
-              return isInMonth;
-            }) as Schedule[];
+          // employeeId와 month로 이미 필터링되었으므로 날짜 필터링 불필요
+          // actualWorkHours 합산
+          schedulesToUse = comparisonSnapshot.docs.map(doc => {
+            const data = doc.data();
+            const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+            return {
+              employeeId: data.employeeId,
+              date: date,
+              actualWorkHours: data.actualWorkHours || 0,
+              branchId: data.branchId,
+              branchName: data.branchName,
+              breakTime: data.breakTime || 0
+            };
+          }) as Schedule[];
           
-          console.log('🔥 직접 로드된 스케줄 데이터 (해당 월만):', schedulesToUse.length, '건');
+          console.log('🔥 직접 로드된 스케줄 데이터:', schedulesToUse.length, '건');
           const totalHours = schedulesToUse.reduce((sum, s) => sum + (s.actualWorkHours || 0), 0);
           console.log('🔥 총 근무시간:', totalHours, '시간');
         }
