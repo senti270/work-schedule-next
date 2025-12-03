@@ -1996,6 +1996,8 @@ export default function WorkTimeComparison({
       setComparisonResults([]);
       return;
     }
+    // 🔄 지점/직원/월이 바뀔 때 이전 지점의 비교결과가 잠시라도 남지 않도록 먼저 클리어
+    setComparisonResults([]);
     // 🔒 급여확정 시: DB 로드는 허용하되 편집은 상위에서 차단됨
     
     try {
