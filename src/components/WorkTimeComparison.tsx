@@ -2060,36 +2060,22 @@ export default function WorkTimeComparison({
           };
         });
 
-        // 🔧 같은 날짜(및 POS 시각) 기준 중복 행 정리
-        const dedupMap = new Map<string, typeof existingData[number]>();
-        for (const row of existingData) {
-          const key = `${row.date}|${row.posTimeRange || ''}`;
-          const prev = dedupMap.get(key);
-          if (!prev) {
-            dedupMap.set(key, row);
-          } else {
-            // 1순위: 수동 입력(isManual) 우선
-            if (row.isManual && !prev.isManual) {
-              dedupMap.set(key, row);
-              continue;
-            }
-            if (!row.isManual && prev.isManual) {
-              continue;
-            }
-            // 2순위: 실제 근무시각/근무시간이 더 잘 채워진 쪽 우선
-            const rowHasActual = !!row.actualTimeRange && row.actualTimeRange !== '-';
-            const prevHasActual = !!prev.actualTimeRange && prev.actualTimeRange !== '-';
-            if (rowHasActual && !prevHasActual) {
-              dedupMap.set(key, row);
-            }
-          }
-        }
-
-        const deduped = Array.from(dedupMap.values());
+        // 🔧 중복 제거 제거: 모든 데이터를 보여줘서 사용자가 직접 확인하고 삭제할 수 있도록
         // 날짜순으로 정렬
-        deduped.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        setComparisonResults(deduped);
-        console.log('기존 비교 데이터 로드됨(중복 정리 후):', deduped);
+        existingData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        setComparisonResults(existingData);
+        console.log('기존 비교 데이터 로드됨 (중복 포함):', existingData.length, '건');
+        
+        // 중복 데이터가 있는지 확인
+        const duplicateMap = new Map<string, number>();
+        existingData.forEach(row => {
+          const key = `${row.date}|${row.posTimeRange || ''}`;
+          duplicateMap.set(key, (duplicateMap.get(key) || 0) + 1);
+        });
+        const duplicates = Array.from(duplicateMap.entries()).filter(([_, count]) => count > 1);
+        if (duplicates.length > 0) {
+          console.warn('⚠️ 중복 데이터 발견:', duplicates.map(([key, count]) => `${key} (${count}건)`));
+        }
         
         // 🔥 상태는 DB에 저장된 실제 상태를 유지하므로, 비교 데이터 로드 시 상태를 변경하지 않음
         // 상태 변경은 사용자가 명시적으로 버튼을 클릭했을 때만 이루어져야 함

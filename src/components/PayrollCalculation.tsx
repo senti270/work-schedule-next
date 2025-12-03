@@ -419,6 +419,22 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       
       const schedulesSnapshot = await getDocs(schedulesQuery);
       console.log('🔥 workTimeComparisonResults 조회 결과:', schedulesSnapshot.docs.length, '건');
+      console.log('🔥 조회 조건:', { month: selectedMonth, employeeId: selectedEmployeeId });
+      
+      // 각 문서의 month 필드와 date 필드 확인
+      schedulesSnapshot.docs.forEach((doc, idx) => {
+        const data = doc.data();
+        const docDate = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+        const docMonth = `${docDate.getFullYear()}-${String(docDate.getMonth() + 1).padStart(2, '0')}`;
+        console.log(`🔥 문서 ${idx + 1}:`, {
+          저장된month: data.month,
+          실제날짜month: docMonth,
+          date: docDate.toISOString().split('T')[0],
+          actualWorkHours: data.actualWorkHours,
+          month일치: data.month === selectedMonth,
+          날짜일치: docMonth === selectedMonth
+        });
+      });
       
       if (schedulesSnapshot.empty && retryCount < 2) {
         console.log('🔥 데이터 없음 - 1초 후 재시도:', retryCount + 1);
@@ -428,23 +444,84 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         return;
       }
       
-      // employeeId와 month로 이미 필터링되었으므로 날짜 필터링 불필요
-      // actualWorkHours 합산
-      const schedulesData = schedulesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
-        return {
-          employeeId: data.employeeId,
-          date: date,
-          actualWorkHours: data.actualWorkHours || 0,
-          branchId: data.branchId,
-          branchName: data.branchName,
-          breakTime: data.breakTime || 0
-        };
-      }) as Schedule[];
+      // 해당 월의 시작일과 종료일 계산 (month 필드가 잘못 저장된 경우 대비)
+      const [year, monthNum] = selectedMonth.split('-').map(Number);
+      const monthStart = new Date(year, monthNum - 1, 1);
+      const monthEnd = new Date(year, monthNum, 0, 23, 59, 59);
+      
+      // employeeId와 month로 필터링 후, 실제 날짜로도 필터링 (month 필드 오류 대비)
+      const allSchedules = schedulesSnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+          return {
+            employeeId: data.employeeId,
+            date: date,
+            actualWorkHours: data.actualWorkHours || 0,
+            branchId: data.branchId,
+            branchName: data.branchName,
+            breakTime: data.breakTime || 0,
+            posTimeRange: data.posTimeRange || '',
+            isManual: data.isManual || false,
+            docId: doc.id
+          };
+        })
+        .filter(schedule => {
+          // 실제 날짜가 해당 월에 속하는지 확인
+          const scheduleDate = new Date(schedule.date);
+          const isInMonth = scheduleDate >= monthStart && scheduleDate <= monthEnd;
+          if (!isInMonth) {
+            console.log('🔥 loadSchedules: 전월/다음월 데이터 제외:', {
+              date: schedule.date.toISOString().split('T')[0],
+              actualWorkHours: schedule.actualWorkHours,
+              저장된month: schedulesSnapshot.docs.find(d => {
+                const dData = d.data();
+                const dDate = dData.date?.toDate ? dData.date.toDate() : new Date(dData.date);
+                return dDate.getTime() === schedule.date.getTime();
+              })?.data()?.month
+            });
+          }
+          return isInMonth;
+        });
+      
+      // 🔧 같은 날짜(및 POS 시각) 기준 중복 제거 (근무시간비교와 동일한 로직)
+      const dedupMap = new Map<string, typeof allSchedules[number]>();
+      for (const row of allSchedules) {
+        const dateStr = row.date.toISOString().split('T')[0];
+        const key = `${dateStr}|${row.posTimeRange || ''}`;
+        const prev = dedupMap.get(key);
+        if (!prev) {
+          dedupMap.set(key, row);
+        } else {
+          // 1순위: 수동 입력(isManual) 우선
+          if (row.isManual && !prev.isManual) {
+            dedupMap.set(key, row);
+            continue;
+          }
+          if (!row.isManual && prev.isManual) {
+            continue;
+          }
+          // 2순위: actualWorkHours가 더 큰 쪽 우선
+          if (row.actualWorkHours > prev.actualWorkHours) {
+            dedupMap.set(key, row);
+          }
+        }
+      }
+      
+      const schedulesData = Array.from(dedupMap.values()).map(({ docId, posTimeRange, isManual, ...rest }) => rest) as Schedule[];
+      
+      if (allSchedules.length !== schedulesData.length) {
+        console.log(`🔥 중복 데이터 제거: ${allSchedules.length}건 → ${schedulesData.length}건`);
+      }
 
       // 전월 보정 제거: 해당 월의 데이터만 사용 (주휴수당 계산은 별도 처리)
       console.log('🔥 변환된 스케줄 데이터 (해당 월만):', schedulesData.length, '건');
+      console.log('🔥 각 레코드 상세:', schedulesData.map(s => ({
+        date: s.date.toISOString().split('T')[0],
+        actualWorkHours: s.actualWorkHours,
+        branchName: s.branchName,
+        month: s.date.getMonth() + 1
+      })));
       const totalHours = schedulesData.reduce((sum, s) => sum + (s.actualWorkHours || 0), 0);
       console.log('🔥 loadSchedules 총 근무시간:', totalHours, '시간');
       setWeeklySchedules(schedulesData);
@@ -538,6 +615,23 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           where('employeeId', '==', selectedEmployeeId)
         );
         const comparisonSnapshot = await getDocs(comparisonQuery);
+        console.log('🔥 calculatePayroll - workTimeComparisonResults 조회 결과:', comparisonSnapshot.docs.length, '건');
+        console.log('🔥 calculatePayroll - 조회 조건:', { month: selectedMonth, employeeId: selectedEmployeeId });
+        
+        // 각 문서의 month 필드와 date 필드 확인
+        comparisonSnapshot.docs.forEach((doc, idx) => {
+          const data = doc.data();
+          const docDate = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+          const docMonth = `${docDate.getFullYear()}-${String(docDate.getMonth() + 1).padStart(2, '0')}`;
+          console.log(`🔥 calculatePayroll - 문서 ${idx + 1}:`, {
+            저장된month: data.month,
+            실제날짜month: docMonth,
+            date: docDate.toISOString().split('T')[0],
+            actualWorkHours: data.actualWorkHours,
+            month일치: data.month === selectedMonth,
+            날짜일치: docMonth === selectedMonth
+          });
+        });
         
         if (comparisonSnapshot.empty) {
           console.log('🔥 근무시간비교 데이터가 없음 - 근무시간비교를 먼저 완료해주세요');
@@ -548,24 +642,82 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         } else {
           console.log('🔥 workTimeComparisonResults에서 직접 로드:', comparisonSnapshot.docs.length, '건');
           
-          // employeeId와 month로 이미 필터링되었으므로 날짜 필터링 불필요
-          // actualWorkHours 합산
-          schedulesToUse = comparisonSnapshot.docs.map(doc => {
-            const data = doc.data();
-            const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
-            return {
-              employeeId: data.employeeId,
-              date: date,
-              actualWorkHours: data.actualWorkHours || 0,
-              branchId: data.branchId,
-              branchName: data.branchName,
-              breakTime: data.breakTime || 0
-            };
-          }) as Schedule[];
+          // 해당 월의 시작일과 종료일 계산 (month 필드가 잘못 저장된 경우 대비)
+          const [year, monthNum] = selectedMonth.split('-').map(Number);
+          const monthStart = new Date(year, monthNum - 1, 1);
+          const monthEnd = new Date(year, monthNum, 0, 23, 59, 59);
+          
+          // employeeId와 month로 필터링 후, 실제 날짜로도 필터링 (month 필드 오류 대비)
+          const allSchedules = comparisonSnapshot.docs
+            .map(doc => {
+              const data = doc.data();
+              const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+              return {
+                employeeId: data.employeeId,
+                date: date,
+                actualWorkHours: data.actualWorkHours || 0,
+                branchId: data.branchId,
+                branchName: data.branchName,
+                breakTime: data.breakTime || 0,
+                posTimeRange: data.posTimeRange || '',
+                isManual: data.isManual || false,
+                docId: doc.id
+              };
+            })
+            .filter(schedule => {
+              // 실제 날짜가 해당 월에 속하는지 확인
+              const scheduleDate = new Date(schedule.date);
+              const isInMonth = scheduleDate >= monthStart && scheduleDate <= monthEnd;
+              if (!isInMonth) {
+                console.log('🔥 calculatePayroll: 전월/다음월 데이터 제외:', {
+                  date: schedule.date.toISOString().split('T')[0],
+                  actualWorkHours: schedule.actualWorkHours
+                });
+              }
+              return isInMonth;
+            });
+          
+          // 🔧 같은 날짜(및 POS 시각) 기준 중복 제거 (근무시간비교와 동일한 로직)
+          const dedupMap = new Map<string, typeof allSchedules[number]>();
+          for (const row of allSchedules) {
+            const dateStr = row.date.toISOString().split('T')[0];
+            const key = `${dateStr}|${row.posTimeRange || ''}`;
+            const prev = dedupMap.get(key);
+            if (!prev) {
+              dedupMap.set(key, row);
+            } else {
+              // 1순위: 수동 입력(isManual) 우선
+              if (row.isManual && !prev.isManual) {
+                dedupMap.set(key, row);
+                continue;
+              }
+              if (!row.isManual && prev.isManual) {
+                continue;
+              }
+              // 2순위: actualWorkHours가 더 큰 쪽 우선
+              if (row.actualWorkHours > prev.actualWorkHours) {
+                dedupMap.set(key, row);
+              }
+            }
+          }
+          
+          schedulesToUse = Array.from(dedupMap.values()).map(({ docId, posTimeRange, isManual, ...rest }) => rest) as Schedule[];
+          
+          if (allSchedules.length !== schedulesToUse.length) {
+            console.log(`🔥 calculatePayroll - 중복 데이터 제거: ${allSchedules.length}건 → ${schedulesToUse.length}건`);
+          }
           
           console.log('🔥 직접 로드된 스케줄 데이터:', schedulesToUse.length, '건');
+          console.log('🔥 각 레코드 상세:', schedulesToUse.map(s => ({
+            date: s.date.toISOString().split('T')[0],
+            actualWorkHours: s.actualWorkHours,
+            branchName: s.branchName,
+            month: s.date.getMonth() + 1,
+            year: s.date.getFullYear()
+          })));
           const totalHours = schedulesToUse.reduce((sum, s) => sum + (s.actualWorkHours || 0), 0);
           console.log('🔥 총 근무시간:', totalHours, '시간');
+          console.log('🔥 선택된 월:', selectedMonth);
         }
       } catch (error) {
         console.error('근무시간비교 데이터 확인 실패:', error);
