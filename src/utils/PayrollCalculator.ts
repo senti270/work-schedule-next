@@ -171,8 +171,28 @@ export class PayrollCalculator {
     
     // 3. 기본급 계산 (수습기간 90% 적용)
     const salaryAmount = this.contract.salaryAmount;
-    const probationPay = Math.round(probationHours * salaryAmount * 0.9);
-    const regularPay = Math.round(regularHours * salaryAmount);
+    
+    // 🔥 정확한 계산을 위해 부동소수점 오차 방지
+    // 계산 순서: (시간 * 시급) * 0.9 또는 (시간 * 시급)
+    // Math.round() 전에 정확한 값 확인
+    const probationPayRaw = probationHours * salaryAmount * 0.9;
+    const regularPayRaw = regularHours * salaryAmount;
+    
+    // 🔥 디버깅 로그
+    console.log('🔥 수습급여 계산:', {
+      employeeName: this.employee.name,
+      probationHours,
+      regularHours,
+      salaryAmount,
+      probationPayRaw,
+      regularPayRaw,
+      probationPayCalculated: Math.round(probationPayRaw),
+      regularPayCalculated: Math.round(regularPayRaw)
+    });
+    
+    // 🔥 정확한 반올림: 부동소수점 오차 보정
+    const probationPay = Math.round(Math.round(probationPayRaw * 100) / 100);
+    const regularPay = Math.round(Math.round(regularPayRaw * 100) / 100);
     const basePay = probationPay + regularPay;
     
     // 4. 주휴수당 계산
@@ -329,8 +349,23 @@ export class PayrollCalculator {
     
     if (this.contract.salaryType === 'hourly' || this.contract.salaryType === '시급') {
       const salaryAmount = this.contract.salaryAmount;
-      probationPay = Math.round(probationHours * salaryAmount * 0.9);
-      regularPay = Math.round(regularHours * salaryAmount);
+      
+      // 🔥 정확한 계산을 위해 부동소수점 오차 방지
+      const probationPayRaw = probationHours * salaryAmount * 0.9;
+      const regularPayRaw = regularHours * salaryAmount;
+      
+      // 🔥 디버깅 로그
+      console.log('🔥 사업소득 수습급여 계산:', {
+        employeeName: this.employee.name,
+        probationHours,
+        regularHours,
+        salaryAmount,
+        probationPayRaw,
+        regularPayRaw
+      });
+      
+      probationPay = Math.round(Math.round(probationPayRaw * 100) / 100);
+      regularPay = Math.round(Math.round(regularPayRaw * 100) / 100);
       basePay = probationPay + regularPay;
     } else {
       const salaryAmount = this.contract.salaryAmount || 0;
@@ -445,8 +480,23 @@ export class PayrollCalculator {
     
     // 3. 기본급 계산 (시급제만)
     const salaryAmount = this.contract.salaryAmount;
-    const probationPay = Math.round(probationHours * salaryAmount * 0.9);
-    const regularPay = Math.round(regularHours * salaryAmount);
+    
+    // 🔥 정확한 계산을 위해 부동소수점 오차 방지
+    const probationPayRaw = probationHours * salaryAmount * 0.9;
+    const regularPayRaw = regularHours * salaryAmount;
+    
+    // 🔥 디버깅 로그
+    console.log('🔥 일용직 수습급여 계산:', {
+      employeeName: this.employee.name,
+      probationHours,
+      regularHours,
+      salaryAmount,
+      probationPayRaw,
+      regularPayRaw
+    });
+    
+    const probationPay = Math.round(Math.round(probationPayRaw * 100) / 100);
+    const regularPay = Math.round(Math.round(regularPayRaw * 100) / 100);
     const basePay = probationPay + regularPay;
     
     // 4. 총 지급액 (세금 없음)

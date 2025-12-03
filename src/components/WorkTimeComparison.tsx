@@ -3461,45 +3461,13 @@ export default function WorkTimeComparison({
                               </button>
                             ) : (
                               // 미확인 상태: 확인 버튼
-                              <button
-                                onClick={async () => {
-                                  const updatedResults = [...comparisonResults];
-                                  updatedResults[index] = {
-                                    ...result,
-                                    status: 'review_completed',
-                                    isModified: true
-                                  };
-                                  setComparisonResults(sortComparisonResults(updatedResults));
-                                  
-                                  // 🔥 비교 결과 테이블의 행별 확인 버튼은 상태를 변경하지 않음
-                                  // 상태 변경은 지점별 검토상태 버튼에서만 이루어짐
-                                  
-                                  // DB에 저장
-                                  await saveModifiedData(updatedResults[index]);
-                                }}
-                                className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
-                              >
-                                확인완료
-                              </button>
-                            )}
-                            {/* 🔥 스케줄시간복사 버튼: 항상 표시 (시간일치 포함) */}
-                            {result.scheduledTimeRange && result.scheduledTimeRange !== '-' && (
-                              <button
-                                onClick={async () => {
-                                  if (confirm('스케줄 시간을 실제 근무시간으로 복사하시겠습니까?')) {
+                              <>
+                                <button
+                                  onClick={async () => {
                                     const updatedResults = [...comparisonResults];
-                                    
-                                    // 🔥 스케줄의 휴게시간도 함께 복사
-                                    const scheduledBreakTime = result.breakTime || 0;
-                                    
                                     updatedResults[index] = {
                                       ...result,
-                                      actualHours: result.scheduledHours,
-                                      actualTimeRange: result.scheduledTimeRange, // actualTimeRange = scheduledTimeRange
-                                      actualBreakTime: scheduledBreakTime, // 🔥 스케줄 휴게시간 복사
-                                      actualWorkHours: Math.max(0, parseTimeRangeToHours(result.scheduledTimeRange || '') - scheduledBreakTime), // actualTimeRange에서 계산
-                                      difference: 0, // 스케줄과 동일하므로 차이 0
-                                      status: result.status === 'time_match' ? 'time_match' : 'review_completed', // 시간일치면 시간일치 유지, 아니면 확인완료
+                                      status: 'review_completed',
                                       isModified: true
                                     };
                                     setComparisonResults(sortComparisonResults(updatedResults));
@@ -3509,12 +3477,46 @@ export default function WorkTimeComparison({
                                     
                                     // DB에 저장
                                     await saveModifiedData(updatedResults[index]);
-                                  }
-                                }}
-                                className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
-                              >
-                                스케줄시간복사
-                              </button>
+                                  }}
+                                  className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
+                                >
+                                  확인완료
+                                </button>
+                                {/* 🔥 스케줄시간복사 버튼: 확인완료 버튼 옆에만 표시 */}
+                                {result.scheduledTimeRange && result.scheduledTimeRange !== '-' && (
+                                  <button
+                                    onClick={async () => {
+                                      if (confirm('스케줄 시간을 실제 근무시간으로 복사하시겠습니까?')) {
+                                        const updatedResults = [...comparisonResults];
+                                        
+                                        // 🔥 스케줄의 휴게시간도 함께 복사
+                                        const scheduledBreakTime = result.breakTime || 0;
+                                        
+                                        updatedResults[index] = {
+                                          ...result,
+                                          actualHours: result.scheduledHours,
+                                          actualTimeRange: result.scheduledTimeRange, // actualTimeRange = scheduledTimeRange
+                                          actualBreakTime: scheduledBreakTime, // 🔥 스케줄 휴게시간 복사
+                                          actualWorkHours: Math.max(0, parseTimeRangeToHours(result.scheduledTimeRange || '') - scheduledBreakTime), // actualTimeRange에서 계산
+                                          difference: 0, // 스케줄과 동일하므로 차이 0
+                                          status: result.status === 'time_match' ? 'time_match' : 'review_completed', // 시간일치면 시간일치 유지, 아니면 확인완료
+                                          isModified: true
+                                        };
+                                        setComparisonResults(sortComparisonResults(updatedResults));
+                                        
+                                        // 🔥 비교 결과 테이블의 행별 확인 버튼은 상태를 변경하지 않음
+                                        // 상태 변경은 지점별 검토상태 버튼에서만 이루어짐
+                                        
+                                        // DB에 저장
+                                        await saveModifiedData(updatedResults[index]);
+                                      }
+                                    }}
+                                    className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
+                                  >
+                                    스케줄시간복사
+                                  </button>
+                                )}
+                              </>
                             )}
                             <button
                               onClick={async () => {
