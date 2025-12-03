@@ -2061,11 +2061,14 @@ export default function WorkTimeComparison({
           // 🔥 scheduledTimeRange가 없거나 '-'이면 스케줄 데이터에서 다시 조회
           let scheduledTimeRange = data.scheduledTimeRange || '-';
           let scheduledHours = data.scheduledHours || 0;
+          let breakTime = data.breakTime || 0; // 🔥 휴게시간도 복구
           
-          if ((!scheduledTimeRange || scheduledTimeRange === '-') && schedulesMap.has(dateStr)) {
+          // 🔥 POS근무시각이 있는 경우에도 스케줄 정보가 없으면 복구 (휴게시간 포함)
+          if ((!scheduledTimeRange || scheduledTimeRange === '-' || !breakTime || breakTime === 0) && schedulesMap.has(dateStr)) {
             const daySchedules = schedulesMap.get(dateStr)!;
             const timeRanges: string[] = [];
             let totalHours = 0;
+            let totalBreakTime = 0; // 🔥 휴게시간 합산
             
             daySchedules.forEach(s => {
               if (s.startTime && s.endTime) {
@@ -2086,12 +2089,18 @@ export default function WorkTimeComparison({
                 timeRanges.push(`${startTimeOnly}-${endTimeOnly}`);
               }
               totalHours += computeScheduleHours(s);
+              // 🔥 휴게시간 합산
+              totalBreakTime += parseFloat(s.breakTime) || 0;
             });
             
             if (timeRanges.length > 0) {
               scheduledTimeRange = timeRanges.join(',');
               scheduledHours = totalHours;
-              console.log(`✅ 스케줄 정보 복구: ${dateStr}, scheduledTimeRange: ${scheduledTimeRange}, scheduledHours: ${scheduledHours}`);
+              // 🔥 휴게시간이 없거나 0이면 스케줄에서 가져온 값으로 업데이트
+              if (!breakTime || breakTime === 0) {
+                breakTime = totalBreakTime;
+              }
+              console.log(`✅ 스케줄 정보 복구: ${dateStr}, scheduledTimeRange: ${scheduledTimeRange}, scheduledHours: ${scheduledHours}, breakTime: ${breakTime}`);
             }
           }
           
@@ -2105,8 +2114,8 @@ export default function WorkTimeComparison({
             scheduledTimeRange: scheduledTimeRange,
             actualTimeRange: data.actualTimeRange || '-',
             isModified: data.isModified || false,
-            breakTime: data.breakTime || 0,
-            actualBreakTime: data.actualBreakTime || 0,
+            breakTime: breakTime, // 🔥 복구된 휴게시간 사용
+            actualBreakTime: data.actualBreakTime || breakTime || 0, // 🔥 actualBreakTime이 없으면 breakTime 사용
             actualWorkHours: data.actualWorkHours || 0,
             posTimeRange: data.posTimeRange || '',
             branchId: data.branchId,
@@ -3473,19 +3482,24 @@ export default function WorkTimeComparison({
                                 확인완료
                               </button>
                             )}
-                            {result.status === 'review_required' && (
+                            {/* 🔥 스케줄시간복사 버튼: 항상 표시 (시간일치 포함) */}
+                            {result.scheduledTimeRange && result.scheduledTimeRange !== '-' && (
                               <button
                                 onClick={async () => {
                                   if (confirm('스케줄 시간을 실제 근무시간으로 복사하시겠습니까?')) {
                                     const updatedResults = [...comparisonResults];
                                     
+                                    // 🔥 스케줄의 휴게시간도 함께 복사
+                                    const scheduledBreakTime = result.breakTime || 0;
+                                    
                                     updatedResults[index] = {
                                       ...result,
                                       actualHours: result.scheduledHours,
                                       actualTimeRange: result.scheduledTimeRange, // actualTimeRange = scheduledTimeRange
-                                      actualWorkHours: Math.max(0, parseTimeRangeToHours(result.scheduledTimeRange || '') - (result.actualBreakTime || 0)), // actualTimeRange에서 계산
+                                      actualBreakTime: scheduledBreakTime, // 🔥 스케줄 휴게시간 복사
+                                      actualWorkHours: Math.max(0, parseTimeRangeToHours(result.scheduledTimeRange || '') - scheduledBreakTime), // actualTimeRange에서 계산
                                       difference: 0, // 스케줄과 동일하므로 차이 0
-                                      status: 'review_completed',
+                                      status: result.status === 'time_match' ? 'time_match' : 'review_completed', // 시간일치면 시간일치 유지, 아니면 확인완료
                                       isModified: true
                                     };
                                     setComparisonResults(sortComparisonResults(updatedResults));
