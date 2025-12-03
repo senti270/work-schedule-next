@@ -752,10 +752,23 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       const allContracts = contractsSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter((c: any) => c.startDate) // startDate 필수
-        .map((c: any) => ({
-          ...c,
-          startDate: c.startDate?.toDate ? c.startDate.toDate() : new Date(c.startDate)
-        }))
+        .map((c: any) => {
+          // 🔥 startDate는 날짜만 사용 (시간 제거)
+          let startDate: Date;
+          if (c.startDate?.toDate) {
+            const date = c.startDate.toDate();
+            startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+          } else if (c.startDate instanceof Date) {
+            startDate = new Date(c.startDate.getFullYear(), c.startDate.getMonth(), c.startDate.getDate(), 0, 0, 0, 0);
+          } else {
+            const date = new Date(c.startDate);
+            startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+          }
+          return {
+            ...c,
+            startDate
+          };
+        })
         .sort((a: any, b: any) => a.startDate.getTime() - b.startDate.getTime()); // startDate 기준 정렬
       
       // 🔥 선택된 월에 유효한 계약만 필터링
@@ -909,7 +922,12 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       }
 
       // 단일 계약 또는 계약이 없는 경우: 기존 로직
-      const contract = contracts.length > 0 ? contracts[0] : null;
+      // 🔥 최신 계약 선택: contracts는 startDate 기준 오름차순 정렬되어 있으므로 마지막 요소가 최신 계약
+      const contract = contracts.length > 0 ? contracts[contracts.length - 1] : null;
+      
+      if (contract) {
+        console.log(`🔥 최신 계약 선택 (단일/계약 없음 케이스): ${contract.startDate.toISOString().split('T')[0]}, 급여타입: ${contract.salaryType}, 급여액: ${contract.salaryAmount}`);
+      }
       const employeeData = {
         id: employee.id,
         name: employee.name,

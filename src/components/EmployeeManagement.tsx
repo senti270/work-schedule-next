@@ -1464,9 +1464,24 @@ export default function EmployeeManagement({ userBranch, isManager }: EmployeeMa
     try {
       setUploadingFile(true);
       
+      // 🔥 startDate는 날짜만 저장 (시간 제거)
+      const startDateValue = contractFormData.startDate;
+      let startDateOnly: Date;
+      if (typeof startDateValue === 'string') {
+        // 문자열인 경우 (예: "2025-11-01")
+        const [year, month, day] = startDateValue.split('-').map(Number);
+        startDateOnly = new Date(year, month - 1, day, 0, 0, 0, 0);
+      } else if (startDateValue instanceof Date) {
+        // Date 객체인 경우
+        startDateOnly = new Date(startDateValue.getFullYear(), startDateValue.getMonth(), startDateValue.getDate(), 0, 0, 0, 0);
+      } else {
+        startDateOnly = new Date(startDateValue);
+        startDateOnly.setHours(0, 0, 0, 0);
+      }
+      
       const contractData: Record<string, unknown> = {
         employeeId: currentEmployee.id,
-        startDate: new Date(contractFormData.startDate),
+        startDate: startDateOnly, // 🔥 시간 제거된 날짜만 저장
         employmentType: contractFormData.employmentType,
         salaryType: contractFormData.salaryType,
         salaryAmount: parseFloat(contractFormData.salaryAmount),
