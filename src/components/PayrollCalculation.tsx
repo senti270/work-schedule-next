@@ -785,15 +785,23 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         const overlaps = contractStart <= monthEnd && contractEnd >= monthStart;
         
         if (!overlaps) {
-          console.log(`🔥 계약 제외: ${c.startDate.toISOString().split('T')[0]} ~ ${contractEnd.toISOString().split('T')[0]} (선택된 월: ${selectedMonth})`);
+          console.log(`🔥 계약 제외: ${c.startDate.toISOString().split('T')[0]} ~ ${contractEnd.toISOString().split('T')[0]} (선택된 월: ${selectedMonth}), 급여타입: ${c.salaryType}, 급여액: ${c.salaryAmount}`);
         } else {
-          console.log(`✅ 계약 포함: ${c.startDate.toISOString().split('T')[0]} ~ ${contractEnd.toISOString().split('T')[0]} (선택된 월: ${selectedMonth})`);
+          console.log(`✅ 계약 포함: ${c.startDate.toISOString().split('T')[0]} ~ ${contractEnd.toISOString().split('T')[0]} (선택된 월: ${selectedMonth}), 급여타입: ${c.salaryType}, 급여액: ${c.salaryAmount}`);
         }
         
         return overlaps;
       });
 
       console.log('🔥 employmentContracts 로드:', contracts.length, '건 (선택된 월:', selectedMonth, ')');
+      if (contracts.length > 0) {
+        console.log('🔥 포함된 계약 목록:', contracts.map((c: any) => ({
+          startDate: c.startDate.toISOString().split('T')[0],
+          salaryType: c.salaryType,
+          salaryAmount: c.salaryAmount,
+          employmentType: c.employmentType
+        })));
+      }
 
       // 스케줄 데이터 처리 (월급직의 경우 빈 배열)
       const scheduleData = schedulesToUse.length > 0 ? 
