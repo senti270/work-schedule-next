@@ -412,8 +412,14 @@ export default function WorkTimeComparison({
     };
     const updated = [...comparisonResults, newRow];
     setComparisonResults(updated);
-    // 비동기 저장
-    saveComparisonResults(updated).catch(err => console.error('수동 행 저장 실패:', err));
+    // 비동기 저장 후 docId를 상태에 반영
+    saveComparisonResults(updated).then(savedResults => {
+      // 🔥 저장 후 docId가 설정된 결과를 상태에 반영
+      if (savedResults) {
+        setComparisonResults(savedResults);
+        console.log('✅ 수동 행 저장 완료, 상태 업데이트됨:', savedResults.filter(r => r.isManual && r.docId));
+      }
+    }).catch(err => console.error('수동 행 저장 실패:', err));
   }, [selectedEmployeeId, selectedMonth, employees, branches, selectedBranchId, comparisonResults]);
 
   // 선택 월의 시작/끝 날짜 반환
@@ -1818,16 +1824,16 @@ export default function WorkTimeComparison({
   };
 
   // 기존 비교 데이터를 불러오는 함수
-  // 비교결과를 DB에 저장하는 함수
-  const saveComparisonResults = async (results: WorkTimeComparison[]) => {
+  // 비교결과를 DB에 저장하는 함수 (저장된 결과 반환)
+  const saveComparisonResults = async (results: WorkTimeComparison[]): Promise<WorkTimeComparison[]> => {
     if (!selectedEmployeeId || !selectedMonth) {
       console.log('저장 실패: 필수 정보 없음', { selectedEmployeeId, selectedMonth });
-      return;
+      return results;
     }
     // 🔒 급여확정 시 저장 차단
     if (payrollConfirmedEmployees.includes(selectedEmployeeId)) {
       console.warn('급여확정된 직원은 비교결과 저장이 차단됩니다.');
-      return;
+      return results;
     }
     
     try {
@@ -1992,6 +1998,7 @@ export default function WorkTimeComparison({
           } else {
             const docRef = await addDoc(collection(db, 'workTimeComparisonResults'), comparisonPayload);
             result.docId = docRef.id;
+            console.log('✅ 수동 행 저장 완료, docId 설정:', result.docId, '날짜:', result.date);
           }
           result.isManual = true;
           result.isNew = false;
@@ -2001,8 +2008,11 @@ export default function WorkTimeComparison({
       }
       
       console.log('비교결과 저장 완료');
+      // 🔥 저장된 결과 반환 (docId가 설정된 상태)
+      return results;
     } catch (error) {
       console.error('비교결과 저장 실패:', error);
+      return results;
     }
   };
 
