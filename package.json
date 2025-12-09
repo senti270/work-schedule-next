@@ -7,7 +7,8 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "update-review-status": "tsx src/scripts/runUpdateReviewStatus.ts"
+    "update-review-status": "tsx src/scripts/runUpdateReviewStatus.ts",
+    "remove-duplicates": "tsx src/scripts/removeDuplicateWorkTimeComparison.ts"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",

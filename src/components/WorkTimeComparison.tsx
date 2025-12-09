@@ -1905,22 +1905,28 @@ export default function WorkTimeComparison({
           actualWorkHours: result.actualWorkHours || 0,
           posTimeRange: result.posTimeRange || '',
           isManual,
-          createdAt: new Date(),
           updatedAt: new Date()
         };
 
+        // 🔥 docId가 있으면 무조건 업데이트, 없을 때만 추가 (isManual 여부와 관계없이)
+        if (result.docId) {
+          // createdAt은 업데이트 시 유지 (기존 값 보존)
+          await updateDoc(doc(db, 'workTimeComparisonResults', result.docId), comparisonPayload);
+          console.log('✅ 기존 데이터 업데이트:', result.docId, '날짜:', result.date);
+        } else {
+          // 새로 추가할 때만 createdAt 설정
+          const docRef = await addDoc(collection(db, 'workTimeComparisonResults'), {
+            ...comparisonPayload,
+            createdAt: new Date()
+          });
+          result.docId = docRef.id;
+          console.log('✅ 새 데이터 추가, docId 설정:', result.docId, '날짜:', result.date, 'isManual:', isManual);
+        }
+        
+        // isManual 플래그 정리
         if (isManual) {
-          if (result.docId) {
-            await updateDoc(doc(db, 'workTimeComparisonResults', result.docId), comparisonPayload);
-          } else {
-            const docRef = await addDoc(collection(db, 'workTimeComparisonResults'), comparisonPayload);
-            result.docId = docRef.id;
-            console.log('✅ 수동 행 저장 완료, docId 설정:', result.docId, '날짜:', result.date);
-          }
           result.isManual = true;
           result.isNew = false;
-        } else {
-          await addDoc(collection(db, 'workTimeComparisonResults'), comparisonPayload);
         }
       }
       
