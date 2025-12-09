@@ -484,11 +484,12 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           return isInMonth;
         });
       
-      // 🔧 같은 날짜(및 POS 시각) 기준 중복 제거 (근무시간비교와 동일한 로직)
+      // 🔧 같은 날짜/지점/POS 시각 기준 중복 제거 (지점별로 분리하여 처리)
       const dedupMap = new Map<string, typeof allSchedules[number]>();
       for (const row of allSchedules) {
         const dateStr = row.date.toISOString().split('T')[0];
-        const key = `${dateStr}|${row.posTimeRange || ''}`;
+        // 🔥 branchId를 키에 포함하여 같은 날짜에 다른 지점에서 일한 경우도 모두 포함
+        const key = `${dateStr}|${row.branchId || ''}|${row.posTimeRange || ''}`;
         const prev = dedupMap.get(key);
         if (!prev) {
           dedupMap.set(key, row);
