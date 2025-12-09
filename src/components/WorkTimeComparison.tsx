@@ -690,12 +690,21 @@ export default function WorkTimeComparison({
 
   // 직원 목록이 로드되면 검토 상태 로드 (직원 변경 시에만, 지점 변경 시에는 호출하지 않음)
   // 🔥 selectedEmployeeId가 없어도 월별 상태를 먼저 로드해야 함
+  // 🔥 selectedEmployeeId가 변경될 때마다 상태 다시 로드 (새로고침 시 상태 유지)
   useEffect(() => {
     if (employees.length > 0 && selectedMonth) {
       loadReviewStatus(employees);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employees, selectedMonth, selectedEmployeeId]);
+  
+  // 🔥 월이 변경될 때도 상태 다시 로드
+  useEffect(() => {
+    if (selectedMonth && employees.length > 0) {
+      loadReviewStatus(employees);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth]);
 
   const loadSchedules = async (month: string) => {
     console.log('🔥🔥🔥 loadSchedules 함수 호출됨, 월:', month);
@@ -1944,7 +1953,12 @@ export default function WorkTimeComparison({
           ? result.employeeName
           : employeeNameSnapshot || employees.find(emp => emp.id === selectedEmployeeId)?.name || '알 수 없음';
         const fallbackBranchName = result.branchName || branchNameSnapshot || (result as any).branchName || branches.find(b => b.id === selectedBranchId)?.name || '';
-        const effectiveBranchId = branchId || result.branchId || selectedBranchId || '';
+        // 🔥 항상 현재 선택된 branchId를 사용 (다른 지점 데이터 덮어쓰기 방지)
+        const effectiveBranchId = branchId || selectedBranchId || '';
+        if (!effectiveBranchId) {
+          console.warn('branchId가 없어서 저장을 건너뜁니다:', result);
+          continue;
+        }
         const finalEmployeeName = formatEmployeeNameWithBranch(fallbackEmployeeName, fallbackBranchName);
         const isManual = result.isManual === true || result.isNew === true;
         
@@ -1991,7 +2005,8 @@ export default function WorkTimeComparison({
     }
   };
 
-  const loadExistingComparisonData = useCallback(async () => {
+  // 🔥 branchId를 파라미터로 받는 버전 (지점 선택 시 즉시 로드용)
+  const loadExistingComparisonDataForBranch = useCallback(async (branchIdParam?: string) => {
     if (!selectedEmployeeId || !selectedMonth) {
       setComparisonResults([]);
       return;
@@ -2001,10 +2016,10 @@ export default function WorkTimeComparison({
     // 🔒 급여확정 시: DB 로드는 허용하되 편집은 상위에서 차단됨
     
     try {
-      console.log('기존 비교 데이터 로드 시작:', selectedEmployeeId, selectedMonth);
+      console.log('기존 비교 데이터 로드 시작:', selectedEmployeeId, selectedMonth, 'branchId:', branchIdParam);
       
-      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 selectedBranchId 사용
-      const branchId = isManager && userBranch ? userBranch.id : selectedBranchId;
+      // 매니저의 경우 userBranch.id 사용, 일반 사용자의 경우 파라미터 또는 selectedBranchId 사용
+      const branchId = branchIdParam || (isManager && userBranch ? userBranch.id : selectedBranchId);
       
       const querySnapshot = await getDocs(
         query(
@@ -2164,6 +2179,11 @@ export default function WorkTimeComparison({
       setComparisonResults([]);
     }
   }, [selectedEmployeeId, selectedMonth, selectedBranchId, isManager, userBranch]);
+
+  // 🔥 기존 함수는 useEffect에서 사용 (selectedBranchId 변경 시 자동 로드)
+  const loadExistingComparisonData = useCallback(async () => {
+    await loadExistingComparisonDataForBranch();
+  }, [loadExistingComparisonDataForBranch]);
 
   // 지점과 직원이 선택되고 비교결과가 있으면 자동으로 로드
   useEffect(() => {
@@ -2540,12 +2560,12 @@ export default function WorkTimeComparison({
                               onClick={async () => {
                                 // 🔥 지점 변경 시 기존 비교 결과 초기화 (다른 지점의 수정된 데이터가 로드를 막지 않도록)
                                 setComparisonResults([]);
-                                setSelectedBranchId(branchId);
                                 console.log('🔥 지점 선택됨:', branchId, branch?.name);
                                 // 🔥 지점 변경 시 해당 지점의 비교 데이터 다시 로드
-                                // 상태 업데이트 후 비교 데이터 로드
-                                await new Promise(resolve => setTimeout(resolve, 0));
-                                await loadExistingComparisonData();
+                                // 상태 업데이트 전에 branchId를 파라미터로 전달하여 로드
+                                setSelectedBranchId(branchId);
+                                // 🔥 branchId를 직접 전달하여 즉시 로드 (상태 업데이트 대기 불필요)
+                                await loadExistingComparisonDataForBranch(branchId);
                               }}>
                                 <div className="flex items-center space-x-3 flex-1">
                                   <span className={`text-sm font-medium ${
