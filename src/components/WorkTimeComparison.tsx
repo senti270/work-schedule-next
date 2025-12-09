@@ -1914,13 +1914,44 @@ export default function WorkTimeComparison({
           await updateDoc(doc(db, 'workTimeComparisonResults', result.docId), comparisonPayload);
           console.log('✅ 기존 데이터 업데이트:', result.docId, '날짜:', result.date);
         } else {
-          // 새로 추가할 때만 createdAt 설정
-          const docRef = await addDoc(collection(db, 'workTimeComparisonResults'), {
-            ...comparisonPayload,
-            createdAt: new Date()
-          });
-          result.docId = docRef.id;
-          console.log('✅ 새 데이터 추가, docId 설정:', result.docId, '날짜:', result.date, 'isManual:', isManual);
+          // 🔥 중복 체크: 같은 직원, 같은 날짜, 같은 근무시간인 기존 문서가 있는지 확인
+          const workHours = (result.actualWorkHours ?? 0) > 0 ? (result.actualWorkHours ?? 0) : (result.scheduledHours ?? 0);
+          const duplicateQuery = query(
+            collection(db, 'workTimeComparisonResults'),
+            where('employeeId', '==', selectedEmployeeId),
+            where('date', '==', result.date),
+            where('month', '==', selectedMonth)
+          );
+          
+          const duplicateSnapshot = await getDocs(duplicateQuery);
+          let existingDocId: string | null = null;
+          
+          // 같은 근무시간인 문서 찾기
+          for (const dupDoc of duplicateSnapshot.docs) {
+            const dupData = dupDoc.data();
+            const dupWorkHours = (dupData.actualWorkHours ?? 0) > 0 ? (dupData.actualWorkHours ?? 0) : (dupData.scheduledHours ?? 0);
+            
+            // 근무시간이 같으면 중복으로 간주
+            if (Math.abs(dupWorkHours - workHours) < 0.01) { // 소수점 오차 고려
+              existingDocId = dupDoc.id;
+              break;
+            }
+          }
+          
+          if (existingDocId) {
+            // 중복 문서가 있으면 업데이트
+            await updateDoc(doc(db, 'workTimeComparisonResults', existingDocId), comparisonPayload);
+            result.docId = existingDocId;
+            console.log('⚠️  중복 데이터 발견, 기존 문서 업데이트:', existingDocId, '날짜:', result.date, '근무시간:', workHours);
+          } else {
+            // 중복이 없으면 새로 추가
+            const docRef = await addDoc(collection(db, 'workTimeComparisonResults'), {
+              ...comparisonPayload,
+              createdAt: new Date()
+            });
+            result.docId = docRef.id;
+            console.log('✅ 새 데이터 추가, docId 설정:', result.docId, '날짜:', result.date, 'isManual:', isManual);
+          }
         }
         
         // isManual 플래그 정리

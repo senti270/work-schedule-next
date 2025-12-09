@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "update-review-status": "tsx src/scripts/runUpdateReviewStatus.ts",
-    "remove-duplicates": "tsx src/scripts/removeDuplicateWorkTimeComparison.ts"
+    "remove-duplicates": "tsx src/scripts/removeDuplicateWorkTimeComparison.ts",
+    "find-duplicates": "tsx src/scripts/findDuplicatePayrollData.ts",
+    "remove-payroll-duplicates": "tsx src/scripts/removeDuplicatePayrollData.ts"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",
