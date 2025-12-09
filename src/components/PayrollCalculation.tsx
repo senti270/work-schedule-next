@@ -430,15 +430,17 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
           return applyLineItemTotals({ ...calc, lineItems: updatedItems });
         });
         
-        // 🔥 변경사항이 있으면 자동으로 저장
-        savePayrollDataAuto(updated).catch(err => {
-          console.error('자동 저장 실패:', err);
-        });
+        // 🔥 급여확정 후에만 자동 저장 (확정 전에는 저장하지 않음)
+        if (isPayrollConfirmed) {
+          savePayrollDataAuto(updated).catch(err => {
+            console.error('자동 저장 실패:', err);
+          });
+        }
         
         return updated;
       });
     },
-    [applyLineItemTotals, savePayrollDataAuto]
+    [applyLineItemTotals, savePayrollDataAuto, isPayrollConfirmed]
   );
 
   const handleLineItemTypeChange = useCallback(
