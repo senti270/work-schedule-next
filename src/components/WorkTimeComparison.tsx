@@ -2557,15 +2557,25 @@ export default function WorkTimeComparison({
                                   ? 'border-blue-500 bg-blue-50' 
                                   : 'border-gray-200 hover:bg-gray-50'
                               }`}
-                              onClick={async () => {
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
                                 // 🔥 지점 변경 시 기존 비교 결과 초기화 (다른 지점의 수정된 데이터가 로드를 막지 않도록)
                                 setComparisonResults([]);
                                 console.log('🔥 지점 선택됨:', branchId, branch?.name);
-                                // 🔥 지점 변경 시 해당 지점의 비교 데이터 다시 로드
-                                // 상태 업데이트 전에 branchId를 파라미터로 전달하여 로드
+                                
+                                // 🔥 상태를 먼저 업데이트하여 UI가 즉시 반영되도록 함
                                 setSelectedBranchId(branchId);
+                                
                                 // 🔥 branchId를 직접 전달하여 즉시 로드 (상태 업데이트 대기 불필요)
-                                await loadExistingComparisonDataForBranch(branchId);
+                                // 데이터가 없어도 지점 선택은 즉시 반영되어야 함
+                                try {
+                                  await loadExistingComparisonDataForBranch(branchId);
+                                } catch (error) {
+                                  console.error('지점 데이터 로드 실패:', error);
+                                  // 에러가 발생해도 지점 선택은 유지
+                                }
                               }}>
                                 <div className="flex items-center space-x-3 flex-1">
                                   <span className={`text-sm font-medium ${
