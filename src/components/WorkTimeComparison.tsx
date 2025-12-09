@@ -1847,91 +1847,8 @@ export default function WorkTimeComparison({
         // branchId가 없어도 저장은 계속 진행 (기존 데이터와 일치하도록)
       }
       
-      // 기존 비교결과 데이터 삭제 (자동 생성된 row 및 화면에서 제거된 수동 row 정리)
-      if (branchId) {
-        // 1) 자동 생성된 행(isManual == false) 삭제
-        try {
-          const existingQuery = query(
-            collection(db, 'workTimeComparisonResults'),
-            where('employeeId', '==', selectedEmployeeId),
-            where('month', '==', selectedMonth),
-            where('branchId', '==', branchId),
-            where('isManual', '==', false)
-          );
-
-          const existingSnapshot = await getDocs(existingQuery);
-          console.log('기존 비교결과 데이터(자동 생성) 삭제:', existingSnapshot.docs.length, '건');
-          for (const docSnap of existingSnapshot.docs) {
-            await deleteDoc(docSnap.ref);
-          }
-        } catch (e) {
-          console.warn('자동 생성 비교결과 정리 중 오류(무시 가능):', e);
-        }
-
-        // 2) 수동 입력(isManual == true) 중 화면에서 제거된 행 삭제
-        try {
-          const manualQuery = query(
-            collection(db, 'workTimeComparisonResults'),
-            where('employeeId', '==', selectedEmployeeId),
-            where('month', '==', selectedMonth),
-            where('branchId', '==', branchId),
-            where('isManual', '==', true)
-          );
-          const manualSnapshot = await getDocs(manualQuery);
-
-          const manualIdsToKeep = new Set(
-            results
-              .filter(r => r.isManual || r.isNew)
-              .map(r => r.docId)
-              .filter((id): id is string => !!id)
-          );
-
-          const manualToDelete = manualSnapshot.docs.filter(d => !manualIdsToKeep.has(d.id));
-          if (manualToDelete.length > 0) {
-            console.log('화면에서 제거된 수동 입력 비교결과 삭제:', manualToDelete.length, '건');
-            for (const docSnap of manualToDelete) {
-              await deleteDoc(docSnap.ref);
-            }
-          }
-        } catch (e) {
-          console.warn('수동 입력 비교결과 정리 중 오류(무시 가능):', e);
-        }
-
-        // 3) 예전 데이터( isManual 필드가 없던 시절 )까지 포함해서,
-        //    현재 results 배열에 존재하지 않는 날짜/지점/posTimeRange 조합은 모두 삭제
-        try {
-          const allQuery = query(
-            collection(db, 'workTimeComparisonResults'),
-            where('employeeId', '==', selectedEmployeeId),
-            where('month', '==', selectedMonth),
-            where('branchId', '==', branchId)
-          );
-          const allSnapshot = await getDocs(allQuery);
-
-          const keysToKeep = new Set(
-            results.map(r => {
-              const suffix = r.posTimeRange || '';
-              return `${r.date}|${suffix}`;
-            })
-          );
-
-          const legacyToDelete = allSnapshot.docs.filter(d => {
-            const data = d.data();
-            const suffix = (data.posTimeRange as string) || '';
-            const key = `${data.date}|${suffix}`;
-            return !keysToKeep.has(key);
-          });
-
-          if (legacyToDelete.length > 0) {
-            console.log('화면에 없는 예전 비교결과 데이터 삭제:', legacyToDelete.length, '건');
-            for (const docSnap of legacyToDelete) {
-              await deleteDoc(docSnap.ref);
-            }
-          }
-        } catch (e) {
-          console.warn('예전 비교결과 정리 중 오류(무시 가능):', e);
-        }
-      }
+      // 🔥 삭제 로직 제거: 화면에 보이는 상태 그대로 저장하도록 변경
+      // 삭제는 사용자가 명시적으로 삭제 버튼을 눌렀을 때만 수행
       
       // 새 데이터 저장
       // 직원명 조회 (result.employeeName이 "직원"이면 DB에서 다시 조회)
@@ -2261,27 +2178,73 @@ export default function WorkTimeComparison({
       
       const comparisonDocs = await getDocs(comparisonQuery);
       
+      // 🔥 직원명과 지점명 조회
+      let employeeNameSnapshot: string | null = null;
+      if (selectedEmployeeId) {
+        try {
+          const empDoc = await getDoc(doc(db, 'employees', selectedEmployeeId));
+          if (empDoc.exists()) {
+            employeeNameSnapshot = empDoc.data().name || '';
+          }
+        } catch {}
+      }
+      
+      let branchNameSnapshot: string | null = null;
+      if (branchId) {
+        try {
+          const bSnap = await getDocs(query(collection(db, 'branches'), where('__name__', '==', branchId)));
+          branchNameSnapshot = bSnap.docs[0]?.data()?.name || '';
+        } catch {}
+      }
+      
+      const fallbackEmployeeName = result.employeeName && result.employeeName !== '직원'
+        ? result.employeeName
+        : employeeNameSnapshot || employees.find(emp => emp.id === selectedEmployeeId)?.name || '알 수 없음';
+      const fallbackBranchName = result.branchName || branchNameSnapshot || branches.find(b => b.id === branchId)?.name || '';
+      const finalEmployeeName = formatEmployeeNameWithBranch(fallbackEmployeeName, fallbackBranchName);
+      
+      const comparisonPayload = {
+        employeeId: selectedEmployeeId,
+        employeeName: finalEmployeeName,
+        month: selectedMonth,
+        branchId: branchId || '',
+        branchName: fallbackBranchName,
+        date: result.date,
+        scheduledHours: result.scheduledHours,
+        actualHours: result.actualHours,
+        difference: result.difference,
+        status: result.status,
+        scheduledTimeRange: result.scheduledTimeRange || '-',
+        actualTimeRange: result.actualTimeRange || '-',
+        isModified: result.isModified || false,
+        breakTime: result.breakTime || 0,
+        actualBreakTime: result.actualBreakTime ?? 0,
+        actualWorkHours: result.actualWorkHours || 0,
+        posTimeRange: result.posTimeRange || '',
+        isManual: result.isManual || false,
+        updatedAt: new Date()
+      };
+      
       if (comparisonDocs.empty) {
         // 새로 추가
         const docRef = await addDoc(collection(db, 'workTimeComparisonResults'), {
-          ...actualWorkRecord,
-          posTimeRange: result.posTimeRange || '',
-          isManual: result.isManual || false,
+          ...comparisonPayload,
           createdAt: new Date()
         });
-        console.log('새로운 비교결과 데이터 저장됨:', actualWorkRecord);
+        console.log('✅ 새로운 비교결과 데이터 저장됨:', comparisonPayload, 'docId:', docRef.id);
         // 🔥 docId를 상태에 반영
         result.docId = docRef.id;
+        // 🔥 상태 업데이트
+        setComparisonResults(prev => prev.map(r => 
+          r.date === result.date && r.posTimeRange === result.posTimeRange 
+            ? { ...r, docId: docRef.id, isNew: false, isManual: true }
+            : r
+        ));
       } else {
         // 기존 데이터 업데이트 (첫 번째 문서만)
         const docId = comparisonDocs.docs[0].id;
-        await updateDoc(doc(db, 'workTimeComparisonResults', docId), {
-          ...actualWorkRecord,
-          posTimeRange: result.posTimeRange || '',
-          isManual: result.isManual || false,
-          updatedAt: new Date()
-        });
-        console.log('기존 비교결과 데이터 업데이트됨:', actualWorkRecord);
+        await updateDoc(doc(db, 'workTimeComparisonResults', docId), comparisonPayload);
+        console.log('✅ 기존 비교결과 데이터 업데이트됨:', comparisonPayload, 'docId:', docId);
         result.docId = docId;
         
         // 중복 데이터가 있으면 삭제
@@ -2292,9 +2255,6 @@ export default function WorkTimeComparison({
           }
         }
       }
-      
-      // 🔥 개별 행 저장 후, 전체 comparisonResults를 저장하여 다른 데이터가 삭제되지 않도록 함
-      await saveComparisonResults(comparisonResults);
     } catch (error) {
       console.error('데이터 저장 실패:', error);
       alert('데이터 저장에 실패했습니다.');
