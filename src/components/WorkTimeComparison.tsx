@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc, orderBy, limit, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toLocalDate, toLocalDateString } from '@/utils/dateUtils';
@@ -2565,8 +2566,10 @@ export default function WorkTimeComparison({
                                 setComparisonResults([]);
                                 console.log('🔥 지점 선택됨:', branchId, branch?.name);
                                 
-                                // 🔥 상태를 먼저 업데이트하여 UI가 즉시 반영되도록 함
-                                setSelectedBranchId(branchId);
+                                // 🔥 flushSync를 사용하여 상태 업데이트를 동기적으로 처리하여 UI가 즉시 반영되도록 함
+                                flushSync(() => {
+                                  setSelectedBranchId(branchId);
+                                });
                                 
                                 // 🔥 branchId를 직접 전달하여 즉시 로드 (상태 업데이트 대기 불필요)
                                 // 데이터가 없어도 지점 선택은 즉시 반영되어야 함
