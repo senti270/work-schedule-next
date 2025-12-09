@@ -335,112 +335,18 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
     [applyLineItemTotals]
   );
 
-  // 🔥 급여 데이터를 confirmedPayrolls에 자동 저장하는 함수
-  const savePayrollDataAuto = useCallback(async (results: PayrollResultWithItems[]) => {
-    if (!selectedMonth || !selectedEmployeeId || results.length === 0) {
-      return;
-    }
-
-    try {
-      const normalizedResults = results;
-      const totalGrossPay = normalizedResults.reduce((sum, r) => sum + (r.grossPay || 0), 0);
-      const totalNetPay = normalizedResults.reduce((sum, r) => sum + (r.netPay || 0), 0);
-      const empDoc = employees.find(emp => emp.id === selectedEmployeeId) as any;
-      const primaryBranchId: string | undefined = empDoc?.primaryBranchId || (empDoc?.branches && empDoc.branches[0]);
-      const primaryBranchName: string | undefined = empDoc?.primaryBranchName || '';
-
-      const cleanedCalculations = normalizedResults.map((result: any) => {
-        const cleaned: any = {};
-        Object.keys(result).forEach(key => {
-          const value = result[key];
-          if (value !== undefined && value !== null) {
-            if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
-              const cleanedObj: any = {};
-              Object.keys(value).forEach(objKey => {
-                if (value[objKey] !== undefined && value[objKey] !== null) {
-                  cleanedObj[objKey] = value[objKey];
-                }
-              });
-              cleaned[key] = cleanedObj;
-            } else {
-              cleaned[key] = value;
-            }
-          }
-        });
-        return cleaned;
-      });
-
-      const removeUndefined = (obj: any): any => {
-        if (Array.isArray(obj)) {
-          return obj.map(item => removeUndefined(item));
-        } else if (obj !== null && typeof obj === 'object' && !(obj instanceof Date)) {
-          const cleaned: any = {};
-          Object.keys(obj).forEach(key => {
-            if (obj[key] !== undefined) {
-              cleaned[key] = removeUndefined(obj[key]);
-            }
-          });
-          return cleaned;
-        }
-        return obj;
-      };
-
-      const confirmedPayrollData: any = {
-        month: selectedMonth,
-        employeeId: selectedEmployeeId,
-        employeeName: normalizedResults[0]?.employeeName || '',
-        calculations: cleanedCalculations,
-        grossPay: totalGrossPay || 0,
-        netPay: totalNetPay || 0,
-        branchId: primaryBranchId || '',
-        branchName: primaryBranchName || '',
-        confirmedAt: new Date(),
-        confirmedBy: 'admin'
-      };
-
-      const finalData = removeUndefined(confirmedPayrollData);
-      
-      const existingPayrollQuery = query(
-        collection(db, 'confirmedPayrolls'),
-        where('employeeId', '==', selectedEmployeeId),
-        where('month', '==', selectedMonth)
-      );
-      const existingPayrollSnapshot = await getDocs(existingPayrollQuery);
-      
-      if (!existingPayrollSnapshot.empty) {
-        const existingDocId = existingPayrollSnapshot.docs[0].id;
-        await updateDoc(doc(db, 'confirmedPayrolls', existingDocId), finalData);
-        console.log('🔥 급여 데이터 자동 저장됨 (업데이트):', existingDocId);
-      } else {
-        await addDoc(collection(db, 'confirmedPayrolls'), finalData);
-        console.log('🔥 급여 데이터 자동 저장됨 (추가)');
-      }
-    } catch (error) {
-      console.error('급여 데이터 자동 저장 실패:', error);
-    }
-  }, [selectedMonth, selectedEmployeeId, employees]);
-
   const updateLineItems = useCallback(
     (calcIndex: number, updater: (items: PayrollLineItem[]) => PayrollLineItem[]) => {
-      setPayrollResults((prev) => {
-        const updated = prev.map((calc, idx) => {
+      setPayrollResults((prev) =>
+        prev.map((calc, idx) => {
           if (idx !== calcIndex) return calc;
           const currentItems = calc.lineItems || [];
           const updatedItems = updater(currentItems).map(sanitizeLineItem);
           return applyLineItemTotals({ ...calc, lineItems: updatedItems });
-        });
-        
-        // 🔥 급여확정 후에만 자동 저장 (확정 전에는 저장하지 않음)
-        if (isPayrollConfirmed) {
-          savePayrollDataAuto(updated).catch(err => {
-            console.error('자동 저장 실패:', err);
-          });
-        }
-        
-        return updated;
-      });
+        })
+      );
     },
-    [applyLineItemTotals, savePayrollDataAuto, isPayrollConfirmed]
+    [applyLineItemTotals]
   );
 
   const handleLineItemTypeChange = useCallback(
