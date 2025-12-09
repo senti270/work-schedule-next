@@ -2263,19 +2263,26 @@ export default function WorkTimeComparison({
       
       if (comparisonDocs.empty) {
         // 새로 추가
-        await addDoc(collection(db, 'workTimeComparisonResults'), {
+        const docRef = await addDoc(collection(db, 'workTimeComparisonResults'), {
           ...actualWorkRecord,
+          posTimeRange: result.posTimeRange || '',
+          isManual: result.isManual || false,
           createdAt: new Date()
         });
         console.log('새로운 비교결과 데이터 저장됨:', actualWorkRecord);
+        // 🔥 docId를 상태에 반영
+        result.docId = docRef.id;
       } else {
         // 기존 데이터 업데이트 (첫 번째 문서만)
         const docId = comparisonDocs.docs[0].id;
         await updateDoc(doc(db, 'workTimeComparisonResults', docId), {
           ...actualWorkRecord,
-          createdAt: new Date()
+          posTimeRange: result.posTimeRange || '',
+          isManual: result.isManual || false,
+          updatedAt: new Date()
         });
         console.log('기존 비교결과 데이터 업데이트됨:', actualWorkRecord);
+        result.docId = docId;
         
         // 중복 데이터가 있으면 삭제
         if (comparisonDocs.docs.length > 1) {
@@ -2286,6 +2293,8 @@ export default function WorkTimeComparison({
         }
       }
       
+      // 🔥 개별 행 저장 후, 전체 comparisonResults를 저장하여 다른 데이터가 삭제되지 않도록 함
+      await saveComparisonResults(comparisonResults);
     } catch (error) {
       console.error('데이터 저장 실패:', error);
       alert('데이터 저장에 실패했습니다.');
