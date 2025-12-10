@@ -91,6 +91,11 @@ interface WorkTimeComparisonResult {
   createdAt: Date;
 }
 
+interface Branch {
+  id: string;
+  name: string;
+}
+
 const PayrollStatement: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>(getPayrollMonth());
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -101,6 +106,7 @@ const PayrollStatement: React.FC = () => {
   const [filterWithWorkHistory, setFilterWithWorkHistory] = useState(false);
   const [filterWithConfirmedPayroll, setFilterWithConfirmedPayroll] = useState(false);
   const [employeeMemos, setEmployeeMemos] = useState<Array<{id: string, employeeId: string, month: string, type: string, memo: string, createdAt: Date}>>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
 
   // 월 문자열 표준화: 'YYYY-M' -> 'YYYY-MM'
   const normalizeMonth = (value: string) => {
@@ -260,6 +266,21 @@ const PayrollStatement: React.FC = () => {
     }
   };
 
+  // 지점 목록 로드
+  const loadBranches = async () => {
+    try {
+      const branchesSnapshot = await getDocs(collection(db, 'branches'));
+      const branchesData = branchesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || ''
+      })) as Branch[];
+      setBranches(branchesData);
+      console.log('🔥 지점 목록 로드:', branchesData.length, '개');
+    } catch (error) {
+      console.error('지점 목록 로드 실패:', error);
+    }
+  };
+
   // 직원 메모 로드
   const loadEmployeeMemos = async () => {
     try {
@@ -319,6 +340,7 @@ const PayrollStatement: React.FC = () => {
   };
 
   useEffect(() => {
+    loadBranches();
     loadEmployeeMemos();
   }, []);
 
@@ -1279,7 +1301,15 @@ ${selectedMonth} 급여명세서를 전달드립니다.
           
           // 지점별로 그룹화 (WorkTimeComparisonResult 레벨에서)
           const branchGroups = selectedEmployeeComparisons.reduce((groups: {[key: string]: WorkTimeComparisonResult[]}, comparison) => {
-            const branchName = comparison.branchName || '미지정지점';
+            // branchName이 없으면 branchId로 지점명 조회
+            let branchName = comparison.branchName;
+            if (!branchName && comparison.branchId) {
+              const branch = branches.find(b => b.id === comparison.branchId);
+              branchName = branch?.name || '-';
+            } else if (!branchName) {
+              branchName = '-';
+            }
+            
             if (!groups[branchName]) {
               groups[branchName] = [];
             }
