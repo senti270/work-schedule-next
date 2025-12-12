@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { collection, getDocs, getDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { use, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 interface Employee {
   id: string;
