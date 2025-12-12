@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { collection, getDocs, getDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { use } from 'react';
+import { use, useSearchParams } from 'next/navigation';
 
 interface Employee {
   id: string;
@@ -25,30 +25,45 @@ interface ConfirmedPayroll {
   totalNetPay?: number;
 }
 
+interface WorkTimeComparisonResult {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  branchId: string;
+  branchName: string;
+  month: string;
+  date: string;
+  actualWorkHours?: number;
+  actualTimeRange?: string;
+  posTimeRange?: string;
+  actualBreakTime?: number;
+}
+
 interface PublicPayrollPageProps {
   params: Promise<{
     employeeId: string;
-    month: string;
   }>;
 }
 
 export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
   const resolvedParams = use(params);
+  const searchParams = useSearchParams();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [payroll, setPayroll] = useState<ConfirmedPayroll | null>(null);
+  const [workTimeComparisons, setWorkTimeComparisons] = useState<WorkTimeComparisonResult[]>([]);
+  const [branches, setBranches] = useState<{id: string; name: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 월 문자열 표준화
-  const normalizeMonth = (value: string) => {
-    if (!value) return value;
-    const match = String(value).match(/^(\d{4})-(\d{1,2})$/);
-    if (match) {
-      const year = match[1];
-      const month = match[2].padStart(2, '0');
-      return `${year}-${month}`;
+  // 토큰에서 월 정보 추출 (간단한 base64 디코딩)
+  const getMonthFromToken = (token: string): string | null => {
+    try {
+      const decoded = atob(token);
+      const data = JSON.parse(decoded);
+      return data.month || null;
+    } catch {
+      return null;
     }
-    return value;
   };
 
   useEffect(() => {
@@ -58,7 +73,19 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
         setError(null);
 
         const employeeId = resolvedParams.employeeId;
-        const requestedMonth = normalizeMonth(resolvedParams.month);
+        const token = searchParams.get('t');
+
+        if (!token) {
+          setError('유효하지 않은 링크입니다.');
+          return;
+        }
+
+        // 토큰에서 월 정보 추출
+        const month = getMonthFromToken(token);
+        if (!month) {
+          setError('유효하지 않은 링크입니다.');
+          return;
+        }
 
         // 직원 정보 로드
         const employeeDoc = await getDoc(doc(db, 'employees', employeeId));
@@ -71,11 +98,11 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
           ...employeeDoc.data()
         } as Employee);
 
-        // 급여 데이터 로드 - 해당 직원의 해당 월 데이터만 조회
+        // 급여 데이터 로드 - 토큰에서 추출한 월로만 조회
         const payrollQuery = query(
           collection(db, 'confirmedPayrolls'),
           where('employeeId', '==', employeeId),
-          where('month', '==', requestedMonth)
+          where('month', '==', month)
         );
         const payrollSnapshot = await getDocs(payrollQuery);
         
@@ -86,9 +113,8 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
 
         const payrollData = payrollSnapshot.docs[0].data();
         
-        // 🔒 보안: URL의 month와 실제 데이터의 month가 일치하는지 검증
-        const actualMonth = normalizeMonth(payrollData.month);
-        if (actualMonth !== requestedMonth) {
+        // 🔒 보안: 토큰의 month와 실제 데이터의 month가 일치하는지 검증
+        if (payrollData.month !== month) {
           setError('요청한 월의 급여 데이터를 찾을 수 없습니다.');
           return;
         }
@@ -112,6 +138,29 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
           totalDeductions,
           totalNetPay
         } as ConfirmedPayroll);
+
+        // 근무시간 비교 데이터 로드
+        const comparisonsQuery = query(
+          collection(db, 'workTimeComparisonResults'),
+          where('employeeId', '==', employeeId),
+          where('month', '==', month)
+        );
+        const comparisonsSnapshot = await getDocs(comparisonsQuery);
+        
+        const comparisonsData = comparisonsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as WorkTimeComparisonResult[];
+        
+        setWorkTimeComparisons(comparisonsData);
+
+        // 지점 목록 로드
+        const branchesSnapshot = await getDocs(collection(db, 'branches'));
+        const branchesData = branchesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name || ''
+        }));
+        setBranches(branchesData);
       } catch (err) {
         console.error('데이터 로드 실패:', err);
         setError('데이터를 불러오는 중 오류가 발생했습니다.');
@@ -121,7 +170,7 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
     };
 
     loadData();
-  }, [resolvedParams.employeeId, resolvedParams.month]);
+  }, [resolvedParams.employeeId, searchParams]);
 
   // PDF 다운로드
   const handleDownloadPDF = async () => {
@@ -262,36 +311,47 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
           </table>
 
           {/* 지점별 상세 - 근무시간만 표시 */}
-          {Array.isArray(payroll.calculations) && payroll.calculations.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-md font-semibold text-gray-900 mb-2">지점별 상세</h4>
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <div className="text-blue-900 font-semibold mb-2">실 근무시간</div>
-                <div className="text-2xl font-bold text-blue-900 mb-4">
-                  {(() => {
-                    const totalHours = payroll.calculations.reduce((sum, calc: any) => {
-                      const workHours = calc.actualWorkHours ?? calc.totalWorkHours ?? 0;
-                      return sum + (typeof workHours === 'number' ? workHours : 0);
-                    }, 0);
-                    return totalHours.toFixed(1);
-                  })()}h
-                </div>
-                <div className="space-y-1">
-                  {payroll.calculations.map((calc: any, idx) => {
-                    const branchName = calc.branchName || (calc.branches && calc.branches[0]?.branchName) || '-';
-                    const workHours = calc.actualWorkHours ?? calc.totalWorkHours ?? 0;
-                    const hoursValue = typeof workHours === 'number' ? workHours.toFixed(1) : workHours;
-                    return (
+          {workTimeComparisons.length > 0 && (() => {
+            // 지점별로 근무시간 합산
+            const branchHoursMap = new Map<string, number>();
+            
+            workTimeComparisons.forEach((comparison) => {
+              let branchName = comparison.branchName;
+              if (!branchName && comparison.branchId) {
+                const branch = branches.find(b => b.id === comparison.branchId);
+                branchName = branch?.name || '-';
+              } else if (!branchName) {
+                branchName = '-';
+              }
+              
+              const workHours = comparison.actualWorkHours || 0;
+              const currentHours = branchHoursMap.get(branchName) || 0;
+              branchHoursMap.set(branchName, currentHours + workHours);
+            });
+            
+            // 총합 계산
+            const totalHours = Array.from(branchHoursMap.values()).reduce((sum, hours) => sum + hours, 0);
+            
+            return (
+              <div className="mb-6">
+                <h4 className="text-md font-semibold text-gray-900 mb-2">지점별 상세</h4>
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div className="text-blue-900 font-semibold mb-2">실 근무시간</div>
+                  <div className="text-2xl font-bold text-blue-900 mb-4">
+                    {totalHours.toFixed(1)}h
+                  </div>
+                  <div className="space-y-1">
+                    {Array.from(branchHoursMap.entries()).map(([branchName, hours], idx) => (
                       <div key={idx} className="flex justify-between text-blue-900">
                         <span>{branchName}:</span>
-                        <span className="font-medium">{hoursValue}h</span>
+                        <span className="font-medium">{hours.toFixed(1)}h</span>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 지급/공제 항목 - 2단 레이아웃 */}
           {(() => {
@@ -339,8 +399,8 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
                           earningItems.map((item, idx) => (
                             <React.Fragment key={idx}>
                               <tr>
-                                <td className="border border-gray-400 p-2">{item.label}</td>
-                                <td className="border border-gray-400 p-2 text-right">{item.amount.toLocaleString()}원</td>
+                                <td className="border border-gray-400 p-2 text-gray-900">{item.label}</td>
+                                <td className="border border-gray-400 p-2 text-right text-gray-900">{item.amount.toLocaleString()}원</td>
                               </tr>
                               {item.note && (
                                 <tr>
@@ -357,7 +417,7 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
                           </tr>
                         )}
                         <tr className="bg-gray-50 font-bold">
-                          <td className="border border-gray-400 p-2">합계</td>
+                          <td className="border border-gray-400 p-2 text-gray-900">합계</td>
                           <td className="border border-gray-400 p-2 text-right text-blue-600">{totalEarnings.toLocaleString()}원</td>
                         </tr>
                       </tbody>
@@ -379,8 +439,8 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
                           deductionItems.map((item, idx) => (
                             <React.Fragment key={idx}>
                               <tr>
-                                <td className="border border-gray-400 p-2">{item.label}</td>
-                                <td className="border border-gray-400 p-2 text-right text-red-600">-{item.amount.toLocaleString()}원</td>
+                                <td className="border border-gray-400 p-2 text-gray-900">{item.label}</td>
+                                <td className="border border-gray-400 p-2 text-right text-gray-900">-{item.amount.toLocaleString()}원</td>
                               </tr>
                               {item.note && (
                                 <tr>
@@ -397,8 +457,8 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
                           </tr>
                         )}
                         <tr className="bg-gray-50 font-bold">
-                          <td className="border border-gray-400 p-2">합계</td>
-                          <td className="border border-gray-400 p-2 text-right text-red-600">-{totalDeductions.toLocaleString()}원</td>
+                          <td className="border border-gray-400 p-2 text-gray-900">합계</td>
+                          <td className="border border-gray-400 p-2 text-right text-gray-900">-{totalDeductions.toLocaleString()}원</td>
                         </tr>
                       </tbody>
                     </table>
@@ -506,6 +566,164 @@ export default function PublicPayrollPage({ params }: PublicPayrollPageProps) {
             </p>
           </div>
         </div>
+
+        {/* 근무내역 */}
+        {workTimeComparisons.length > 0 && (() => {
+          // 지점별로 그룹화
+          const branchGroups = workTimeComparisons.reduce((groups: {[key: string]: WorkTimeComparisonResult[]}, comparison) => {
+            let branchName = comparison.branchName;
+            if (!branchName && comparison.branchId) {
+              const branch = branches.find(b => b.id === comparison.branchId);
+              branchName = branch?.name || '-';
+            } else if (!branchName) {
+              branchName = '-';
+            }
+            
+            if (!groups[branchName]) {
+              groups[branchName] = [];
+            }
+            groups[branchName].push(comparison);
+            return groups;
+          }, {});
+
+          // 시간을 HH:MM 형식으로 변환
+          const formatTime = (hours: number) => {
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+          };
+
+          // 날짜를 YY.MM.DD(요일) 형식으로 변환
+          const formatDate = (dateStr: string) => {
+            const date = new Date(dateStr);
+            const year = date.getFullYear().toString().slice(-2);
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+            const dayOfWeek = dayNames[date.getDay()];
+            return `${year}.${month}.${day}(${dayOfWeek})`;
+          };
+
+          // 전체 실근무 합계 계산
+          const overallTotalActual = workTimeComparisons.reduce((sum, r) => sum + (Number(r.actualWorkHours) || 0), 0);
+
+          return (
+            <div className="mt-6 bg-white shadow rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">근무내역</h3>
+              <div className="border border-gray-300 p-6 bg-white">
+                <div className="text-center mb-6">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">근무내역</h1>
+                  <p className="text-gray-600">{employee.name} - {payroll.month}</p>
+                </div>
+
+                {/* 직원 정보 테이블 */}
+                <table className="w-full border-collapse border border-gray-400 mb-6">
+                  <tbody>
+                    <tr>
+                      <td className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4">직원명</td>
+                      <td className="border border-gray-400 p-2 w-1/4">{employee.name}</td>
+                      <td className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4">주민번호</td>
+                      <td className="border border-gray-400 p-2 w-1/4">{employee.residentNumber || '-'}</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">근무기간</td>
+                      <td className="border border-gray-400 p-2">{payroll.month}</td>
+                      <td className="border border-gray-400 p-2 bg-gray-100 font-semibold">총 실근무시간</td>
+                      <td className="border border-gray-400 p-2 font-bold text-blue-600">
+                        {formatTime(overallTotalActual || 0)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* 지점별 근무내역 */}
+                {Object.entries(branchGroups).map(([branchName, comparisons]) => {
+                  const rows = comparisons.map((item) => {
+                    const parseRange = (range: any) => {
+                      if (!range || typeof range !== 'string' || !range.includes('-')) return { start: '-', end: '-' };
+                      const [s, e] = range.split('-');
+                      return { start: s || '-', end: e || '-' };
+                    };
+                    const pos = parseRange(item.posTimeRange);
+                    const actual = parseRange(item.actualTimeRange);
+                    const actualHours = item.actualWorkHours ?? 0;
+                    const breakTime = item.actualBreakTime ?? 0;
+                    return {
+                      date: item.date,
+                      posStartTime: pos.start,
+                      posEndTime: pos.end,
+                      actualStartTime: actual.start,
+                      actualEndTime: actual.end,
+                      actualBreakTime: breakTime,
+                      actualWorkHours: actualHours
+                    };
+                  });
+                  
+                  rows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                  
+                  const branchTotalHours = rows.reduce((sum, r) => sum + (Number(r.actualWorkHours) || 0), 0);
+                  
+                  return (
+                    <div key={branchName} className="mb-8">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">{branchName}</h3>
+                      
+                      <table className="w-full border-collapse border border-gray-400 mb-4">
+                        <thead>
+                          <tr>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" rowSpan={2}>날짜</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" colSpan={2}>POS</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" colSpan={2}>실근무</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" rowSpan={2}>휴게시간</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold" rowSpan={2}>근무시간</th>
+                          </tr>
+                          <tr>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">출근</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">퇴근</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">출근</th>
+                            <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">퇴근</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.filter(result => (Number(result.actualWorkHours) || 0) > 0).map((result, index) => (
+                            <tr key={index}>
+                              <td className="border border-gray-400 p-2 text-center">{formatDate(result.date)}</td>
+                              <td className="border border-gray-400 p-2 text-center">{result.posStartTime || '-'}</td>
+                              <td className="border border-gray-400 p-2 text-center">{result.posEndTime || '-'}</td>
+                              <td className="border border-gray-400 p-2 text-center">{result.actualStartTime || '-'}</td>
+                              <td className="border border-gray-400 p-2 text-center">{result.actualEndTime || '-'}</td>
+                              <td className="border border-gray-400 p-2 text-center">
+                                {formatTime(result.actualBreakTime || 0)}
+                              </td>
+                              <td className="border border-gray-400 p-2 text-center font-semibold">
+                                {formatTime(result.actualWorkHours || 0)}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="bg-gray-50 font-bold">
+                            <td className="border border-gray-400 p-2 text-center" colSpan={6}>합계</td>
+                            <td className="border border-gray-400 p-2 text-center text-blue-600">
+                              {formatTime(rows.filter(r => (Number(r.actualWorkHours) || 0) > 0).reduce((sum, r) => sum + (Number(r.actualWorkHours) || 0), 0))}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+
+                {/* 총합계 */}
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-300">
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-gray-900 mb-2">총합계</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {formatTime(overallTotalActual || 0)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

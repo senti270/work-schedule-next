@@ -607,8 +607,11 @@ const PayrollStatement: React.FC = () => {
     }
 
     try {
-      // 공유 링크 생성
-      const shareUrl = `${window.location.origin}/public/payroll/${selectedEmployeeInfo.id}/${selectedMonth}`;
+      // 토큰 생성 (월 정보를 base64로 인코딩)
+      const token = btoa(JSON.stringify({ month: selectedMonth }));
+      
+      // 공유 링크 생성 (URL에 월 정보 없이 토큰만 포함)
+      const shareUrl = `${window.location.origin}/public/payroll/${selectedEmployeeInfo.id}?t=${token}`;
       
       // Web Share API 지원 확인
       if (navigator.share) {
