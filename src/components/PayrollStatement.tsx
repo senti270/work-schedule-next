@@ -1058,7 +1058,7 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 </tbody>
               </table>
 
-              {/* 지점별 확정 계산 내역 (confirmedPayrolls.calculations 그대로 뷰) */}
+              {/* 지점별 상세 - 근무시간만 표시 */}
               {Array.isArray(selectedPayroll?.calculations) && selectedPayroll!.calculations.length > 0 && (
                 <div className="mb-6">
                   <h4 className="text-md font-semibold text-gray-900 mb-2">지점별 상세</h4>
@@ -1067,31 +1067,16 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                       <tr>
                         <th className="border border-gray-300 p-2 bg-gray-100">지점</th>
                         <th className="border border-gray-300 p-2 bg-gray-100">근무시간</th>
-                        <th className="border border-gray-300 p-2 bg-gray-100">수습급여</th>
-                        <th className="border border-gray-300 p-2 bg-gray-100">정규급여</th>
-                        <th className="border border-gray-300 p-2 bg-gray-100">주휴수당</th>
-                        <th className="border border-gray-300 p-2 bg-gray-100">지급액</th>
-                        <th className="border border-gray-300 p-2 bg-gray-100">공제액</th>
-                        <th className="border border-gray-300 p-2 bg-gray-100">실지급액</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedPayroll!.calculations.map((calc, idx) => {
                         const branchName = (calc as any).branchName || ((calc as any).branches && (calc as any).branches[0]?.branchName) || '-';
                         const workHours = (calc as any).actualWorkHours ?? (calc as any).totalWorkHours ?? 0;
-                        const gross = (calc as any).grossPay ?? 0;
-                        const ded = ((calc as any).deductions && (((calc as any).deductions as any).total ?? 0)) || 0;
-                        const net = (calc as any).netPay ?? (gross - ded);
                         return (
                           <tr key={idx}>
                             <td className="border border-gray-300 p-2 text-center">{branchName}</td>
                             <td className="border border-gray-300 p-2 text-right">{(workHours as number).toFixed ? (workHours as number).toFixed(2) : workHours}h</td>
-                            <td className="border border-gray-300 p-2 text-right">{(calc as any).probationPay ?? 0}원</td>
-                            <td className="border border-gray-300 p-2 text-right">{(calc as any).regularPay ?? 0}원</td>
-                            <td className="border border-gray-300 p-2 text-right">{(calc as any).weeklyHolidayPay ?? 0}원</td>
-                            <td className="border border-gray-300 p-2 text-right">{(gross as number).toLocaleString()}원</td>
-                            <td className="border border-gray-300 p-2 text-right text-red-600">-{(ded as number).toLocaleString()}원</td>
-                            <td className="border border-gray-300 p-2 text-right font-semibold text-blue-600">{(net as number).toLocaleString()}원</td>
                           </tr>
                         );
                       })}
@@ -1100,9 +1085,120 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 </div>
               )}
 
+              {/* 지급/공제 항목 - 2단 레이아웃 */}
+              {(() => {
+                // 모든 calculations에서 lineItems 수집
+                const allLineItems: Array<{type: 'earning' | 'deduction', label: string, amount: number, note: string}> = [];
+                if (Array.isArray(selectedPayroll?.calculations)) {
+                  selectedPayroll!.calculations.forEach((calc: any) => {
+                    if (Array.isArray(calc.lineItems)) {
+                      calc.lineItems.forEach((item: any) => {
+                        // 같은 label의 항목이 이미 있으면 금액 합산
+                        const existingIndex = allLineItems.findIndex(li => li.label === item.label && li.type === item.type);
+                        if (existingIndex >= 0) {
+                          allLineItems[existingIndex].amount += (item.amount || 0);
+                        } else {
+                          allLineItems.push({
+                            type: item.type || 'earning',
+                            label: item.label || '',
+                            amount: item.amount || 0,
+                            note: item.note || ''
+                          });
+                        }
+                      });
+                    }
+                  });
+                }
+                
+                const earningItems = allLineItems.filter(item => item.type === 'earning');
+                const deductionItems = allLineItems.filter(item => item.type === 'deduction');
+                const totalEarnings = earningItems.reduce((sum, item) => sum + item.amount, 0);
+                const totalDeductions = deductionItems.reduce((sum, item) => sum + item.amount, 0);
+                
+                return (
+                  <div className="mb-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* 좌측: 지급항목 */}
+                      <div>
+                        <h4 className="text-md font-semibold text-gray-900 mb-2">지급항목</h4>
+                        <table className="w-full border-collapse border border-gray-400">
+                          <thead>
+                            <tr>
+                              <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">항목</th>
+                              <th className="border border-gray-400 p-2 bg-gray-100 font-semibold text-right">금액</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {earningItems.length > 0 ? (
+                              earningItems.map((item, idx) => (
+                                <tr key={idx}>
+                                  <td className="border border-gray-400 p-2">{item.label}</td>
+                                  <td className="border border-gray-400 p-2 text-right">{item.amount.toLocaleString()}원</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={2} className="border border-gray-400 p-2 text-center text-gray-500">지급항목 없음</td>
+                              </tr>
+                            )}
+                            <tr className="bg-gray-50 font-bold">
+                              <td className="border border-gray-400 p-2">합계</td>
+                              <td className="border border-gray-400 p-2 text-right text-blue-600">{totalEarnings.toLocaleString()}원</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      {/* 우측: 공제항목 */}
+                      <div>
+                        <h4 className="text-md font-semibold text-gray-900 mb-2">공제항목</h4>
+                        <table className="w-full border-collapse border border-gray-400">
+                          <thead>
+                            <tr>
+                              <th className="border border-gray-400 p-2 bg-gray-100 font-semibold">항목</th>
+                              <th className="border border-gray-400 p-2 bg-gray-100 font-semibold text-right">금액</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {deductionItems.length > 0 ? (
+                              deductionItems.map((item, idx) => (
+                                <tr key={idx}>
+                                  <td className="border border-gray-400 p-2">{item.label}</td>
+                                  <td className="border border-gray-400 p-2 text-right text-red-600">-{item.amount.toLocaleString()}원</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={2} className="border border-gray-400 p-2 text-center text-gray-500">공제항목 없음</td>
+                              </tr>
+                            )}
+                            <tr className="bg-gray-50 font-bold">
+                              <td className="border border-gray-400 p-2">합계</td>
+                              <td className="border border-gray-400 p-2 text-right text-red-600">-{totalDeductions.toLocaleString()}원</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    
+                    {/* 실수령액 */}
+                    <div className="mt-4">
+                      <table className="w-full border-collapse border border-gray-400">
+                        <tbody>
+                          <tr className="bg-blue-50 font-bold">
+                            <td className="border border-gray-400 p-2 w-1/2">실수령액</td>
+                            <td className="border border-gray-400 p-2 text-right text-blue-600">{(totalEarnings - totalDeductions).toLocaleString()}원</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* 기타사항: 주휴수당 계산식, 수습 계산식 */}
               {Array.isArray(selectedPayroll?.calculations) && (
-                <div className="mt-4">
+                <div className="mt-4 mb-6">
                   <h4 className="text-md font-semibold text-gray-900 mb-2">기타사항</h4>
                   <div className="text-sm text-gray-700 space-y-2">
                     {selectedPayroll.calculations.map((calc, idx) => {
@@ -1164,69 +1260,6 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                   </div>
                 </div>
               )}
-
-              <table className="w-full border-collapse border border-gray-400 mb-6">
-                <thead>
-                  <tr>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/2">항목</th>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4 text-right">금액</th>
-                    <th className="border border-gray-400 p-2 bg-gray-100 font-semibold w-1/4 text-right">비고</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border border-gray-400 p-2">기본급</td>
-                    <td className="border border-gray-400 p-2 text-right">{(selectedPayroll?.totalGrossPay || 0).toLocaleString()}원</td>
-                    <td className="border border-gray-400 p-2 text-right">-</td>
-                  </tr>
-                  {employmentType === '근로소득' && (
-                    <>
-                      <tr>
-                        <td className="border border-gray-400 p-2">국민연금</td>
-                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.045).toLocaleString()}원</td>
-                        <td className="border border-gray-400 p-2 text-right">-</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-400 p-2">건강보험</td>
-                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.03545).toLocaleString()}원</td>
-                        <td className="border border-gray-400 p-2 text-right">-</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-400 p-2">장기요양보험</td>
-                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round(Math.round((selectedPayroll?.totalGrossPay || 0) * 0.03545) * 0.1295).toLocaleString()}원</td>
-                        <td className="border border-gray-400 p-2 text-right">-</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-400 p-2">고용보험</td>
-                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.009).toLocaleString()}원</td>
-                        <td className="border border-gray-400 p-2 text-right">-</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-400 p-2">소득세</td>
-                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.03).toLocaleString()}원</td>
-                        <td className="border border-gray-400 p-2 text-right">-</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-400 p-2">지방소득세</td>
-                        <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.003).toLocaleString()}원</td>
-                        <td className="border border-gray-400 p-2 text-right">-</td>
-                      </tr>
-                    </>
-                  )}
-                  {(employmentType === '사업소득' || employmentType === '외국인') && (
-                    <tr>
-                      <td className="border border-gray-400 p-2">원천징수(사업소득 3.3%)</td>
-                      <td className="border border-gray-400 p-2 text-right text-red-600">-{Math.round((selectedPayroll?.totalGrossPay || 0) * 0.033).toLocaleString()}원</td>
-                      <td className="border border-gray-400 p-2 text-right">-</td>
-                    </tr>
-                  )}
-                  <tr className="bg-gray-50 font-bold">
-                    <td className="border border-gray-400 p-2">실지급액</td>
-                    <td className="border border-gray-400 p-2 text-right text-blue-600">{(selectedPayroll?.totalNetPay || 0).toLocaleString()}원</td>
-                    <td className="border border-gray-400 p-2 text-right">-</td>
-                  </tr>
-                </tbody>
-              </table>
 
               <div className="mt-8">
                 <div className="border border-gray-400 p-4">
