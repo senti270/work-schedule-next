@@ -554,7 +554,20 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
         const calculations = payrollData.calculations || [];
         console.log('🔥 calculations 배열:', calculations);
         console.log('🔥 calculations 길이:', calculations.length);
-        return preparePayrollResults(calculations as PayrollResult[]);
+        
+        // 🔥 lineItems 확인
+        if (calculations.length > 0) {
+          console.log('🔥 첫 번째 calculation의 lineItems:', (calculations[0] as any).lineItems);
+          console.log('🔥 첫 번째 calculation의 lineItems 길이:', (calculations[0] as any).lineItems?.length || 0);
+        }
+        
+        const results = preparePayrollResults(calculations as PayrollResult[]);
+        console.log('🔥 preparePayrollResults 결과:', results);
+        if (results.length > 0) {
+          console.log('🔥 첫 번째 result의 lineItems:', results[0].lineItems);
+          console.log('🔥 첫 번째 result의 lineItems 길이:', results[0].lineItems?.length || 0);
+        }
+        return results;
       }
 
       return null;
@@ -578,9 +591,41 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       return;
     }
     
-    // 🔥 급여가 확정된 경우 재계산하지 않고 기존 데이터 사용
+    // 🔥 급여 확정 여부를 먼저 확인 (상태에 의존하지 않고 직접 확인)
+    try {
+      const payrollQuery = query(
+        collection(db, 'confirmedPayrolls'),
+        where('employeeId', '==', selectedEmployeeId),
+        where('month', '==', selectedMonth)
+      );
+      const payrollSnapshot = await getDocs(payrollQuery);
+      const hasConfirmedData = payrollSnapshot.docs.length > 0;
+      
+      if (hasConfirmedData) {
+        console.log('🔥 급여 확정됨 - 재계산 방지, 기존 데이터 사용');
+        const existingPayroll = await loadExistingPayroll();
+        console.log('🔥 기존 급여 데이터:', existingPayroll);
+        if (existingPayroll && existingPayroll.length > 0) {
+          setPayrollResults(existingPayroll);
+          console.log('🔥 기존 급여 데이터 설정 완료:', existingPayroll.length, '건');
+          // 상태도 업데이트
+          setIsPayrollConfirmed(true);
+          return;
+        } else {
+          console.log('🔥 기존 급여 데이터가 없거나 비어있음, 새로 계산 진행');
+        }
+      } else {
+        // 급여 확정 데이터가 없으면 상태도 false로 설정
+        setIsPayrollConfirmed(false);
+      }
+    } catch (error) {
+      console.error('급여 확정 상태 확인 실패:', error);
+      // 에러 발생 시에도 기존 로직대로 진행
+    }
+    
+    // 🔥 급여가 확정된 경우 재계산하지 않고 기존 데이터 사용 (상태 기반 체크 - 백업)
     if (isPayrollConfirmed) {
-      console.log('🔥 급여 확정됨 - 재계산 방지, 기존 데이터 사용');
+      console.log('🔥 급여 확정됨 (상태 기반) - 재계산 방지, 기존 데이터 사용');
       const existingPayroll = await loadExistingPayroll();
       console.log('🔥 기존 급여 데이터:', existingPayroll);
       if (existingPayroll && existingPayroll.length > 0) {
@@ -1141,6 +1186,14 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
       const primaryBranchName: string | undefined = empDoc?.primaryBranchName || '';
 
       // calculations 배열에서 undefined 값 제거 및 정리
+      // 🔥 화면에 보이는 payrollResults를 그대로 저장 (lineItems 포함)
+      console.log('🔥 급여 확정 - 저장할 데이터:', normalizedResults);
+      console.log('🔥 lineItems 확인:', normalizedResults.map((r: any) => ({
+        employeeName: r.employeeName,
+        lineItemsCount: r.lineItems?.length || 0,
+        lineItems: r.lineItems
+      })));
+      
       const cleanedCalculations = normalizedResults.map((result: any) => {
         const cleaned: any = {};
         Object.keys(result).forEach(key => {
@@ -1156,12 +1209,18 @@ const PayrollCalculation: React.FC<PayrollCalculationProps> = ({
               });
               cleaned[key] = cleanedObj;
             } else {
+              // 배열(lineItems 포함)이나 Date는 그대로 복사
               cleaned[key] = value;
             }
           }
         });
         return cleaned;
       });
+      
+      console.log('🔥 정리된 calculations:', cleanedCalculations.map((c: any) => ({
+        employeeName: c.employeeName,
+        lineItemsCount: c.lineItems?.length || 0
+      })));
 
       // undefined 값 제거를 위한 필터링
       const confirmedPayrollData: any = {
