@@ -607,19 +607,26 @@ const PayrollStatement: React.FC = () => {
     }
 
     try {
-      // 공유용 데이터 생성
-      const shareData = {
-        employeeName: selectedEmployeeInfo.name,
-        month: selectedMonth,
-        grossPay: selectedPayroll?.totalGrossPay || 0,
-        deductions: selectedPayroll?.totalDeductions || 0,
-        netPay: selectedPayroll?.totalNetPay || 0,
-        branchName: selectedPayroll?.calculations?.[0]?.branchName || '-',
-        confirmedAt: selectedPayroll?.confirmedAt
-      };
-
-      // 공유 링크 생성 (실제로는 서버에서 처리해야 함)
-      const shareUrl = `${window.location.origin}/payroll-share/${btoa(JSON.stringify(shareData))}`;
+      // 공유 링크 생성
+      const shareUrl = `${window.location.origin}/public/payroll/${selectedEmployeeInfo.id}/${selectedMonth}`;
+      
+      // Web Share API 지원 확인
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `${selectedEmployeeInfo.name}님의 ${selectedMonth} 급여명세서`,
+            text: `${selectedEmployeeInfo.name}님의 ${selectedMonth} 급여명세서를 확인하세요.`,
+            url: shareUrl
+          });
+          return;
+        } catch (error) {
+          if (error instanceof Error && error.name !== 'AbortError') {
+            console.log('Web Share API 실패, 클립보드 복사로 대체');
+          } else {
+            return;
+          }
+        }
+      }
       
       // 클립보드에 복사
       await navigator.clipboard.writeText(shareUrl);
@@ -1011,6 +1018,12 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                 >
                   📄 PDF 다운로드
                 </button>
+                <button
+                  onClick={handleShareLink}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  🔗 공유 링크
+                </button>
                 <div className="relative">
                   <button
                     onClick={handleEmailShare}
@@ -1062,26 +1075,31 @@ ${selectedMonth} 급여명세서를 전달드립니다.
               {Array.isArray(selectedPayroll?.calculations) && selectedPayroll!.calculations.length > 0 && (
                 <div className="mb-6">
                   <h4 className="text-md font-semibold text-gray-900 mb-2">지점별 상세</h4>
-                  <table className="w-full border-collapse border border-gray-400">
-                    <thead>
-                      <tr>
-                        <th className="border border-gray-300 p-2 bg-gray-100">지점</th>
-                        <th className="border border-gray-300 p-2 bg-gray-100">근무시간</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <div className="text-blue-900 font-semibold mb-2">실 근무시간</div>
+                    <div className="text-2xl font-bold text-blue-900 mb-4">
+                      {(() => {
+                        const totalHours = selectedPayroll!.calculations.reduce((sum, calc) => {
+                          const workHours = (calc as any).actualWorkHours ?? (calc as any).totalWorkHours ?? 0;
+                          return sum + (typeof workHours === 'number' ? workHours : 0);
+                        }, 0);
+                        return totalHours.toFixed(1);
+                      })()}h
+                    </div>
+                    <div className="space-y-1">
                       {selectedPayroll!.calculations.map((calc, idx) => {
                         const branchName = (calc as any).branchName || ((calc as any).branches && (calc as any).branches[0]?.branchName) || '-';
                         const workHours = (calc as any).actualWorkHours ?? (calc as any).totalWorkHours ?? 0;
+                        const hoursValue = typeof workHours === 'number' ? workHours.toFixed(1) : workHours;
                         return (
-                          <tr key={idx}>
-                            <td className="border border-gray-300 p-2 text-center">{branchName}</td>
-                            <td className="border border-gray-300 p-2 text-right">{(workHours as number).toFixed ? (workHours as number).toFixed(2) : workHours}h</td>
-                          </tr>
+                          <div key={idx} className="flex justify-between text-blue-900">
+                            <span>{branchName}:</span>
+                            <span className="font-medium">{hoursValue}h</span>
+                          </div>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1131,10 +1149,19 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                           <tbody>
                             {earningItems.length > 0 ? (
                               earningItems.map((item, idx) => (
-                                <tr key={idx}>
-                                  <td className="border border-gray-400 p-2">{item.label}</td>
-                                  <td className="border border-gray-400 p-2 text-right">{item.amount.toLocaleString()}원</td>
-                                </tr>
+                                <React.Fragment key={idx}>
+                                  <tr>
+                                    <td className="border border-gray-400 p-2">{item.label}</td>
+                                    <td className="border border-gray-400 p-2 text-right">{item.amount.toLocaleString()}원</td>
+                                  </tr>
+                                  {item.note && (
+                                    <tr>
+                                      <td colSpan={2} className="border border-gray-400 p-1 pl-4">
+                                        <div className="text-xs text-gray-500 whitespace-pre-line">{item.note}</div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
                               ))
                             ) : (
                               <tr>
@@ -1162,10 +1189,19 @@ ${selectedMonth} 급여명세서를 전달드립니다.
                           <tbody>
                             {deductionItems.length > 0 ? (
                               deductionItems.map((item, idx) => (
-                                <tr key={idx}>
-                                  <td className="border border-gray-400 p-2">{item.label}</td>
-                                  <td className="border border-gray-400 p-2 text-right text-red-600">-{item.amount.toLocaleString()}원</td>
-                                </tr>
+                                <React.Fragment key={idx}>
+                                  <tr>
+                                    <td className="border border-gray-400 p-2">{item.label}</td>
+                                    <td className="border border-gray-400 p-2 text-right text-red-600">-{item.amount.toLocaleString()}원</td>
+                                  </tr>
+                                  {item.note && (
+                                    <tr>
+                                      <td colSpan={2} className="border border-gray-400 p-1 pl-4">
+                                        <div className="text-xs text-gray-500 whitespace-pre-line">{item.note}</div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
                               ))
                             ) : (
                               <tr>
