@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "destination": "https://cdcdcd.kr/work-schedule/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/",
+      "destination": "https://cdcdcd.kr/work-schedule",
+      "permanent": true
+    }
+  ]
+}
+
